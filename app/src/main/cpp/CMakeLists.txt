@@ -11,6 +11,8 @@ add_library(stress SHARED
     cpu/kernels_mem.S
     sense/sysfs_reader.cpp
     gpu/gpu_load.cpp
+    gpu/scene_renderer.cpp
+    gpu/vk.cpp
 )
 
 # Shaders: compiled by the NDK's glslc and embedded as uint32_t arrays, so the
@@ -23,6 +25,9 @@ endif()
 set(SHADER_OUT "${CMAKE_CURRENT_BINARY_DIR}/shaders")
 file(MAKE_DIRECTORY "${SHADER_OUT}")
 
+# Every shader is rebuilt when a shared include changes.
+file(GLOB SHADER_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/*.glsl")
+
 function(add_shader source name symbol)
     set(spv "${SHADER_OUT}/${name}.spv")
     set(header "${SHADER_OUT}/${name}.h")
@@ -31,7 +36,7 @@ function(add_shader source name symbol)
         COMMAND "${GLSLC}" --target-env=vulkan1.2 -O -Werror ${ARGN} "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" -o "${spv}"
         COMMAND "${CMAKE_COMMAND}" -DINPUT=${spv} -DOUTPUT=${header} -DSYMBOL=${symbol}
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_spirv.cmake"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/reactor.glsl"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" ${SHADER_INCLUDES}
                 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_spirv.cmake"
         VERBATIM)
     target_sources(stress PRIVATE "${header}")
@@ -44,8 +49,11 @@ add_shader(bandwidth.comp bandwidth_comp kBandwidthCompSpirv)
 add_shader(fullscreen.vert fullscreen_vert kFullscreenVertSpirv)
 add_shader(blend.frag blend_frag kBlendFragSpirv)
 add_shader(preview.frag preview_frag kPreviewFragSpirv)
-add_shader(scene.frag scene_frag kSceneFragSpirv)
-add_shader(composite.frag composite_frag kCompositeFragSpirv)
+add_shader(pool_scene.frag pool_scene_frag kPoolSceneFragSpirv)
+add_shader(taa.frag taa_frag kTaaFragSpirv)
+add_shader(bloom_down.frag bloom_down_frag kBloomDownFragSpirv)
+add_shader(bloom_up.frag bloom_up_frag kBloomUpFragSpirv)
+add_shader(final.frag final_frag kFinalFragSpirv)
 
 target_compile_features(stress PRIVATE cxx_std_20)
 target_include_directories(stress PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})

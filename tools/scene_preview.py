@@ -4,7 +4,7 @@ The scenes (app/src/main/cpp/gpu/shaders/*.glsl) are plain GLSL shared with
 the phone's renderer; this wraps them for desktop OpenGL so they can be looked
 at, frame by frame, without a phone:
 
-    python tools/scene_preview.py [--scene pool|reactor] [--times 0,4,8]
+    python tools/scene_preview.py [--scene pool] [--times 0,4,8]
                                   [--width 632] [--height 1368] [--frames 16]
 
 `pool` is written for temporal accumulation, so each image averages
@@ -41,7 +41,6 @@ out vec4 fragColor;
 """
 
 TAILS = {
-    "reactor": "void main() { fragColor = vec4(reactorScene(gl_FragCoord.xy, resolution, time), 1.0); }",
     "pool": "void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0); }",
 }
 
@@ -116,7 +115,7 @@ def main():
     program["resolution"].value = (args.width, args.height)
     OUT.mkdir(parents=True, exist_ok=True)
 
-    frames = args.frames if args.scene == "pool" else 1
+    frames = args.frames
     for t in [float(x) for x in args.times.split(",")]:
         program["time"].value = t
         total = np.zeros((args.height, args.width, 3), dtype=np.float64)
@@ -137,7 +136,7 @@ def main():
             # A NaN would smear across the bloom; count it, then blank it.
             print(f"  WARNING: {broken} non-finite pixels")
             hdr = np.nan_to_num(hdr, nan=0.0, posinf=0.0, neginf=0.0)
-        image = finish(hdr, int(t * 100)) if args.scene == "pool" else (np.clip(hdr, 0, 1) * 255).astype(np.uint8)
+        image = finish(hdr, int(t * 100))
         path = OUT / f"{args.scene}_t{t:05.1f}.png"
         Image.fromarray(image).save(path)
         print(f"{path.name}  {ms:.1f} ms/frame (with readback)")
