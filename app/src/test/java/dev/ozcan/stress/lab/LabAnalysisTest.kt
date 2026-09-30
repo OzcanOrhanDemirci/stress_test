@@ -3,6 +3,8 @@ package dev.ozcan.stress.lab
 import dev.ozcan.stress.TestSamples
 import dev.ozcan.stress.TestSamples.sample
 import dev.ozcan.stress.engine.CoreAssignment
+import dev.ozcan.stress.engine.GpuPart
+import dev.ozcan.stress.engine.Workload
 import dev.ozcan.stress.telemetry.GpuBusy
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.ThermalGroup
@@ -13,7 +15,7 @@ import org.junit.Test
 
 class LabAnalysisTest {
 
-    private val workload = LabLoad(CoreAssignment.uniform(TestSamples.gemm), GpuPart(TestSamples.gpuFp32))
+    private val workload = Workload(CoreAssignment.uniform(TestSamples.gemm), GpuPart(TestSamples.gpuFp32))
 
     private val spec = LabSpec(
         loads = listOf(workload),

@@ -12,7 +12,7 @@ class StatsTest {
     @Test
     fun `max window mean finds the best stretch`() {
         val points = series(1.0, 1.0, 5.0, 5.0, 5.0, 1.0, 1.0)
-        // A 2.1 s window holds three points 2 s apart (>= 90% of 2.1 s); the three 5s win.
+        // A 2.1 s window holds three points 2 s apart (95% of it); the three 5s win.
         assertEquals(5.0, Stats.maxWindowMean(points, 2.1)!!, 1e-12)
     }
 
@@ -22,8 +22,8 @@ class StatsTest {
         // Only the window starting at 0 spans enough time; the tail windows would let the 9 win alone.
         assertEquals(11.0 / 3, Stats.maxWindowMean(points, 2.1)!!, 1e-12)
         assertNull(Stats.maxWindowMean(series(1.0), 2.1))
-        // Three points 2 s apart are not 90% of a 2.5 s window.
-        assertNull(Stats.maxWindowMean(points, 2.5))
+        // Three points 2 s apart are not three quarters of a 3 s window.
+        assertNull(Stats.maxWindowMean(points, 3.0))
     }
 
     @Test

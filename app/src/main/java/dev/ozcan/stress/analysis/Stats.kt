@@ -12,8 +12,9 @@ object Stats {
 
     /**
      * Highest mean over any window of [windowSeconds]. Windows are anchored
-     * on each point and must span at least 90% of the requested length, so
-     * a sparse tail cannot win on a couple of points.
+     * on each point and must span at least three quarters of the requested
+     * length (a 5 s window of 1 Hz points spans 4 s), so a sparse tail cannot
+     * win on a couple of points.
      */
     fun maxWindowMean(points: List<Point>, windowSeconds: Double): Double? {
         require(windowSeconds > 0) { "Window must be positive, was $windowSeconds" }
@@ -27,7 +28,7 @@ object Stats {
             }
             val count = end - start
             val span = points[end - 1].seconds - points[start].seconds
-            if (count > 0 && span >= windowSeconds * 0.9 - 1e-9) {
+            if (count > 0 && span >= windowSeconds * 0.75 - 1e-9) {
                 val m = sum / count
                 if (best == null || m > best) best = m
             }

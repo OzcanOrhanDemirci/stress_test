@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.GpuEngine
+import dev.ozcan.stress.engine.LoadDriver
 import dev.ozcan.stress.lab.LabRunner
+import dev.ozcan.stress.run.RunStore
 import dev.ozcan.stress.telemetry.BatteryReader
 import dev.ozcan.stress.telemetry.NativeSensors
 import dev.ozcan.stress.telemetry.Sampler
@@ -19,11 +21,13 @@ class AppGraph(context: Context) {
     val layout = SysfsLayout.discover()
     val sensors = NativeSensors(layout)
     val sampler = Sampler(BatteryReader(context), sensors, ThermalReader(context), cpu, gpu)
+    val driver = LoadDriver(cpu, gpu)
+    val runs = RunStore(File(context.filesDir, "runs"))
 
     /** Lab output lives in the external files directory so `adb pull` can reach it. */
     val labDir: File = File(context.getExternalFilesDir(null), "lab")
 
-    fun labRunner() = LabRunner(sampler, cpu, gpu, layout, labDir)
+    fun labRunner() = LabRunner(sampler, driver, layout, labDir)
 }
 
 class StressApplication : Application() {

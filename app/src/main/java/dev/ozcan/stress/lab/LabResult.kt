@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 /** What one lab run measured. Written as JSON next to the raw samples (CSV) of the run. */
 @Serializable
 data class LabResult(
-    /** The workload in LabLoad's text form. */
+    /** The workload in Workload's text form. */
     val workload: String,
     /** Position of this run in the session (0-based) and the session's length. */
     val runIndex: Int,

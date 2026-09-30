@@ -26,28 +26,48 @@ data class Sample(
     val gpu: GpuSnapshot,
 )
 
-/** Append-only record of samples, shared between the sampler thread and readers. */
-class SampleLog(private val capacity: Int = 2 * 60 * 60 * 10) {
+/**
+ * Record of samples, shared between the sampler thread and readers. The last
+ * [recentCount] samples are kept at full rate; older ones are thinned to one
+ * a second (the battery gauge updates no faster) and kept up to
+ * [archiveCount], so a run of hours fits in memory.
+ */
+class SampleLog(private val recentCount: Int = 15 * 60 * 10, private val archiveCount: Int = 6 * 60 * 60) {
 
-    private val samples = ArrayDeque<Sample>()
+    private val recent = ArrayDeque<Sample>()
+    private val archive = ArrayDeque<Sample>()
 
     @Synchronized
     fun add(sample: Sample) {
-        if (samples.size == capacity) samples.removeFirst()
-        samples.addLast(sample)
+        recent.addLast(sample)
+        if (recent.size > recentCount) {
+            val old = recent.removeFirst()
+            val last = archive.lastOrNull()
+            if (last == null || old.timeNanos - last.timeNanos >= ARCHIVE_SPACING_NANOS) {
+                archive.addLast(old)
+                if (archive.size > archiveCount) archive.removeFirst()
+            }
+        }
     }
 
     @Synchronized
-    fun clear() = samples.clear()
+    fun clear() {
+        recent.clear()
+        archive.clear()
+    }
 
     /** The last [count] samples, oldest first. */
     @Synchronized
-    fun recent(count: Int): List<Sample> = samples.takeLast(count)
+    fun recent(count: Int): List<Sample> = recent.takeLast(count)
 
-    /** Samples taken at or after [fromNanos] (and before [untilNanos]). */
+    /** Samples taken at or after [fromNanos] (and before [untilNanos]), oldest first. */
     @Synchronized
     fun between(fromNanos: Long, untilNanos: Long = Long.MAX_VALUE): List<Sample> =
-        samples.filter { it.timeNanos in fromNanos until untilNanos }
+        (archive.asSequence() + recent.asSequence()).filter { it.timeNanos in fromNanos until untilNanos }.toList()
+
+    private companion object {
+        const val ARCHIVE_SPACING_NANOS = 1_000_000_000L
+    }
 }
 
 /**

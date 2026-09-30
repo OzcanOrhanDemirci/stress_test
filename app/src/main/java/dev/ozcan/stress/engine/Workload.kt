@@ -1,8 +1,4 @@
-package dev.ozcan.stress.lab
-
-import dev.ozcan.stress.engine.CoreAssignment
-import dev.ozcan.stress.engine.CpuKernel
-import dev.ozcan.stress.engine.GpuBurner
+package dev.ozcan.stress.engine
 
 /** The GPU side of a workload: a burner under the visible pass, or ([burner] null) the visible pass alone. */
 data class GpuPart(val burner: GpuBurner?) {
@@ -15,13 +11,13 @@ data class GpuPart(val burner: GpuBurner?) {
 }
 
 /**
- * One lab workload: a CPU assignment, a GPU part, or both at once.
+ * One workload: a CPU assignment, a GPU part, or both at once.
  *
  * Text form: parts joined by '+'. A part naming a GPU burner key, or `scene`,
  * is the GPU part; any other part is a [CoreAssignment]. `fp32_gemm`,
  * `gpu_fp32`, `scene` and `0-3:dry,4-7:bf16_mmla+gpu_texture` are all workloads.
  */
-data class LabLoad(val cpu: CoreAssignment?, val gpu: GpuPart?) {
+data class Workload(val cpu: CoreAssignment?, val gpu: GpuPart?) {
 
     init {
         require(cpu != null || gpu != null) { "A workload needs a CPU or a GPU part" }
@@ -31,7 +27,7 @@ data class LabLoad(val cpu: CoreAssignment?, val gpu: GpuPart?) {
     fun describe(): String = listOfNotNull(cpu?.describe(), gpu?.key).joinToString("+")
 
     companion object {
-        fun parse(text: String, kernels: List<CpuKernel>, burners: List<GpuBurner>): LabLoad {
+        fun parse(text: String, kernels: List<CpuKernel>, burners: List<GpuBurner>): Workload {
             val byKey = burners.associateBy { it.key }
             var cpu: CoreAssignment? = null
             var gpu: GpuPart? = null
@@ -50,7 +46,7 @@ data class LabLoad(val cpu: CoreAssignment?, val gpu: GpuPart?) {
                     cpu = CoreAssignment.parse(part, kernels)
                 }
             }
-            return LabLoad(cpu, gpu)
+            return Workload(cpu, gpu)
         }
     }
 }

@@ -4,6 +4,7 @@ import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.GpuBurner
 import dev.ozcan.stress.engine.GpuRequest
+import dev.ozcan.stress.engine.Workload
 import kotlin.random.Random
 
 /**
@@ -17,12 +18,12 @@ import kotlin.random.Random
  * The app waits until it runs on battery, then for every run: waits until
  * the CPUs cool below [coolCelsius], idles [idleSeconds] for the baseline,
  * runs the load for [loadSeconds], and writes the result to its external
- * files directory. Workloads ([LabLoad]) are separated by ';' (',' and '+'
+ * files directory. Workloads ([Workload]) are separated by ';' (',' and '+'
  * belong to the workload's own text).
  * Every value travels as a string extra (`--es`) and is parsed here.
  */
 data class LabSpec(
-    val loads: List<LabLoad>,
+    val loads: List<Workload>,
     val repeat: Int,
     val idleSeconds: Int,
     val loadSeconds: Int,
@@ -41,7 +42,7 @@ data class LabSpec(
      * Every load [repeat] times, shuffled: in a fixed order a candidate would
      * always follow the same neighbour and inherit its heat.
      */
-    fun order(random: Random): List<LabLoad> = List(repeat) { loads }.flatten().shuffled(random)
+    fun order(random: Random): List<Workload> = List(repeat) { loads }.flatten().shuffled(random)
 
     companion object {
         const val PREFIX = "lab."
@@ -73,7 +74,7 @@ data class LabSpec(
 
                 val loadText = text("load") ?: throw IllegalArgumentException("${PREFIX}load is required")
                 val loads = loadText.split(';').map { it.trim() }.filter { it.isNotEmpty() }
-                    .map { LabLoad.parse(it, kernels, burners) }
+                    .map { Workload.parse(it, kernels, burners) }
                 require(loads.isNotEmpty()) { "${PREFIX}load names no load" }
 
                 LabSpec(

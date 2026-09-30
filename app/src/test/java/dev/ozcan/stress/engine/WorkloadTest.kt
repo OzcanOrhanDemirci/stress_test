@@ -1,4 +1,4 @@
-package dev.ozcan.stress.lab
+package dev.ozcan.stress.engine
 
 import dev.ozcan.stress.TestSamples
 import org.junit.Assert.assertEquals
@@ -6,9 +6,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-class LabLoadTest {
+class WorkloadTest {
 
-    private fun parse(text: String) = LabLoad.parse(text, TestSamples.kernels, TestSamples.burners)
+    private fun parse(text: String) = Workload.parse(text, TestSamples.kernels, TestSamples.burners)
 
     @Test
     fun `cpu only, gpu only and both`() {

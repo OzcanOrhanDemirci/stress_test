@@ -5,13 +5,14 @@ import dev.ozcan.stress.analysis.Point
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.analysis.WorkRate
+import dev.ozcan.stress.engine.Workload
 import dev.ozcan.stress.telemetry.CpuCluster
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.ThermalGroup
 
 /** Where a run sits in its session and how the phone was when it began. */
 data class RunContext(
-    val load: LabLoad,
+    val load: Workload,
     val index: Int,
     val count: Int,
     val startTemperatures: Map<ThermalGroup, Double>,
