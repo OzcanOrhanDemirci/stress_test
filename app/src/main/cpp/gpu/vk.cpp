@@ -172,7 +172,7 @@ bool Context::framebuffer(VkRenderPass pass, std::span<const VkImageView> views,
 
 bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipelineLayout layout,
                                std::span<const uint32_t> vertex, std::span<const uint32_t> fragment, Blend blend,
-                               VkPipeline& out) const {
+                               VkPipeline& out, VkPrimitiveTopology topology) const {
     VkShaderModule vert, frag;
     if (!shaderModule(vertex, vert)) return false;
     if (!shaderModule(fragment, frag)) {
@@ -193,7 +193,7 @@ bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipe
     vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     VkPipelineInputAssemblyStateCreateInfo assembly{};
     assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    assembly.topology = topology;
     VkPipelineViewportStateCreateInfo viewport{};
     viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewport.viewportCount = 1;
@@ -248,6 +248,22 @@ bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipe
     const VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &out);
     vkDestroyShaderModule(device, vert, nullptr);
     vkDestroyShaderModule(device, frag, nullptr);
+    VK_TRY(result);
+    return true;
+}
+
+bool Context::computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const {
+    VkShaderModule module;
+    if (!shaderModule(code, module)) return false;
+    VkComputePipelineCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    info.stage.module = module;
+    info.stage.pName = "main";
+    info.layout = layout;
+    const VkResult result = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &out);
+    vkDestroyShaderModule(device, module, nullptr);
     VK_TRY(result);
     return true;
 }

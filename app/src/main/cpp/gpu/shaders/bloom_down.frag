@@ -7,6 +7,7 @@
 #include "bloom_params.glsl"
 
 layout(set = 0, binding = 0) uniform sampler2D source;
+layout(set = 0, binding = 1) uniform sampler2D particles;  // read on the first step only
 
 layout(location = 0) flat in int layer;
 layout(location = 0) out vec4 color;
@@ -25,6 +26,7 @@ void main() {
     vec3 sum = (d + e + i + j) * 0.125 + (a + b + f + g) * 0.03125 + (b + c + g + h) * 0.03125 +
                (f + g + k + l) * 0.03125 + (g + h + l + m) * 0.03125;
     if (params.first > 0.5) {
+        sum += texture(particles, uv).rgb;
         float luma = max(sum.r, max(sum.g, sum.b));
         float knee = params.threshold * 0.5;
         float soft = clamp(luma - params.threshold + knee, 0.0, 2.0 * knee);

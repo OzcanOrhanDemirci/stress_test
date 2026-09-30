@@ -274,9 +274,15 @@ struct GpuLoad::Renderer {
             LOGE("FP16 arithmetic not supported");
             return false;
         }
+        if (!supported.features.largePoints) {
+            LOGE("large points not supported");
+            return false;
+        }
         VkPhysicalDeviceVulkan12Features enabled12{};
         enabled12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
         enabled12.shaderFloat16 = supported12.shaderFloat16;
+        VkPhysicalDeviceFeatures enabledFeatures{};
+        enabledFeatures.largePoints = VK_TRUE;  // particle sprites
 
         const float priority = 1.0f;
         VkDeviceQueueCreateInfo queueInfo{};
@@ -288,6 +294,7 @@ struct GpuLoad::Renderer {
         VkDeviceCreateInfo deviceInfo{};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         deviceInfo.pNext = &enabled12;
+        deviceInfo.pEnabledFeatures = &enabledFeatures;
         deviceInfo.queueCreateInfoCount = 1;
         deviceInfo.pQueueCreateInfos = &queueInfo;
         deviceInfo.enabledExtensionCount = 1;

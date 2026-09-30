@@ -12,6 +12,7 @@ namespace stress {
  * bloomed, and finished onto the screen.
  *
  *   scene   pool reactor -> HDR colour + ray distance       (scene resolution)
+ *   motes   particle physics step (compute), drawn as points into their own target
  *   taa     reproject last frame's history, clip, blend      (ping-pong pair)
  *   bloom   5 steps down (threshold on the first), 4 back up (additive)
  *   final   Catmull-Rom upscale + bloom + tone map, inside the caller's present pass
@@ -43,6 +44,20 @@ public:
         float weight;
     };
 
+    struct ParticleParams {
+        float width;
+        float height;
+        float time;
+        float dt;
+        uint32_t count;
+        uint32_t frame;
+        float spare0;
+        float spare1;
+    };
+
+    /** Bubbles and sparks together; six in ten are bubbles. */
+    static constexpr uint32_t kParticles = 49152;
+
     struct FinalParams {
         float width;
         float height;
@@ -69,7 +84,9 @@ private:
     bool createTargets();
     bool createPasses();
     bool createDescriptors();
+    bool createParticleDescriptors();
     bool createPipelines(VkRenderPass presentPass);
+    void recordParticles(VkCommandBuffer cmd, float time);
     void pass(VkCommandBuffer cmd, VkRenderPass renderPass, VkFramebuffer framebuffer, VkExtent2D extent);
     void readable(VkCommandBuffer cmd);
 
@@ -77,6 +94,8 @@ private:
     VkExtent2D extent_{};
 
     vk::Image color_;
+    vk::Image particles_;
+    vk::Buffer particleBuffer_;
     vk::Image distance_;
     std::array<vk::Image, 2> history_{};
     std::array<vk::Image, kBloomLevels> bloom_{};
@@ -85,6 +104,8 @@ private:
     VkRenderPass scenePass_ = VK_NULL_HANDLE;
     VkRenderPass writePass_ = VK_NULL_HANDLE;  // one HDR target, contents replaced
     VkRenderPass addPass_ = VK_NULL_HANDLE;    // one HDR target, contents kept, added to
+    VkRenderPass particlePass_ = VK_NULL_HANDLE;  // one HDR target, cleared
+    VkFramebuffer particleFramebuffer_ = VK_NULL_HANDLE;
     VkFramebuffer sceneFramebuffer_ = VK_NULL_HANDLE;
     std::array<VkFramebuffer, 2> historyFramebuffers_{};
     std::array<VkFramebuffer, kBloomLevels> bloomWrite_{};
@@ -97,6 +118,11 @@ private:
     std::array<VkDescriptorSet, kBloomLevels> downSets_{};
     std::array<VkDescriptorSet, kBloomLevels> upSets_{};
     std::array<VkDescriptorSet, 2> finalSets_{};
+    VkDescriptorSetLayout particleSetLayout_ = VK_NULL_HANDLE;
+    VkDescriptorSet particleSet_ = VK_NULL_HANDLE;
+    VkPipelineLayout particleLayout_ = VK_NULL_HANDLE;
+    VkPipeline simulatePipeline_ = VK_NULL_HANDLE;
+    VkPipeline particlePipeline_ = VK_NULL_HANDLE;
 
     VkPipelineLayout sceneLayout_ = VK_NULL_HANDLE;
     VkPipelineLayout samplingLayout_ = VK_NULL_HANDLE;

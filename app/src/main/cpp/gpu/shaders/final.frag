@@ -4,6 +4,7 @@
 // finish: ACES tone curve, a touch of lens colour fringing, vignette, grain.
 layout(set = 0, binding = 0) uniform sampler2D scene;
 layout(set = 0, binding = 1) uniform sampler2D bloom;
+layout(set = 0, binding = 2) uniform sampler2D particles;
 
 layout(push_constant) uniform Final {
     vec2 resolution;   // screen, pixels
@@ -58,6 +59,7 @@ void main() {
     vec2 shift = (uv - 0.5) * 0.004;
     c.r = mix(c.r, texture(scene, uv + shift).r, 0.6);
     c.b = mix(c.b, texture(scene, uv - shift).b, 0.6);
+    c += texture(particles, uv).rgb;
     c += texture(bloom, uv).rgb * params.bloomStrength;
 
     c = aces(c * 0.9);

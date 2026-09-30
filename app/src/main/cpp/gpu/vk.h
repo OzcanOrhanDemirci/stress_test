@@ -69,9 +69,16 @@ struct Context {
 
     bool framebuffer(VkRenderPass pass, std::span<const VkImageView> views, VkExtent2D extent, VkFramebuffer& out) const;
 
-    /** A full-screen-triangle pipeline: `vertex` draws the triangle, `fragment` shades it. Viewport is dynamic. */
+    /**
+     * A pipeline without vertex buffers: the vertex shader makes its own
+     * geometry (a full-screen triangle, or points from a storage buffer).
+     * Viewport and scissor are dynamic.
+     */
     bool graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipelineLayout layout, std::span<const uint32_t> vertex,
-                          std::span<const uint32_t> fragment, Blend blend, VkPipeline& out) const;
+                          std::span<const uint32_t> fragment, Blend blend, VkPipeline& out,
+                          VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST) const;
+
+    bool computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const;
 
     bool linearClampSampler(VkSampler& out) const;
 
