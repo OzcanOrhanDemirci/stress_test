@@ -9,20 +9,10 @@ import dev.ozcan.stress.engine.GpuBurner
 import dev.ozcan.stress.engine.GpuSnapshot
 import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.WorkUnit
-import dev.ozcan.stress.telemetry.CpuCluster
+import dev.ozcan.stress.telemetry.CoreNames
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.SysfsLayout
 import dev.ozcan.stress.telemetry.ThermalGroup
-
-/** Names of the Honor 400's three clusters, keyed by cpufreq policy. */
-object CoreNames {
-    fun of(cluster: CpuCluster): String = when (cluster.policy) {
-        0 -> "A510 ×${cluster.cpus.size}"
-        4 -> "A715 ×${cluster.cpus.size}"
-        7 -> "A715 prime"
-        else -> "policy${cluster.policy}"
-    }
-}
 
 data class ClusterLive(
     val name: String,

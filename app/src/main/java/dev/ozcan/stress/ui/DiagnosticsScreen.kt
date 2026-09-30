@@ -47,6 +47,7 @@ import dev.ozcan.stress.engine.GpuRequest
 import dev.ozcan.stress.engine.KernelCatalog
 import dev.ozcan.stress.engine.StartResult
 import dev.ozcan.stress.graph
+import dev.ozcan.stress.telemetry.CoreNames
 import dev.ozcan.stress.telemetry.SensorAvailability
 import dev.ozcan.stress.telemetry.ThermalGroup
 import dev.ozcan.stress.ui.theme.StressColors
@@ -149,29 +150,6 @@ fun DiagnosticsScreen() {
         ClockPanel(live)
         TemperaturePanel(live)
         AvailabilityPanel(model.availability)
-    }
-}
-
-@Composable
-private fun Panel(title: String, content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(StressColors.Surface, RoundedCornerShape(14.dp))
-            .border(1.dp, StressColors.Outline, RoundedCornerShape(14.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = StressColors.TextDim, letterSpacing = 1.5.sp)
-        content()
-    }
-}
-
-@Composable
-private fun Field(label: String, value: String, valueColor: Color = StressColors.Text) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = StressColors.TextDim, style = MaterialTheme.typography.bodyMedium)
-        Text(value, color = valueColor, style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace)
     }
 }
 

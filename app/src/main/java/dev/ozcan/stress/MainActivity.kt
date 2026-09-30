@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dev.ozcan.stress.lab.LabSpec
-import dev.ozcan.stress.ui.DiagnosticsScreen
+import dev.ozcan.stress.ui.AppRoot
 import dev.ozcan.stress.ui.LabScreen
 import dev.ozcan.stress.ui.theme.StressTheme
 
@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             StressTheme {
                 if (lab == null) {
-                    DiagnosticsScreen()
+                    AppRoot()
                 } else {
                     LabScreen(lab)
                 }
