@@ -40,7 +40,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -120,6 +122,9 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (RunRecord
     var overlay by remember { mutableStateOf(true) }
 
     MaxDisplayEffect()
+    // Off screen the load loses the big cores and the GPU its surface: end the
+    // run there and keep what it measured, marked as stopped early.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { model.stop() }
     LaunchedEffect(state) {
         (state as? RunState.Finished)?.let { onFinished(it.record) }
     }
