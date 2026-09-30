@@ -33,6 +33,8 @@ data class ClusterLive(
 data class LiveView(
     val watts: Double?,
     val dischargeAmps: Double?,
+    /** CURRENT_NOW exactly as the gauge reports it, before unit and sign are known. */
+    val currentRaw: Long?,
     val volts: Double?,
     val plugged: Boolean,
     val batteryCelsius: Double?,
@@ -62,6 +64,7 @@ data class LiveView(
                 dischargeAmps = convention?.let { c ->
                     Stats.mean(unplugged.mapNotNull { s -> s.battery.currentRaw?.let(c::dischargeAmps) })
                 },
+                currentRaw = last.battery.currentRaw,
                 volts = last.battery.voltageMillivolts?.let { it / 1000.0 },
                 plugged = last.battery.plugged,
                 batteryCelsius = last.battery.temperatureCelsius,

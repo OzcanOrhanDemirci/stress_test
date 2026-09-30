@@ -164,6 +164,7 @@ private fun PowerPanel(live: LiveView?) {
             )
         }
         Field("Akım", Format.number(live?.dischargeAmps, 3) + " A")
+        Field("Ham akım (CURRENT_NOW)", live?.currentRaw?.toString() ?: Format.MISSING)
         Field("Gerilim", Format.number(live?.volts, 3) + " V")
         Field("Pil", "${live?.levelPercent ?: Format.MISSING} % · ${Format.celsius(live?.batteryCelsius)}")
         Field("Android termal durum", live?.thermalStatus?.toString() ?: Format.MISSING)
@@ -227,6 +228,8 @@ private fun ClockPanel(live: LiveView?) {
                 modifier = Modifier.fillMaxWidth().height(4.dp),
                 color = StressColors.Cherenkov,
                 trackColor = StressColors.SurfaceHigh,
+                gapSize = 0.dp,
+                drawStopIndicator = {},
             )
             Spacer(Modifier.height(2.dp))
         }

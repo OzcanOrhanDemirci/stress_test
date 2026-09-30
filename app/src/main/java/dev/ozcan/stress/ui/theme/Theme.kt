@@ -1,8 +1,11 @@
 package dev.ozcan.stress.ui.theme
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 /** Reactor palette: near-black steel, Cherenkov blue, a warning amber. */
@@ -34,7 +37,12 @@ private val scheme = darkColorScheme(
     error = StressColors.Bad,
 )
 
+/** The theme plus a full-screen surface, so text defaults to the light content colour. */
 @Composable
 fun StressTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(colorScheme = scheme) {
+        Surface(modifier = Modifier.fillMaxSize(), color = StressColors.Background, contentColor = StressColors.Text) {
+            content()
+        }
+    }
 }
