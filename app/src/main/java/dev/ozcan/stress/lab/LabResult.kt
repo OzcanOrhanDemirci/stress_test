@@ -61,6 +61,9 @@ data class CpuResult(
     val errors: Long,
     val pinned: Boolean,
     val ranOnCpu: Int,
+    val batches: Long,
+    /** Batches that ended on another CPU; see WorkerState.misplacedBatches. */
+    val misplacedBatches: Long,
 )
 
 @Serializable

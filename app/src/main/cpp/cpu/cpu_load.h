@@ -39,7 +39,8 @@ public:
         kFieldErrors = 3,      // batches whose digest did not match
         kFieldLastCpu = 4,     // CPU the thread last ran on (-1 before the first batch)
         kFieldFlags = 5,       // WorkerFlag bits
-        kSnapshotStride = 6,
+        kFieldMisplaced = 6,   // batches that ended on another CPU (core_ctl paused ours)
+        kSnapshotStride = 7,
     };
 
     enum WorkerFlag : int {

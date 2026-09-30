@@ -24,6 +24,8 @@ data class WorkerState(
     val errors: Long,
     val lastCpu: Int,
     val flags: Int,
+    /** Batches that ended on another CPU: time the scheduler took this CPU away (core_ctl pause). */
+    val misplacedBatches: Long = 0,
 ) {
     val isPinned: Boolean get() = flags and FLAG_PINNED != 0
     val isRunning: Boolean get() = flags and FLAG_RUNNING != 0
@@ -42,6 +44,7 @@ data class WorkerState(
 
 data class CpuSnapshot(val workers: List<WorkerState>) {
     val errors: Long get() = workers.sumOf { it.errors }
+    val misplacedBatches: Long get() = workers.sumOf { it.misplacedBatches }
     val isIdle: Boolean get() = workers.all { it.kernel == null }
 
     companion object {
@@ -84,6 +87,7 @@ class CpuEngine {
                     errors = buffer[at + 3],
                     lastCpu = buffer[at + 4].toInt(),
                     flags = buffer[at + 5].toInt(),
+                    misplacedBatches = buffer[at + 6],
                 )
             },
         )
@@ -91,7 +95,7 @@ class CpuEngine {
 
     companion object {
         /** Must match `CpuLoad::kSnapshotStride`. */
-        const val SNAPSHOT_STRIDE = 6
+        const val SNAPSHOT_STRIDE = 7
 
         /**
          * Short batches keep the work counters smooth at the 10 Hz sample rate

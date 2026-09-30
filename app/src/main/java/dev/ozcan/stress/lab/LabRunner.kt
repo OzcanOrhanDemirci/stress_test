@@ -10,6 +10,7 @@ import dev.ozcan.stress.telemetry.Sampler
 import dev.ozcan.stress.telemetry.SysfsLayout
 import dev.ozcan.stress.telemetry.ThermalGroup
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -141,7 +142,13 @@ class LabRunner(
                 delay(spec.loadSeconds * 1000L)
             } finally {
                 loadEnd = now()
-                withContext(Dispatchers.Default) { cpu.stop() }
+                // A sample is stamped when it starts but reads the engine a moment
+                // later: one stamped just before loadEnd must not see the load
+                // already stopped. Close the window first, stop after the grace.
+                withContext(NonCancellable + Dispatchers.Default) {
+                    delay(STOP_GRACE_MILLIS)
+                    cpu.stop()
+                }
             }
         }
 
@@ -168,6 +175,7 @@ class LabRunner(
         const val LOG_TAG = "STRESS_LAB"
         const val SESSION_FILE = "session.json"
         private const val POLL_MILLIS = 1_000L
+        private const val STOP_GRACE_MILLIS = 3 * Sampler.DEFAULT_PERIOD_MILLIS
         private const val COOL_TIMEOUT_MILLIS = 15 * 60 * 1000L
         private val prettyJson = Json { encodeDefaults = true; prettyPrint = true }
     }

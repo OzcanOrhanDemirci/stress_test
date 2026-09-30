@@ -119,6 +119,8 @@ object LabAnalysis {
                 errors = w.errors,
                 pinned = w.isPinned,
                 ranOnCpu = w.lastCpu,
+                batches = w.batches,
+                misplacedBatches = w.misplacedBatches,
             )
         }
     }

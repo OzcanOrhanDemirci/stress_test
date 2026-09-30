@@ -82,6 +82,7 @@ struct CpuLoad::Worker {
 
     std::atomic<uint64_t> batches{0};
     std::atomic<uint64_t> errors{0};
+    std::atomic<uint64_t> misplaced{0};
     std::atomic<int32_t> lastCpu{-1};
     std::atomic<int32_t> flags{0};
 };
@@ -130,7 +131,9 @@ void CpuLoad::runWorker(Worker& w) {
             w.errors.fetch_add(1, std::memory_order_relaxed);
         }
         w.batches.fetch_add(1, std::memory_order_relaxed);
-        w.lastCpu.store(sched_getcpu(), std::memory_order_relaxed);
+        const int cpu = sched_getcpu();
+        if (cpu != w.cpu) w.misplaced.fetch_add(1, std::memory_order_relaxed);
+        w.lastCpu.store(cpu, std::memory_order_relaxed);
     }
     w.flags.store(flags, std::memory_order_release);
 }
@@ -245,6 +248,7 @@ void CpuLoad::snapshot(int64_t* out) const {
             slot[kFieldErrors] = 0;
             slot[kFieldLastCpu] = -1;
             slot[kFieldFlags] = 0;
+            slot[kFieldMisplaced] = 0;
             continue;
         }
         slot[kFieldKernel] = w->kernelIndex;
@@ -253,6 +257,7 @@ void CpuLoad::snapshot(int64_t* out) const {
         slot[kFieldErrors] = static_cast<int64_t>(w->errors.load(std::memory_order_relaxed));
         slot[kFieldLastCpu] = w->lastCpu.load(std::memory_order_relaxed);
         slot[kFieldFlags] = w->flags.load(std::memory_order_acquire);
+        slot[kFieldMisplaced] = static_cast<int64_t>(w->misplaced.load(std::memory_order_relaxed));
     }
 }
 

@@ -120,12 +120,15 @@ function report(name) {
             .filter(Boolean)
             .join(" · ");
         const start = Math.max(r.startTemperatures.A715 ?? 0, r.startTemperatures.A510 ?? 0);
+        const batches = r.cpus.reduce((a, c) => a + (c.batches ?? 0), 0);
+        const misplaced = r.cpus.reduce((a, c) => a + (c.misplacedBatches ?? 0), 0);
         const unit = r.cpus.find((c) => c.unit)?.unit ?? "";
         console.log(
             `${String(r.runIndex + 1).padStart(2)}. ${r.assignment.padEnd(26)} ilk30 ${fmt(r.loadFirst30sWatts)} W · ` +
                 `tüm ${fmt(r.load.meanWatts)} · boşta ${fmt(r.idle.meanWatts)} · ` +
                 `A510 ${si(clusterRate(r, [0, 1, 2, 3]))} A715 ${si(clusterRate(r, [4, 5, 6]))} prime ${si(clusterRate(r, [7]))} ${unit} · ` +
-                `başlangıç ${fmt(start, 1)} °C · sayaç/akım ${fmt(r.load.chargeCounterAmps / r.load.meanDischargeAmps, 3)}` +
+                `başlangıç ${fmt(start, 1)} °C · sayaç/akım ${fmt(r.load.chargeCounterAmps / r.load.meanDischargeAmps, 3)} · ` +
+                `yanlış çekirdek %${fmt(batches ? (100 * misplaced) / batches : null, 1)}` +
                 (warn ? ` · ${warn}` : ""),
         );
     }
