@@ -202,3 +202,11 @@ Her fazın ölçümleri `docs/OLCUMLER.md`'ye yazılır. Bir faz ancak ölçüt�
    çalışmak zorunda. Hesap yapan her şeyin testi var. Yakıcı çekirdekler Prime95 gibi kendi sonucunu doğrular:
    sabit bir başlangıçtan yapılan hesap, bilinen sonuçla karşılaştırılır. Uyuşmazlık **hesap hatası** olarak sayılıp
    gösterilir. Bu aynı zamanda işin gerçekten yapıldığının kanıtıdır.
+6. **Görsellik ikinci hedef: grafik kalitesi odaklı (Özcan, 2026-10-01 02:10).** "Düşük FPS ama süper bir görsellik."
+   Sahne telefonda ulaşılabilecek en etkileyici düzeyde olacak: PC oyunlarından alışık olunan ışık, yansıma ve fizik.
+   Yol: düşük iç çözünürlük (~%45) + **zamansal büyütme** (alt piksel titreşimi, önceki karelerin yeniden hizalanıp
+   biriktirilmesi); hedef ~30 fps. Sahne: **havuz tipi reaktör** (suyun içinde Çerenkov mavisi çekirdek, dalga denklemiyle
+   simüle su yüzeyi, kırılma ve kostik, GPU'da parçacık fiziği, hacimsel ışık huzmeleri, iki sekmeli yansıma, bloom,
+   alan derinliği, senaryolu kamera). Tasarım kuralı ölçümden: GPU ~1 TFLOPS ama bant genişliği ~16 GB/s, efektler
+   hesap ağır / bellek hafif seçilir. **Max watt ilk hedef olarak kalır:** sahneli mod ≥ en iyi yakıcı-yalnız × 0,97;
+   karede boşluk kalırsa yakıcı doldurur.
