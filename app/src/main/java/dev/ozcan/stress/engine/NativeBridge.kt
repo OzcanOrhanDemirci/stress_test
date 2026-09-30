@@ -38,8 +38,17 @@ internal object NativeBridge {
     /** One line per GPU burner: `key|code|unit|verified`. */
     @JvmStatic external fun gpuBurnerTable(): Array<String>
 
-    /** Blocks while Vulkan is set up; returns a native `GpuLoad::StartResult` code. [burner] -1 draws the visible pass alone. */
-    @JvmStatic external fun gpuStart(surface: Surface, burner: Int, targetFrameMillis: Int): Int
+    /**
+     * Blocks while Vulkan is set up; returns a native `GpuLoad::StartResult` code. [burner] -1 draws the
+     * visible pass alone: the reactor [scene] at [sceneScalePercent] of the screen, or the preview ring.
+     */
+    @JvmStatic external fun gpuStart(
+        surface: Surface,
+        burner: Int,
+        targetFrameMillis: Int,
+        scene: Boolean,
+        sceneScalePercent: Int,
+    ): Int
 
     @JvmStatic external fun gpuStop()
 

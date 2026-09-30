@@ -31,7 +31,8 @@ function(add_shader source name symbol)
         COMMAND "${GLSLC}" --target-env=vulkan1.2 -O -Werror ${ARGN} "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" -o "${spv}"
         COMMAND "${CMAKE_COMMAND}" -DINPUT=${spv} -DOUTPUT=${header} -DSYMBOL=${symbol}
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_spirv.cmake"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_spirv.cmake"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/reactor.glsl"
+                "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_spirv.cmake"
         VERBATIM)
     target_sources(stress PRIVATE "${header}")
 endfunction()
@@ -43,6 +44,8 @@ add_shader(bandwidth.comp bandwidth_comp kBandwidthCompSpirv)
 add_shader(fullscreen.vert fullscreen_vert kFullscreenVertSpirv)
 add_shader(blend.frag blend_frag kBlendFragSpirv)
 add_shader(preview.frag preview_frag kPreviewFragSpirv)
+add_shader(scene.frag scene_frag kSceneFragSpirv)
+add_shader(composite.frag composite_frag kCompositeFragSpirv)
 
 target_compile_features(stress PRIVATE cxx_std_20)
 target_include_directories(stress PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})

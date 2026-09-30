@@ -3,6 +3,7 @@ package dev.ozcan.stress.lab
 import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.GpuBurner
+import dev.ozcan.stress.engine.GpuRequest
 import kotlin.random.Random
 
 /**
@@ -30,6 +31,9 @@ data class LabSpec(
     val brightness: Float,
     val coolCelsius: Double,
     val waitForBattery: Boolean,
+    /** Whether GPU workloads draw the reactor scene (or the cheap preview ring) as their visible pass. */
+    val scene: Boolean = true,
+    val sceneScalePercent: Int = GpuRequest.DEFAULT_SCENE_SCALE_PERCENT,
 ) {
     val runCount: Int get() = loads.size * repeat
 
@@ -82,6 +86,8 @@ data class LabSpec(
                     brightness = double("brightness", DEFAULT_BRIGHTNESS.toDouble(), 0.0..1.0).toFloat(),
                     coolCelsius = double("cool", default = 40.0, range = 20.0..95.0),
                     waitForBattery = int("battery", default = 1, range = 0..1) == 1,
+                    scene = int("scene", default = 1, range = 0..1) == 1,
+                    sceneScalePercent = int("scale", default = GpuRequest.DEFAULT_SCENE_SCALE_PERCENT, range = 10..100),
                 )
             }
         }

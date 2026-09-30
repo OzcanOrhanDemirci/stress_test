@@ -29,6 +29,8 @@ class LabSpecTest {
         assertEquals(LabSpec.DEFAULT_BRIGHTNESS, spec.brightness)
         assertEquals(40.0, spec.coolCelsius, 0.0)
         assertTrue(spec.waitForBattery)
+        assertTrue(spec.scene)
+        assertEquals(50, spec.sceneScalePercent)
     }
 
     @Test
@@ -43,6 +45,8 @@ class LabSpecTest {
             "lab.brightness" to "0.5",
             "lab.cool" to "38.5",
             "lab.battery" to "0",
+            "lab.scene" to "0",
+            "lab.scale" to "75",
         )!!.getOrThrow()
         assertEquals(listOf("dry", "0-3:dry,4-7:fp32_gemm+gpu_fp32", "gpu_blend"), spec.loads.map { it.describe() })
         assertEquals(3, spec.repeat)
@@ -54,6 +58,8 @@ class LabSpecTest {
         assertEquals(0.5f, spec.brightness)
         assertEquals(38.5, spec.coolCelsius, 0.0)
         assertFalse(spec.waitForBattery)
+        assertFalse(spec.scene)
+        assertEquals(75, spec.sceneScalePercent)
     }
 
     @Test

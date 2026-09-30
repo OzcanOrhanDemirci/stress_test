@@ -58,8 +58,10 @@ public:
     GpuLoad& operator=(const GpuLoad&) = delete;
 
     // Takes ownership of `window` (released on stop or failure). `burner` is an
-    // index into gpuBurnerTable(), or -1 to draw the visible pass alone.
-    StartResult start(ANativeWindow* window, int burner, int targetFrameMillis);
+    // index into gpuBurnerTable(), or -1 to draw the visible pass alone. The
+    // visible pass is the reactor scene at `sceneScalePercent` of the screen's
+    // resolution, or with `scene` false a cheap preview ring.
+    StartResult start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene, int sceneScalePercent);
 
     // Stops the render thread and releases every Vulkan object. Safe to call when idle.
     void stop();

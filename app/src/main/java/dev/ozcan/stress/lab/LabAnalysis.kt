@@ -47,6 +47,8 @@ object LabAnalysis {
             cooledInTime = run.cooledInTime,
             nice = spec.nice,
             batchMillis = spec.batchMillis,
+            scene = spec.scene,
+            sceneScalePercent = spec.sceneScalePercent,
             idleSeconds = spec.idleSeconds,
             loadSeconds = spec.loadSeconds,
             startResult = startResult,

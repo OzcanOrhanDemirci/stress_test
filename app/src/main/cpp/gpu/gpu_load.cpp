@@ -21,8 +21,10 @@
 #include "shaders/alu_fp32_comp.h"
 #include "shaders/bandwidth_comp.h"
 #include "shaders/blend_frag.h"
+#include "shaders/composite_frag.h"
 #include "shaders/fullscreen_vert.h"
 #include "shaders/preview_frag.h"
+#include "shaders/scene_frag.h"
 #include "shaders/texture_comp.h"
 
 namespace stress {
@@ -119,6 +121,8 @@ struct GpuLoad::Renderer {
     ANativeWindow* window = nullptr;
     int burner = -1;
     int64_t targetFrameNanos = 0;
+    bool scene = true;      // draw the reactor; otherwise the cheap preview ring
+    float sceneScale = 0.5f;  // scene resolution relative to the screen
 
     VkInstance instance = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -155,13 +159,24 @@ struct GpuLoad::Renderer {
     VkRenderPass blendPass = VK_NULL_HANDLE;
     VkFramebuffer blendFramebuffer = VK_NULL_HANDLE;
 
+    Image sceneTarget;
+    VkExtent2D sceneExtent{};
+    VkRenderPass scenePass = VK_NULL_HANDLE;
+    VkFramebuffer sceneFramebuffer = VK_NULL_HANDLE;
+    VkSampler linearSampler = VK_NULL_HANDLE;
+
     VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout compositeSetLayout = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+    VkDescriptorSet compositeSet = VK_NULL_HANDLE;
     VkPipelineLayout computeLayout = VK_NULL_HANDLE;
     VkPipelineLayout graphicsLayout = VK_NULL_HANDLE;
+    VkPipelineLayout compositeLayout = VK_NULL_HANDLE;
     VkPipeline burnerPipeline = VK_NULL_HANDLE;
     VkPipeline previewPipeline = VK_NULL_HANDLE;
+    VkPipeline scenePipeline = VK_NULL_HANDLE;
+    VkPipeline compositePipeline = VK_NULL_HANDLE;
 
     uint32_t groups = 0;
     uint32_t iterations = 0;
@@ -429,7 +444,7 @@ struct GpuLoad::Renderer {
         VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
 
         return createPresentPass() && createSwapchain() && createFrameResources() && createBurnerResources() &&
-               createPipelines();
+               createSceneResources() && createPipelines();
     }
 
     bool createPresentPass() {
@@ -457,7 +472,9 @@ struct GpuLoad::Renderer {
         return createRenderPass(color, presentPass);
     }
 
-    bool createRenderPass(const VkAttachmentDescription& color, VkRenderPass& out) {
+    // `readBefore` adds the fragment-shader stage to the incoming dependency: the
+    // scene target is sampled by the previous frame's composite before it is redrawn.
+    bool createRenderPass(const VkAttachmentDescription& color, VkRenderPass& out, bool readBefore = false) {
         VkAttachmentReference reference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -466,7 +483,8 @@ struct GpuLoad::Renderer {
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                  (readBefore ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : 0);
         dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         VkRenderPassCreateInfo info{};
@@ -733,6 +751,46 @@ struct GpuLoad::Renderer {
         return true;
     }
 
+    bool createSceneResources() {
+        if (!scene) return true;
+        sceneExtent = {std::max(1u, static_cast<uint32_t>(static_cast<float>(extent.width) * sceneScale)),
+                       std::max(1u, static_cast<uint32_t>(static_cast<float>(extent.height) * sceneScale))};
+        if (!createImage(sceneExtent, VK_FORMAT_R8G8B8A8_UNORM,
+                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, sceneTarget)) {
+            return false;
+        }
+        VkAttachmentDescription color{};
+        color.format = VK_FORMAT_R8G8B8A8_UNORM;
+        color.samples = VK_SAMPLE_COUNT_1_BIT;
+        color.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // every pixel is drawn
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        color.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        color.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        if (!createRenderPass(color, scenePass, true)) return false;
+        VkFramebufferCreateInfo fb{};
+        fb.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fb.renderPass = scenePass;
+        fb.attachmentCount = 1;
+        fb.pAttachments = &sceneTarget.view;
+        fb.width = sceneExtent.width;
+        fb.height = sceneExtent.height;
+        fb.layers = 1;
+        VK_TRY(vkCreateFramebuffer(device, &fb, nullptr, &sceneFramebuffer));
+
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        VK_TRY(vkCreateSampler(device, &samplerInfo, nullptr, &linearSampler));
+        return true;
+    }
+
     bool createPipelines() {
         // One descriptor layout serves every compute burner; each uses the bindings it needs.
         std::array<VkDescriptorSetLayoutBinding, 4> bindings{};
@@ -751,10 +809,10 @@ struct GpuLoad::Renderer {
         VK_TRY(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &setLayout));
 
         std::array<VkDescriptorPoolSize, 2> sizes{{{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
-                                                   {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}}};
+                                                   {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2}}};
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.maxSets = 1;
+        poolInfo.maxSets = 2;
         poolInfo.poolSizeCount = static_cast<uint32_t>(sizes.size());
         poolInfo.pPoolSizes = sizes.data();
         VK_TRY(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool));
@@ -782,17 +840,60 @@ struct GpuLoad::Renderer {
         graphicsLayoutInfo.pPushConstantRanges = &graphicsPush;
         VK_TRY(vkCreatePipelineLayout(device, &graphicsLayoutInfo, nullptr, &graphicsLayout));
 
+        if (scene && !createCompositeLayout()) return false;
+
         switch (burner) {
             case kFp32: if (!createComputePipeline(kAluFp32CompSpirv)) return false; break;
             case kFp16: if (!createComputePipeline(kAluFp16CompSpirv)) return false; break;
             case kTexture: if (!createComputePipeline(kTextureCompSpirv)) return false; break;
             case kBandwidth: if (!createComputePipeline(kBandwidthCompSpirv)) return false; break;
             case kBlend:
-                if (!createGraphicsPipeline(blendPass, kBlendFragSpirv, true, burnerPipeline)) return false;
+                if (!createGraphicsPipeline(blendPass, graphicsLayout, kBlendFragSpirv, true, burnerPipeline)) return false;
                 break;
             default: break;
         }
-        return createGraphicsPipeline(presentPass, kPreviewFragSpirv, false, previewPipeline);
+        if (!scene) return createGraphicsPipeline(presentPass, graphicsLayout, kPreviewFragSpirv, false, previewPipeline);
+        return createGraphicsPipeline(scenePass, graphicsLayout, kSceneFragSpirv, false, scenePipeline) &&
+               createGraphicsPipeline(presentPass, compositeLayout, kCompositeFragSpirv, false, compositePipeline);
+    }
+
+    bool createCompositeLayout() {
+        VkDescriptorSetLayoutBinding binding{};
+        binding.binding = 0;
+        binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        binding.descriptorCount = 1;
+        binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &binding;
+        VK_TRY(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &compositeSetLayout));
+
+        VkDescriptorSetAllocateInfo setInfo{};
+        setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        setInfo.descriptorPool = descriptorPool;
+        setInfo.descriptorSetCount = 1;
+        setInfo.pSetLayouts = &compositeSetLayout;
+        VK_TRY(vkAllocateDescriptorSets(device, &setInfo, &compositeSet));
+        VkDescriptorImageInfo imageInfo{linearSampler, sceneTarget.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = compositeSet;
+        write.dstBinding = 0;
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.pImageInfo = &imageInfo;
+        vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+
+        VkPushConstantRange push{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PreviewParams)};
+        VkPipelineLayoutCreateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        info.setLayoutCount = 1;
+        info.pSetLayouts = &compositeSetLayout;
+        info.pushConstantRangeCount = 1;
+        info.pPushConstantRanges = &push;
+        VK_TRY(vkCreatePipelineLayout(device, &info, nullptr, &compositeLayout));
+        return true;
     }
 
     void writeDescriptors() {
@@ -845,7 +946,8 @@ struct GpuLoad::Renderer {
         return true;
     }
 
-    bool createGraphicsPipeline(VkRenderPass pass, std::span<const uint32_t> fragment, bool additive, VkPipeline& out) {
+    bool createGraphicsPipeline(VkRenderPass pass, VkPipelineLayout layout, std::span<const uint32_t> fragment,
+                                bool additive, VkPipeline& out) {
         VkShaderModule vert, frag;
         if (!shaderModule(kFullscreenVertSpirv, vert)) return false;
         if (!shaderModule(fragment, frag)) {
@@ -913,7 +1015,7 @@ struct GpuLoad::Renderer {
         info.pMultisampleState = &multisample;
         info.pColorBlendState = &blendState;
         info.pDynamicState = &dynamic;
-        info.layout = graphicsLayout;
+        info.layout = layout;
         info.renderPass = pass;
         const VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &out);
         vkDestroyShaderModule(device, vert, nullptr);
@@ -1041,19 +1143,52 @@ struct GpuLoad::Renderer {
                                  nullptr, 0, nullptr);
         }
 
+        const float seconds = static_cast<float>(static_cast<double>(nowNanos() - startNanos) * 1e-9);
+        const float load = burner >= 0 ? 1.0f : 0.0f;
+        if (scene) {
+            const VkViewport sceneViewport{0.0f, 0.0f, static_cast<float>(sceneExtent.width),
+                                           static_cast<float>(sceneExtent.height), 0.0f, 1.0f};
+            const VkRect2D sceneScissor{{0, 0}, sceneExtent};
+            VkRenderPassBeginInfo scenePassInfo{};
+            scenePassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            scenePassInfo.renderPass = scenePass;
+            scenePassInfo.framebuffer = sceneFramebuffer;
+            scenePassInfo.renderArea = sceneScissor;
+            vkCmdBeginRenderPass(cmd, &scenePassInfo, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scenePipeline);
+            vkCmdSetViewport(cmd, 0, 1, &sceneViewport);
+            vkCmdSetScissor(cmd, 0, 1, &sceneScissor);
+            const PreviewParams sceneParams{static_cast<float>(sceneExtent.width), static_cast<float>(sceneExtent.height),
+                                            seconds, load};
+            vkCmdPushConstants(cmd, graphicsLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(sceneParams), &sceneParams);
+            vkCmdDraw(cmd, 3, 1, 0, 0);
+            vkCmdEndRenderPass(cmd);
+            // The composite samples what the scene pass just wrote.
+            VkMemoryBarrier written{};
+            written.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            written.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            written.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                                 1, &written, 0, nullptr, 0, nullptr);
+        }
+
         VkRenderPassBeginInfo pass{};
         pass.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         pass.renderPass = presentPass;
         pass.framebuffer = framebuffers[image];
         pass.renderArea = scissor;
         vkCmdBeginRenderPass(cmd, &pass, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, previewPipeline);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
-        const PreviewParams params{static_cast<float>(extent.width), static_cast<float>(extent.height),
-                                   static_cast<float>(static_cast<double>(nowNanos() - startNanos) * 1e-9),
-                                   burner >= 0 ? 1.0f : 0.0f};
-        vkCmdPushConstants(cmd, graphicsLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);
+        const PreviewParams params{static_cast<float>(extent.width), static_cast<float>(extent.height), seconds, load};
+        if (scene) {
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, compositePipeline);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, compositeLayout, 0, 1, &compositeSet, 0, nullptr);
+            vkCmdPushConstants(cmd, compositeLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);
+        } else {
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, previewPipeline);
+            vkCmdPushConstants(cmd, graphicsLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);
+        }
         vkCmdDraw(cmd, 3, 1, 0, 0);
         vkCmdEndRenderPass(cmd);
 
@@ -1111,10 +1246,18 @@ struct GpuLoad::Renderer {
             vkDeviceWaitIdle(device);
             if (burnerPipeline) vkDestroyPipeline(device, burnerPipeline, nullptr);
             if (previewPipeline) vkDestroyPipeline(device, previewPipeline, nullptr);
+            if (scenePipeline) vkDestroyPipeline(device, scenePipeline, nullptr);
+            if (compositePipeline) vkDestroyPipeline(device, compositePipeline, nullptr);
             if (computeLayout) vkDestroyPipelineLayout(device, computeLayout, nullptr);
             if (graphicsLayout) vkDestroyPipelineLayout(device, graphicsLayout, nullptr);
+            if (compositeLayout) vkDestroyPipelineLayout(device, compositeLayout, nullptr);
             if (descriptorPool) vkDestroyDescriptorPool(device, descriptorPool, nullptr);
             if (setLayout) vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
+            if (compositeSetLayout) vkDestroyDescriptorSetLayout(device, compositeSetLayout, nullptr);
+            if (sceneFramebuffer) vkDestroyFramebuffer(device, sceneFramebuffer, nullptr);
+            if (scenePass) vkDestroyRenderPass(device, scenePass, nullptr);
+            destroyImage(sceneTarget);
+            if (linearSampler) vkDestroySampler(device, linearSampler, nullptr);
             if (blendFramebuffer) vkDestroyFramebuffer(device, blendFramebuffer, nullptr);
             if (blendPass) vkDestroyRenderPass(device, blendPass, nullptr);
             destroyImage(blendTarget);
@@ -1148,7 +1291,8 @@ GpuLoad::GpuLoad() = default;
 
 GpuLoad::~GpuLoad() { stop(); }
 
-GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targetFrameMillis) {
+GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene,
+                                    int sceneScalePercent) {
     std::lock_guard lock(control_);
     if (renderer_) {
         ANativeWindow_release(window);
@@ -1162,6 +1306,8 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->window = window;
     renderer->burner = burner;
     renderer->targetFrameNanos = int64_t{std::clamp(targetFrameMillis, 5, 200)} * 1'000'000;
+    renderer->scene = scene;
+    renderer->sceneScale = static_cast<float>(std::clamp(sceneScalePercent, 10, 100)) / 100.0f;
     if (pthread_create(&renderer->thread, nullptr, &Renderer::threadMain, renderer.get()) != 0) {
         renderer->destroy();
         return kSetupFailed;

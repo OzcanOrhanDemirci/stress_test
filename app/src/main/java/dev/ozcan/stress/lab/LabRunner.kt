@@ -175,11 +175,11 @@ class LabRunner(
     /** Starts every part of [load]; returns [STARTED] or what failed. */
     private suspend fun startLoad(load: LabLoad, spec: LabSpec): String {
         val problems = mutableListOf<String>()
-        load.gpu?.let { burner ->
+        load.gpu?.let { part ->
             // The renderer needs the screen's surface; the lab screen provides it.
             val deadline = SystemClock.elapsedRealtime() + SURFACE_TIMEOUT_MILLIS
             while (!gpu.hasSurface && SystemClock.elapsedRealtime() < deadline) delay(100)
-            gpu.request(GpuRequest(burner))
+            gpu.request(GpuRequest(part.burner, scene = spec.scene, sceneScalePercent = spec.sceneScalePercent))
             val started = gpu.lastStart
             if (!gpu.hasSurface) problems += "gpu=NoSurface" else if (started != GpuStartResult.Started) problems += "gpu=$started"
         }

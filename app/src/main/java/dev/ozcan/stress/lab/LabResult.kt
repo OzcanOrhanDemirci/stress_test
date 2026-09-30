@@ -16,6 +16,8 @@ data class LabResult(
     val cooledInTime: Boolean,
     val nice: Int,
     val batchMillis: Int,
+    val scene: Boolean,
+    val sceneScalePercent: Int,
     val idleSeconds: Int,
     val loadSeconds: Int,
     val startResult: String,

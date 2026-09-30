@@ -13,7 +13,7 @@ import org.junit.Test
 
 class LabAnalysisTest {
 
-    private val workload = LabLoad(CoreAssignment.uniform(TestSamples.gemm), TestSamples.gpuFp32)
+    private val workload = LabLoad(CoreAssignment.uniform(TestSamples.gemm), GpuPart(TestSamples.gpuFp32))
 
     private val spec = LabSpec(
         loads = listOf(workload),

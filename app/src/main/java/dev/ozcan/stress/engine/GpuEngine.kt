@@ -38,9 +38,21 @@ enum class GpuStartResult(val code: Int) {
     }
 }
 
-/** What the GPU should do: a burner (null: the visible pass alone) and the GPU time to fill per frame. */
-data class GpuRequest(val burner: GpuBurner?, val targetFrameMillis: Int = DEFAULT_TARGET_FRAME_MILLIS) {
+/**
+ * What the GPU should do: a burner (null: the visible pass alone), the GPU time
+ * to fill per frame, and the visible pass: the reactor [scene] rendered at
+ * [sceneScalePercent] of the screen's resolution, or a cheap preview ring.
+ */
+data class GpuRequest(
+    val burner: GpuBurner?,
+    val targetFrameMillis: Int = DEFAULT_TARGET_FRAME_MILLIS,
+    val scene: Boolean = true,
+    val sceneScalePercent: Int = DEFAULT_SCENE_SCALE_PERCENT,
+) {
     companion object {
+        /** Half the screen's resolution in each direction; to be settled by measurement on the phone. */
+        const val DEFAULT_SCENE_SCALE_PERCENT = 50
+
         /**
          * Long enough that the frame's fixed costs are small next to the burner,
          * short enough (with three frames in flight) that the screen still moves.
@@ -138,7 +150,14 @@ class GpuEngine {
         if (wanted == running) return
         stopRenderer()
         if (wanted != null && target != null) {
-            val result = GpuStartResult.fromCode(NativeBridge.gpuStart(target, wanted.burner?.index ?: -1, wanted.targetFrameMillis))
+            val code = NativeBridge.gpuStart(
+                target,
+                wanted.burner?.index ?: -1,
+                wanted.targetFrameMillis,
+                wanted.scene,
+                wanted.sceneScalePercent,
+            )
+            val result = GpuStartResult.fromCode(code)
             lastStart = result
             if (result == GpuStartResult.Started) running = wanted
         }
