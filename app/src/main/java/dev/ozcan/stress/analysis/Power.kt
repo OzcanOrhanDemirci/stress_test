@@ -36,6 +36,15 @@ data class Point(val seconds: Double, val value: Double)
 
 object Power {
 
+    /** No phone battery holds less than this; a counter below it is in mAh, not the µAh Android documents. */
+    private const val MIN_PLAUSIBLE_MICROAMP_HOURS = 100_000L
+
+    /**
+     * `BATTERY_PROPERTY_CHARGE_COUNTER` in µAh. Android documents µAh; the
+     * Honor 400 reports mAh (5679 at 97%), which this detects by size.
+     */
+    fun normalizeChargeCounter(raw: Long): Long = if (raw in 1 until MIN_PLAUSIBLE_MICROAMP_HOURS) raw * 1000 else raw
+
     /**
      * Battery output power of each sample in watts: discharge current times
      * battery voltage. Samples taken while plugged in, or missing either

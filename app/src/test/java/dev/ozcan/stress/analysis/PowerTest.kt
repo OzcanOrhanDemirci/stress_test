@@ -58,4 +58,11 @@ class PowerTest {
         val samples = (0..10).map { sample(it.toDouble(), chargeCounter = 3_000_000) }
         assertEquals(0.0, Power.chargeCounterAmps(samples, 0)!!, 1e-12)
     }
+
+    @Test
+    fun `a charge counter in mAh is turned into µAh`() {
+        assertEquals(5_679_000L, Power.normalizeChargeCounter(5679))
+        assertEquals(4_000_000L, Power.normalizeChargeCounter(4_000_000))
+        assertEquals(0L, Power.normalizeChargeCounter(0))
+    }
 }

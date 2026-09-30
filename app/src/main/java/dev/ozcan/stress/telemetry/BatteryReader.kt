@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
+import dev.ozcan.stress.analysis.Power
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -86,7 +87,7 @@ class BatteryReader(private val context: Context) {
         val b = last
         return BatteryReading(
             currentRaw = property(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW),
-            chargeCounterMicroAmpHours = property(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER),
+            chargeCounterMicroAmpHours = property(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)?.let(Power::normalizeChargeCounter),
             voltageMillivolts = b?.voltageMillivolts?.takeIf { it > 0 },
             voltageAgeNanos = b?.let { nowNanos - it.receivedNanos },
             temperatureCelsius = b?.temperatureTenths?.takeIf { it != Int.MIN_VALUE }?.let { it / 10.0 },
