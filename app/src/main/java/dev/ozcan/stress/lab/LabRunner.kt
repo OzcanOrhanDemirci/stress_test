@@ -2,8 +2,10 @@ package dev.ozcan.stress.lab
 
 import android.os.SystemClock
 import android.util.Log
-import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.engine.CpuEngine
+import dev.ozcan.stress.engine.GpuEngine
+import dev.ozcan.stress.engine.GpuRequest
+import dev.ozcan.stress.engine.GpuStartResult
 import dev.ozcan.stress.engine.StartResult
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.Sampler
@@ -32,7 +34,7 @@ sealed interface LabState {
     data class Measuring(
         val run: Int,
         val runs: Int,
-        val assignment: String,
+        val workload: String,
         val phase: Phase,
         val endsAtNanos: Long,
     ) : LabState
@@ -57,6 +59,7 @@ data class LabSession(
 class LabRunner(
     private val sampler: Sampler,
     private val cpu: CpuEngine,
+    private val gpu: GpuEngine,
     private val layout: SysfsLayout,
     private val outputDir: File,
 ) {
@@ -71,21 +74,21 @@ class LabRunner(
 
         val results = mutableListOf<LabResult>()
         val files = mutableListOf<String>()
-        for ((index, assignment) in order.withIndex()) {
+        for ((index, workload) in order.withIndex()) {
             // A charger voids the power reading, so a session pauses while one is attached.
             if (spec.waitForBattery) waitForBattery()
             val (startTemps, cooled) = coolDown(index, order.size, spec.coolCelsius)
-            val run = RunContext(assignment, index, order.size, startTemps, cooled)
+            val run = RunContext(workload, index, order.size, startTemps, cooled)
             val (result, file) = measure(spec, run, dir)
             results += result
             files += file.name
-            if (result.startResult != StartResult.Started.name) {
-                _state.value = LabState.Failed("Yük başlatılamadı: ${result.assignment} (${result.startResult})")
+            if (result.startResult != STARTED) {
+                _state.value = LabState.Failed("Yük başlatılamadı: ${result.workload} (${result.startResult})")
                 return
             }
         }
 
-        val session = LabSession(seed, order.map(CoreAssignment::describe), files)
+        val session = LabSession(seed, order.map(LabLoad::describe), files)
         withContext(Dispatchers.IO) {
             File(dir, SESSION_FILE).writeText(prettyJson.encodeToString(LabSession.serializer(), session))
         }
@@ -127,34 +130,36 @@ class LabRunner(
     }
 
     private suspend fun measure(spec: LabSpec, run: RunContext, dir: File): Pair<LabResult, File> {
-        val label = run.assignment.describe()
+        val label = run.load.describe()
         val idleStart = now()
         _state.value = LabState.Measuring(run.index, run.count, label, LabState.Phase.Idle, idleStart + seconds(spec.idleSeconds))
         delay(spec.idleSeconds * 1000L)
         val idleEnd = now()
 
-        val startResult = withContext(Dispatchers.Default) { cpu.start(run.assignment, spec.nice, spec.batchMillis) }
+        val outcome = withContext(Dispatchers.Default) { startLoad(run.load, spec) }
         val loadStart = now()
         var loadEnd = loadStart
-        if (startResult == StartResult.Started) {
-            _state.value = LabState.Measuring(run.index, run.count, label, LabState.Phase.Load, loadStart + seconds(spec.loadSeconds))
-            try {
+        try {
+            if (outcome == STARTED) {
+                _state.value = LabState.Measuring(run.index, run.count, label, LabState.Phase.Load, loadStart + seconds(spec.loadSeconds))
                 delay(spec.loadSeconds * 1000L)
-            } finally {
                 loadEnd = now()
-                // A sample is stamped when it starts but reads the engine a moment
-                // later: one stamped just before loadEnd must not see the load
-                // already stopped. Close the window first, stop after the grace.
-                withContext(NonCancellable + Dispatchers.Default) {
-                    delay(STOP_GRACE_MILLIS)
-                    cpu.stop()
-                }
+            }
+        } finally {
+            // Also runs when a part failed to start, to stop the parts that did.
+            // A sample is stamped when it starts but reads the engines a moment
+            // later: one stamped just before loadEnd must not see the load
+            // already stopped. Close the window first, stop after the grace.
+            withContext(NonCancellable + Dispatchers.Default) {
+                delay(STOP_GRACE_MILLIS)
+                cpu.stop()
+                gpu.request(null)
             }
         }
 
         val idle = sampler.log.between(idleStart, idleEnd)
         val load = sampler.log.between(loadStart, loadEnd)
-        val result = LabAnalysis.analyze(spec, run, startResult, idle, load, layout.clusters)
+        val result = LabAnalysis.analyze(spec, run, outcome, idle, load, layout.clusters)
         val name = "%02d_%s".format(Locale.ROOT, run.index, label.replace(Regex("[^A-Za-z0-9._-]"), "_"))
         val file = withContext(Dispatchers.IO) {
             File(dir, "$name.csv").bufferedWriter().use { out ->
@@ -167,6 +172,24 @@ class LabRunner(
         return result to file
     }
 
+    /** Starts every part of [load]; returns [STARTED] or what failed. */
+    private suspend fun startLoad(load: LabLoad, spec: LabSpec): String {
+        val problems = mutableListOf<String>()
+        load.gpu?.let { burner ->
+            // The renderer needs the screen's surface; the lab screen provides it.
+            val deadline = SystemClock.elapsedRealtime() + SURFACE_TIMEOUT_MILLIS
+            while (!gpu.hasSurface && SystemClock.elapsedRealtime() < deadline) delay(100)
+            gpu.request(GpuRequest(burner))
+            val started = gpu.lastStart
+            if (!gpu.hasSurface) problems += "gpu=NoSurface" else if (started != GpuStartResult.Started) problems += "gpu=$started"
+        }
+        load.cpu?.let { assignment ->
+            val started = cpu.start(assignment, spec.nice, spec.batchMillis)
+            if (started != StartResult.Started) problems += "cpu=${started.name}"
+        }
+        return if (problems.isEmpty()) STARTED else problems.joinToString(" ")
+    }
+
     private fun now() = SystemClock.elapsedRealtimeNanos()
 
     private fun seconds(s: Int) = s * 1_000_000_000L
@@ -174,6 +197,8 @@ class LabRunner(
     companion object {
         const val LOG_TAG = "STRESS_LAB"
         const val SESSION_FILE = "session.json"
+        const val STARTED = "Started"
+        private const val SURFACE_TIMEOUT_MILLIS = 10_000L
         private const val POLL_MILLIS = 1_000L
         private const val STOP_GRACE_MILLIS = 3 * Sampler.DEFAULT_PERIOD_MILLIS
         private const val COOL_TIMEOUT_MILLIS = 15 * 60 * 1000L

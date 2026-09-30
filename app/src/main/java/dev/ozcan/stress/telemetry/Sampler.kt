@@ -5,6 +5,8 @@ import android.os.SystemClock
 import android.util.Log
 import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.CpuSnapshot
+import dev.ozcan.stress.engine.GpuEngine
+import dev.ozcan.stress.engine.GpuSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +23,7 @@ data class Sample(
     /** Refreshed once a second; the value between refreshes is the last one read. */
     val thermalHeadroom: Float?,
     val cpu: CpuSnapshot,
+    val gpu: GpuSnapshot,
 )
 
 /** Append-only record of samples, shared between the sampler thread and readers. */
@@ -56,6 +59,7 @@ class Sampler(
     private val sensors: NativeSensors,
     private val thermal: ThermalReader,
     private val cpu: CpuEngine,
+    private val gpu: GpuEngine,
     private val periodMillis: Long = DEFAULT_PERIOD_MILLIS,
 ) {
     private val _latest = MutableStateFlow<Sample?>(null)
@@ -112,6 +116,7 @@ class Sampler(
             thermalStatus = thermal.status(),
             thermalHeadroom = headroom,
             cpu = cpu.snapshot(),
+            gpu = gpu.snapshot(),
         )
         log.add(sample)
         _latest.value = sample

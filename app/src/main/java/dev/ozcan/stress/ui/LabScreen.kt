@@ -2,7 +2,6 @@ package dev.ozcan.stress.ui
 
 import android.os.SystemClock
 import android.util.Log
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,10 +61,11 @@ fun LabScreen(spec: Result<LabSpec>) {
     val state by model.state.collectAsStateWithLifecycle()
     val live by model.live.collectAsStateWithLifecycle()
 
+    // The renderer draws GPU workloads here; between them the surface stays black.
+    GpuSurface(context.graph.gpu, Modifier.fillMaxSize())
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(StressColors.Background)
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
@@ -82,7 +82,7 @@ fun LabScreen(spec: Result<LabSpec>) {
             is LabState.Measuring -> {
                 val remaining = ((s.endsAtNanos - SystemClock.elapsedRealtimeNanos()) / 1e9).coerceAtLeast(0.0)
                 val phase = if (s.phase == LabState.Phase.Idle) "boşta ölçüm" else "yük"
-                LabText("${s.run + 1}/${s.runs} · ${s.assignment}", StressColors.Text)
+                LabText("${s.run + 1}/${s.runs} · ${s.workload}", StressColors.Text)
                 LabText("$phase · ${Format.number(remaining, 0)} sn", StressColors.Text)
                 LabText(Format.watts(live?.watts), StressColors.CherenkovDim)
             }
@@ -90,7 +90,7 @@ fun LabScreen(spec: Result<LabSpec>) {
                 LabText("bitti · ${s.results.size} koşu", StressColors.Good)
                 s.results.forEach { r ->
                     LabText(
-                        "${r.runIndex + 1}. ${r.assignment} · ${Format.watts(r.load.meanWatts)} · hata ${r.computationErrors}",
+                        "${r.runIndex + 1}. ${r.workload} · ${Format.watts(r.load.meanWatts)} · hata ${r.computationErrors}",
                         StressColors.TextDim,
                     )
                 }

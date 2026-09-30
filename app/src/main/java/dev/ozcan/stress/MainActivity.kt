@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         setShowWhenLocked(true)
         setTurnScreenOn(true)
 
-        val lab = LabSpec.parse(labExtras(), graph.cpu.kernels)
+        val lab = LabSpec.parse(labExtras(), graph.cpu.kernels, graph.gpu.burners)
         lab?.getOrNull()?.let { spec ->
             window.attributes = window.attributes.apply { screenBrightness = spec.brightness }
         }
@@ -44,9 +44,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        // Off screen the load would be confined to the little cores: stop it
-        // rather than let it measure something else.
+        // Off screen the CPU load would be confined to the little cores and the
+        // GPU would lose its surface: stop both rather than measure something else.
         graph.cpu.stop()
+        graph.gpu.requestAsync(null)
         graph.sampler.stop()
         super.onStop()
     }

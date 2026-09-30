@@ -4,7 +4,9 @@ package dev.ozcan.stress.engine
 enum class WorkUnit(val nativeName: String, val rateSymbol: String) {
     Flop("FLOP", "FLOPS"),
     Op("OP", "OPS"),
-    Byte("B", "B/s");
+    Byte("B", "B/s"),
+    Texel("TEXEL", "texel/s"),
+    Pixel("PIXEL", "piksel/s");
 
     companion object {
         fun fromNative(name: String): WorkUnit =

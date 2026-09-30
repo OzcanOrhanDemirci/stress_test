@@ -1,5 +1,6 @@
 // JNI surface of the engine. Kotlin counterpart: dev.ozcan.stress.engine.NativeBridge.
 
+#include <android/native_window_jni.h>
 #include <jni.h>
 #include <pthread.h>
 #include <sched.h>
@@ -12,12 +13,14 @@
 
 #include "cpu/cpu_load.h"
 #include "cpu/kernel_table.h"
+#include "gpu/gpu_load.h"
 #include "sense/sysfs_reader.h"
 
 namespace {
 
 stress::CpuLoad gCpuLoad;
 stress::SysfsReader gSensors;
+stress::GpuLoad gGpuLoad;
 
 struct PinnedRun {
     int kernel = 0;
@@ -155,6 +158,50 @@ Java_dev_ozcan_stress_engine_NativeBridge_sensorsRead(JNIEnv* env, jclass, jlong
 JNIEXPORT void JNICALL
 Java_dev_ozcan_stress_engine_NativeBridge_sensorsClose(JNIEnv*, jclass) {
     gSensors.close();
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_gpuBurnerTable(JNIEnv* env, jclass) {
+    const auto table = stress::gpuBurnerTable();
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray result = env->NewObjectArray(static_cast<jsize>(table.size()), stringClass, nullptr);
+    for (size_t i = 0; i < table.size(); ++i) {
+        const auto& b = table[i];
+        char line[96];
+        std::snprintf(line, sizeof(line), "%s|%s|%s|%d", b.key, b.code, b.unit, b.verified ? 1 : 0);
+        jstring s = env->NewStringUTF(line);
+        env->SetObjectArrayElement(result, static_cast<jsize>(i), s);
+        env->DeleteLocalRef(s);
+    }
+    return result;
+}
+
+// Blocks until Vulkan is set up on the render thread (a few hundred milliseconds).
+JNIEXPORT jint JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_gpuStart(JNIEnv* env, jclass, jobject surface, jint burner,
+                                                   jint targetFrameMillis) {
+    ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
+    if (window == nullptr) return stress::GpuLoad::kSetupFailed;
+    return gGpuLoad.start(window, burner, targetFrameMillis);
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_gpuStop(JNIEnv*, jclass) {
+    gGpuLoad.stop();
+}
+
+JNIEXPORT jint JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_gpuSnapshotStride(JNIEnv*, jclass) {
+    return stress::GpuLoad::kSnapshotStride;
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_gpuSnapshot(JNIEnv* env, jclass, jlongArray out) {
+    constexpr int kLength = stress::GpuLoad::kSnapshotStride;
+    if (env->GetArrayLength(out) < kLength) return;
+    std::array<int64_t, kLength> values{};
+    gGpuLoad.snapshot(values.data());
+    env->SetLongArrayRegion(out, 0, kLength, reinterpret_cast<const jlong*>(values.data()));
 }
 
 }  // extern "C"

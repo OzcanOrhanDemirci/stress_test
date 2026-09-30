@@ -20,6 +20,7 @@ object SampleCsv {
             repeat(CoreAssignment.CPU_COUNT) { add("batches_cpu$it") }
             repeat(CoreAssignment.CPU_COUNT) { add("misplaced_cpu$it") }
             add("errors")
+            addAll(listOf("gpu_state", "gpu_frames", "gpu_dispatches", "gpu_work", "gpu_ns", "gpu_per_frame", "gpu_errors"))
         }
         out.appendLine(header.joinToString(","))
         for ((phase, samples) in phases) {
@@ -42,6 +43,13 @@ object SampleCsv {
                     s.cpu.workers.forEach { add(it.batches.toString()) }
                     s.cpu.workers.forEach { add(it.misplacedBatches.toString()) }
                     add(s.cpu.errors.toString())
+                    add(s.gpu.state.name)
+                    add(s.gpu.frames.toString())
+                    add(s.gpu.dispatches.toString())
+                    add(s.gpu.work.toString())
+                    add(s.gpu.gpuNanos.toString())
+                    add(s.gpu.dispatchesPerFrame.toString())
+                    add(s.gpu.errors.toString())
                 }
                 out.appendLine(row.joinToString(","))
             }

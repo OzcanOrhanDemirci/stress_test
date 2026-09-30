@@ -1,8 +1,8 @@
 package dev.ozcan.stress.lab
 
-import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.CpuKernel
+import dev.ozcan.stress.engine.GpuBurner
 import kotlin.random.Random
 
 /**
@@ -11,16 +11,17 @@ import kotlin.random.Random
  * wireless, the moment the cable comes out:
  *
  *     adb shell am start -S -n dev.ozcan.stress/.MainActivity \
- *         --es lab.load "dry;fp32_gemm;0-3:dry,4-7:bf16_mmla" --es lab.repeat 2
+ *         --es lab.load "dry;fp32_gemm;gpu_fp32;0-3:dry,4-7:bf16_mmla+gpu_texture" --es lab.repeat 2
  *
  * The app waits until it runs on battery, then for every run: waits until
  * the CPUs cool below [coolCelsius], idles [idleSeconds] for the baseline,
  * runs the load for [loadSeconds], and writes the result to its external
- * files directory. Loads are separated by ';' (',' belongs to assignments).
+ * files directory. Workloads ([LabLoad]) are separated by ';' (',' and '+'
+ * belong to the workload's own text).
  * Every value travels as a string extra (`--es`) and is parsed here.
  */
 data class LabSpec(
-    val loads: List<CoreAssignment>,
+    val loads: List<LabLoad>,
     val repeat: Int,
     val idleSeconds: Int,
     val loadSeconds: Int,
@@ -36,7 +37,7 @@ data class LabSpec(
      * Every load [repeat] times, shuffled: in a fixed order a candidate would
      * always follow the same neighbour and inherit its heat.
      */
-    fun order(random: Random): List<CoreAssignment> = List(repeat) { loads }.flatten().shuffled(random)
+    fun order(random: Random): List<LabLoad> = List(repeat) { loads }.flatten().shuffled(random)
 
     companion object {
         const val PREFIX = "lab."
@@ -45,7 +46,7 @@ data class LabSpec(
         const val DEFAULT_BRIGHTNESS = 0.2f
 
         /** Returns null when no lab key is present, so a normal launch is not an error. */
-        fun parse(extras: Map<String, String?>, kernels: List<CpuKernel>): Result<LabSpec>? {
+        fun parse(extras: Map<String, String?>, kernels: List<CpuKernel>, burners: List<GpuBurner>): Result<LabSpec>? {
             if (extras.keys.none { it.startsWith(PREFIX) }) return null
             return runCatching {
                 fun text(key: String): String? = extras[PREFIX + key]?.trim()?.takeIf { it.isNotEmpty() }
@@ -68,7 +69,7 @@ data class LabSpec(
 
                 val loadText = text("load") ?: throw IllegalArgumentException("${PREFIX}load is required")
                 val loads = loadText.split(';').map { it.trim() }.filter { it.isNotEmpty() }
-                    .map { CoreAssignment.parse(it, kernels) }
+                    .map { LabLoad.parse(it, kernels, burners) }
                 require(loads.isNotEmpty()) { "${PREFIX}load names no load" }
 
                 LabSpec(

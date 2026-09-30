@@ -1,0 +1,35 @@
+#version 450
+// G4: DRAM bandwidth. Every invocation copies `iterations` 16-byte elements,
+// strided across the whole grid so the GPU streams the entire 32 MiB source
+// into the 32 MiB destination once per dispatch.
+layout(local_size_x = 64) in;
+
+layout(push_constant) uniform Params {
+    uint iterations;
+    uint resultOffset;
+} params;
+
+layout(std430, set = 0, binding = 0) writeonly buffer Results { uint results[]; };
+layout(std430, set = 0, binding = 2) readonly buffer Source { uvec4 source[]; };
+layout(std430, set = 0, binding = 3) writeonly buffer Destination { uvec4 destination[]; };
+
+shared uint digest;
+
+void main() {
+    if (gl_LocalInvocationIndex == 0u) digest = 0u;
+    barrier();
+
+    uint stride = gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint index = gl_GlobalInvocationID.x;
+    uint h = 0u;
+    for (uint i = 0u; i < params.iterations; ++i) {
+        uvec4 v = source[index];
+        destination[index] = v ^ uvec4(0x9E3779B9u);
+        h ^= v.x ^ v.y ^ v.z ^ v.w;
+        index += stride;
+    }
+
+    atomicXor(digest, h);
+    barrier();
+    if (gl_LocalInvocationIndex == 0u) results[params.resultOffset + gl_WorkGroupID.x] = digest;
+}

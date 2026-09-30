@@ -40,6 +40,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.engine.CpuKernel
+import dev.ozcan.stress.engine.GpuBurner
+import dev.ozcan.stress.engine.GpuCatalog
+import dev.ozcan.stress.engine.GpuEngine
+import dev.ozcan.stress.engine.GpuRequest
 import dev.ozcan.stress.engine.KernelCatalog
 import dev.ozcan.stress.engine.StartResult
 import dev.ozcan.stress.graph
@@ -65,6 +69,29 @@ class DiagnosticsViewModel(private val graph: AppGraph) : ViewModel() {
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    val gpu: GpuEngine = graph.gpu
+    val burners: List<GpuBurner> = graph.gpu.burners
+
+    private val _selectedBurner = MutableStateFlow(burners.first())
+    val selectedBurner: StateFlow<GpuBurner> = _selectedBurner.asStateFlow()
+
+    init {
+        // The preview alone, so the surface shows the renderer is alive.
+        gpu.requestAsync(GpuRequest(null))
+    }
+
+    fun selectBurner(burner: GpuBurner) {
+        _selectedBurner.value = burner
+    }
+
+    fun startGpu() = gpu.requestAsync(GpuRequest(_selectedBurner.value))
+
+    fun stopGpu() = gpu.requestAsync(GpuRequest(null))
+
+    override fun onCleared() {
+        gpu.requestAsync(null)
+    }
 
     val live: StateFlow<LiveView?> = graph.sampler.latest
         .map { LiveView.from(graph.sampler.log.recent(LIVE_WINDOW_SAMPLES), graph.layout) }
@@ -118,6 +145,7 @@ fun DiagnosticsScreen() {
         )
         PowerPanel(live)
         LoadPanel(model.kernels, selected, live, message, model::select, model::start, model::stop)
+        GpuPanel(model, live)
         ClockPanel(live)
         TemperaturePanel(live)
         AvailabilityPanel(model.availability)
@@ -186,18 +214,7 @@ private fun LoadPanel(
     Panel("CPU yükü") {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             kernels.forEach { kernel ->
-                val isSelected = kernel == selected
-                Box(
-                    modifier = Modifier
-                        .background(
-                            if (isSelected) StressColors.CherenkovDim else StressColors.SurfaceHigh,
-                            RoundedCornerShape(8.dp),
-                        )
-                        .clickable { onSelect(kernel) }
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                ) {
-                    Text("${kernel.code} ${KernelCatalog.describe(kernel).title}", style = MaterialTheme.typography.labelMedium)
-                }
+                Chip("${kernel.code} ${KernelCatalog.describe(kernel).title}", kernel == selected) { onSelect(kernel) }
             }
         }
         Text(KernelCatalog.describe(selected).detail, style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
@@ -214,6 +231,47 @@ private fun LoadPanel(
             (live?.errors ?: 0L).toString(),
             if ((live?.errors ?: 0L) > 0) StressColors.Bad else StressColors.Good,
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GpuPanel(model: DiagnosticsViewModel, live: LiveView?) {
+    val selected by model.selectedBurner.collectAsStateWithLifecycle()
+    val gpu = live?.gpu
+    Panel("GPU yükü") {
+        GpuSurface(model.gpu, Modifier.fillMaxWidth().height(220.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            model.burners.forEach { burner ->
+                Chip("${burner.code} ${GpuCatalog.title(burner)}", burner == selected) { model.selectBurner(burner) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = model::startGpu) { Text("Başlat") }
+            OutlinedButton(onClick = model::stopGpu) { Text("Durdur") }
+        }
+        Field("Durum", gpu?.let { "${it.state.name} · ${it.burner?.code ?: "önizleme"}" } ?: Format.MISSING)
+        Field("Kare", "${Format.number(gpu?.framesPerSecond, 1)} fps · ${Format.number(gpu?.frameMillis, 1)} ms")
+        Field("İş", Format.rate(gpu?.rate, gpu?.burner?.unit))
+        Field("Kare başına gönderim", (gpu?.dispatchesPerFrame ?: 0L).toString())
+        Field("GPU meşgul (kgsl)", Format.percent(live?.gpuBusy))
+        Field(
+            "Hesap hatası",
+            "${gpu?.errors ?: 0} / ${gpu?.checks ?: 0} kontrol",
+            if ((gpu?.errors ?: 0L) > 0) StressColors.Bad else StressColors.Good,
+        )
+    }
+}
+
+@Composable
+private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .background(if (selected) StressColors.CherenkovDim else StressColors.SurfaceHigh, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }
 

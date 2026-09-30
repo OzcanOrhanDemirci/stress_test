@@ -1,0 +1,20 @@
+# Turns a SPIR-V binary into a C++ header holding it as a uint32_t array.
+# Invoked by add_custom_command with -DINPUT=... -DOUTPUT=... -DSYMBOL=...
+file(READ "${INPUT}" bytes HEX)
+string(LENGTH "${bytes}" hex_length)
+math(EXPR word_count "${hex_length} / 8")
+set(words "")
+set(i 0)
+while(i LESS hex_length)
+    # SPIR-V words are little-endian: reverse the byte order of each 4-byte group.
+    string(SUBSTRING "${bytes}" ${i} 2 b0)
+    math(EXPR i1 "${i} + 2")
+    string(SUBSTRING "${bytes}" ${i1} 2 b1)
+    math(EXPR i2 "${i} + 4")
+    string(SUBSTRING "${bytes}" ${i2} 2 b2)
+    math(EXPR i3 "${i} + 6")
+    string(SUBSTRING "${bytes}" ${i3} 2 b3)
+    string(APPEND words "0x${b3}${b2}${b1}${b0}u,")
+    math(EXPR i "${i} + 8")
+endwhile()
+file(WRITE "${OUTPUT}" "// Generated from ${INPUT}; do not edit.\n#pragma once\n#include <cstdint>\ninline constexpr uint32_t ${SYMBOL}[${word_count}] = {${words}};\n")

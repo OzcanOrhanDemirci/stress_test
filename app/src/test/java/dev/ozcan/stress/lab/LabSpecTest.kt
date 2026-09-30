@@ -10,11 +10,11 @@ import kotlin.random.Random
 
 class LabSpecTest {
 
-    private fun parse(vararg pairs: Pair<String, String?>) = LabSpec.parse(mapOf(*pairs), TestSamples.kernels)
+    private fun parse(vararg pairs: Pair<String, String?>) = LabSpec.parse(mapOf(*pairs), TestSamples.kernels, TestSamples.burners)
 
     @Test
     fun `a launch without lab keys is not a lab run`() {
-        assertNull(LabSpec.parse(mapOf("other" to "x"), TestSamples.kernels))
+        assertNull(LabSpec.parse(mapOf("other" to "x"), TestSamples.kernels, TestSamples.burners))
     }
 
     @Test
@@ -34,7 +34,7 @@ class LabSpecTest {
     @Test
     fun `every field can be set and loads are separated by semicolons`() {
         val spec = parse(
-            "lab.load" to "dry; 0-3:dry,4-7:fp32_gemm ;",
+            "lab.load" to "dry; 0-3:dry,4-7:fp32_gemm+gpu_fp32 ;gpu_blend",
             "lab.repeat" to "3",
             "lab.idle" to "15",
             "lab.seconds" to " 120 ",
@@ -44,9 +44,9 @@ class LabSpecTest {
             "lab.cool" to "38.5",
             "lab.battery" to "0",
         )!!.getOrThrow()
-        assertEquals(listOf("dry", "0-3:dry,4-7:fp32_gemm"), spec.loads.map { it.describe() })
+        assertEquals(listOf("dry", "0-3:dry,4-7:fp32_gemm+gpu_fp32", "gpu_blend"), spec.loads.map { it.describe() })
         assertEquals(3, spec.repeat)
-        assertEquals(6, spec.runCount)
+        assertEquals(9, spec.runCount)
         assertEquals(15, spec.idleSeconds)
         assertEquals(120, spec.loadSeconds)
         assertEquals(-5, spec.nice)

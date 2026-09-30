@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 /** What one lab run measured. Written as JSON next to the raw samples (CSV) of the run. */
 @Serializable
 data class LabResult(
-    val assignment: String,
+    /** The workload in LabLoad's text form. */
+    val workload: String,
     /** Position of this run in the session (0-based) and the session's length. */
     val runIndex: Int,
     val runCount: Int,
@@ -33,8 +34,10 @@ data class LabResult(
     val loadMax5sWatts: Double?,
     val cpus: List<CpuResult>,
     val clusters: List<ClusterResult>,
+    val gpu: GpuResult?,
     val maxTemperatures: Map<String, Double>,
     val cadence: Cadence,
+    /** CPU and GPU computation errors together. */
     val computationErrors: Long,
 )
 
@@ -83,4 +86,22 @@ data class Cadence(
     val chargeCounterChangeSeconds: Double?,
     val voltageChangeSeconds: Double?,
     val batteryBroadcasts: Long,
+)
+
+@Serializable
+data class GpuResult(
+    val burner: String?,
+    val unit: String?,
+    val meanRate: Double?,
+    val first10sRate: Double?,
+    val last10sRate: Double?,
+    val framesPerSecond: Double?,
+    /** Mean GPU time per frame from timestamp queries, in milliseconds. */
+    val meanFrameMillis: Double?,
+    val dispatchesPerFrame: Long,
+    /** Mean of the kgsl busy counter over the load phase, 0..1. */
+    val busyFraction: Double?,
+    val errors: Long,
+    val checks: Long,
+    val finalState: String,
 )

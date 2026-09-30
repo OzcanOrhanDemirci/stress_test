@@ -5,15 +5,13 @@ import dev.ozcan.stress.analysis.Point
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.analysis.WorkRate
-import dev.ozcan.stress.engine.CoreAssignment
-import dev.ozcan.stress.engine.StartResult
 import dev.ozcan.stress.telemetry.CpuCluster
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.ThermalGroup
 
 /** Where a run sits in its session and how the phone was when it began. */
 data class RunContext(
-    val assignment: CoreAssignment,
+    val load: LabLoad,
     val index: Int,
     val count: Int,
     val startTemperatures: Map<ThermalGroup, Double>,
@@ -26,7 +24,7 @@ object LabAnalysis {
     fun analyze(
         spec: LabSpec,
         run: RunContext,
-        startResult: StartResult,
+        startResult: String,
         idle: List<Sample>,
         load: List<Sample>,
         clusters: List<CpuCluster>,
@@ -42,7 +40,7 @@ object LabAnalysis {
         val loadSpan = loadWatts.lastOrNull()?.seconds ?: 0.0
 
         return LabResult(
-            assignment = run.assignment.describe(),
+            workload = run.load.describe(),
             runIndex = run.index,
             runCount = run.count,
             startTemperatures = run.startTemperatures.mapKeys { it.key.label },
@@ -51,7 +49,7 @@ object LabAnalysis {
             batchMillis = spec.batchMillis,
             idleSeconds = spec.idleSeconds,
             loadSeconds = spec.loadSeconds,
-            startResult = startResult.name,
+            startResult = startResult,
             ampsPerUnit = convention?.ampsPerUnit,
             dischargeSign = convention?.dischargeSign,
             pluggedDuringRun = all.any { it.battery.plugged },
@@ -65,11 +63,12 @@ object LabAnalysis {
             loadMax5sWatts = if (loadWatts.isEmpty()) null else Stats.maxWindowMean(loadWatts, 5.0),
             cpus = cpuResults(load),
             clusters = clusterResults(load, clusters),
+            gpu = gpuResult(load),
             maxTemperatures = load.flatMap { it.sysfs.temperatures.entries }
                 .groupBy({ it.key.label }, { it.value })
                 .mapValues { (_, values) -> values.max() },
             cadence = cadence(all),
-            computationErrors = load.lastOrNull()?.cpu?.errors ?: 0L,
+            computationErrors = (load.lastOrNull()?.cpu?.errors ?: 0L) + (load.lastOrNull()?.gpu?.errors ?: 0L),
         )
     }
 
@@ -123,6 +122,37 @@ object LabAnalysis {
                 misplacedBatches = w.misplacedBatches,
             )
         }
+    }
+
+    private fun gpuResult(load: List<Sample>): GpuResult? {
+        val first = load.firstOrNull() ?: return null
+        val last = load.last()
+        val burner = last.gpu.burner ?: first.gpu.burner
+        if (!load.any { it.gpu.isRunning }) return null
+        fun rate(a: Sample, b: Sample): Double? {
+            val seconds = (b.timeNanos - a.timeNanos) / 1e9
+            return if (seconds > 0 && b.gpu.work >= a.gpu.work) (b.gpu.work - a.gpu.work) / seconds else null
+        }
+        fun at(offsetSeconds: Double, fromEnd: Boolean): Sample {
+            val target = if (fromEnd) last.timeNanos - (offsetSeconds * 1e9).toLong() else first.timeNanos + (offsetSeconds * 1e9).toLong()
+            return load.minBy { kotlin.math.abs(it.timeNanos - target) }
+        }
+        val seconds = (last.timeNanos - first.timeNanos) / 1e9
+        val frames = last.gpu.frames - first.gpu.frames
+        return GpuResult(
+            burner = burner?.code,
+            unit = burner?.unit?.rateSymbol,
+            meanRate = rate(first, last),
+            first10sRate = rate(first, at(10.0, fromEnd = false)),
+            last10sRate = rate(at(10.0, fromEnd = true), last),
+            framesPerSecond = if (seconds > 0) frames / seconds else null,
+            meanFrameMillis = if (frames > 0) (last.gpu.gpuNanos - first.gpu.gpuNanos) / 1e6 / frames else null,
+            dispatchesPerFrame = last.gpu.dispatchesPerFrame,
+            busyFraction = Stats.mean(load.mapNotNull { it.sysfs.gpuBusy?.fraction }),
+            errors = last.gpu.errors,
+            checks = last.gpu.checks,
+            finalState = last.gpu.state.name,
+        )
     }
 
     private fun clusterResults(load: List<Sample>, clusters: List<CpuCluster>): List<ClusterResult> {

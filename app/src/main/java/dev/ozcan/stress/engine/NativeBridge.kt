@@ -1,5 +1,7 @@
 package dev.ozcan.stress.engine
 
+import android.view.Surface
+
 /**
  * JNI surface of `libstress.so`, one function per entry point in `jni_bridge.cpp`.
  * Everything is cheap except [cpuStart], which calibrates each kernel it is
@@ -32,4 +34,16 @@ internal object NativeBridge {
     @JvmStatic external fun sensorsRead(out: LongArray)
 
     @JvmStatic external fun sensorsClose()
+
+    /** One line per GPU burner: `key|code|unit|verified`. */
+    @JvmStatic external fun gpuBurnerTable(): Array<String>
+
+    /** Blocks while Vulkan is set up; returns a native `GpuLoad::StartResult` code. [burner] -1 draws the visible pass alone. */
+    @JvmStatic external fun gpuStart(surface: Surface, burner: Int, targetFrameMillis: Int): Int
+
+    @JvmStatic external fun gpuStop()
+
+    @JvmStatic external fun gpuSnapshotStride(): Int
+
+    @JvmStatic external fun gpuSnapshot(out: LongArray)
 }

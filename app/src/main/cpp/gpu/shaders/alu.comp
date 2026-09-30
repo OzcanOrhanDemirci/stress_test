@@ -1,0 +1,53 @@
+#version 450
+// G1 / G2: vector FMA on registers only; compiled twice, with and without FP16.
+// Eight independent oscillators per invocation take a symplectic Euler step
+// (a += b * m; b -= a * m) each iteration: the state stays bounded while its
+// mantissa bits keep changing. One iteration = 16 vec4 FMAs = 128 FLOP.
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+
+layout(local_size_x = 64) in;
+
+layout(push_constant) uniform Params {
+    uint iterations;
+    uint resultOffset;
+} params;
+
+layout(std430, set = 0, binding = 0) writeonly buffer Results { uint results[]; };
+
+#ifdef FP16
+#define VEC f16vec4
+#else
+#define VEC vec4
+#endif
+
+shared uint digest;
+
+#define STEP(a, b) a = fma(b, m, a); b = fma(-a, m, b);
+#define BITS(v) (floatBitsToUint(float(v.x)) ^ floatBitsToUint(float(v.y)) ^ floatBitsToUint(float(v.z)) ^ floatBitsToUint(float(v.w)))
+
+void main() {
+    if (gl_LocalInvocationIndex == 0u) digest = 0u;
+    barrier();
+
+    float s = float(gl_GlobalInvocationID.x & 1023u) * (1.0 / 1024.0);
+    VEC m = VEC(0.0137, 0.0291, 0.0473, 0.0619);
+    VEC a0 = VEC(vec4(0.11, 0.23, 0.37, 0.41) + s), b0 = VEC(vec4(0.53, 0.61, 0.73, 0.89) - s);
+    VEC a1 = VEC(vec4(0.17, 0.29, 0.31, 0.47) - s), b1 = VEC(vec4(0.59, 0.67, 0.71, 0.83) + s);
+    VEC a2 = VEC(vec4(0.13, 0.19, 0.43, 0.53) + s), b2 = VEC(vec4(0.61, 0.79, 0.97, 0.03) - s);
+    VEC a3 = VEC(vec4(0.07, 0.31, 0.59, 0.67) - s), b3 = VEC(vec4(0.71, 0.73, 0.79, 0.83) + s);
+    VEC a4 = VEC(vec4(0.89, 0.97, 0.05, 0.15) + s), b4 = VEC(vec4(0.25, 0.35, 0.45, 0.55) - s);
+    VEC a5 = VEC(vec4(0.65, 0.75, 0.85, 0.95) - s), b5 = VEC(vec4(0.12, 0.34, 0.56, 0.78) + s);
+    VEC a6 = VEC(vec4(0.91, 0.82, 0.73, 0.64) + s), b6 = VEC(vec4(0.46, 0.37, 0.28, 0.19) - s);
+    VEC a7 = VEC(vec4(0.33, 0.66, 0.99, 0.22) - s), b7 = VEC(vec4(0.44, 0.77, 0.11, 0.88) + s);
+
+    for (uint i = 0u; i < params.iterations; ++i) {
+        STEP(a0, b0) STEP(a1, b1) STEP(a2, b2) STEP(a3, b3)
+        STEP(a4, b4) STEP(a5, b5) STEP(a6, b6) STEP(a7, b7)
+    }
+
+    uint h = BITS(a0) ^ BITS(b0) ^ BITS(a1) ^ BITS(b1) ^ BITS(a2) ^ BITS(b2) ^ BITS(a3) ^ BITS(b3) ^
+             BITS(a4) ^ BITS(b4) ^ BITS(a5) ^ BITS(b5) ^ BITS(a6) ^ BITS(b6) ^ BITS(a7) ^ BITS(b7);
+    atomicXor(digest, h);
+    barrier();
+    if (gl_LocalInvocationIndex == 0u) results[params.resultOffset + gl_WorkGroupID.x] = digest;
+}

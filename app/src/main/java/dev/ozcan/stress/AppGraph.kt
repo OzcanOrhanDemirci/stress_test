@@ -3,6 +3,7 @@ package dev.ozcan.stress
 import android.app.Application
 import android.content.Context
 import dev.ozcan.stress.engine.CpuEngine
+import dev.ozcan.stress.engine.GpuEngine
 import dev.ozcan.stress.lab.LabRunner
 import dev.ozcan.stress.telemetry.BatteryReader
 import dev.ozcan.stress.telemetry.NativeSensors
@@ -14,14 +15,15 @@ import java.io.File
 /** The app's long-lived objects, created once per process. */
 class AppGraph(context: Context) {
     val cpu = CpuEngine()
+    val gpu = GpuEngine()
     val layout = SysfsLayout.discover()
     val sensors = NativeSensors(layout)
-    val sampler = Sampler(BatteryReader(context), sensors, ThermalReader(context), cpu)
+    val sampler = Sampler(BatteryReader(context), sensors, ThermalReader(context), cpu, gpu)
 
     /** Lab output lives in the external files directory so `adb pull` can reach it. */
     val labDir: File = File(context.getExternalFilesDir(null), "lab")
 
-    fun labRunner() = LabRunner(sampler, cpu, layout, labDir)
+    fun labRunner() = LabRunner(sampler, cpu, gpu, layout, labDir)
 }
 
 class StressApplication : Application() {
