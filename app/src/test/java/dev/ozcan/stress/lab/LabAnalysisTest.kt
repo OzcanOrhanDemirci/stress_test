@@ -13,15 +13,21 @@ import org.junit.Test
 
 class LabAnalysisTest {
 
+    private val assignment = CoreAssignment.uniform(TestSamples.gemm)
+
     private val spec = LabSpec(
-        assignment = CoreAssignment.uniform(TestSamples.gemm),
+        loads = listOf(assignment),
+        repeat = 1,
         idleSeconds = 10,
         loadSeconds = 60,
         nice = 0,
         batchMillis = 20,
         brightness = 0.2f,
-        tag = "test",
+        coolCelsius = 40.0,
+        waitForBattery = true,
     )
+
+    private val context = RunContext(assignment, index = 2, count = 5, mapOf(ThermalGroup.BigCores to 39.5), cooledInTime = true)
 
     /**
      * 10 s idle at 0.5 A then 60 s of load at 2 A, both at 4.0 V, sampled at
@@ -47,7 +53,7 @@ class LabAnalysisTest {
     @Test
     fun `power, baseline and cross-check come out of the samples`() {
         val (idle, load) = run()
-        val r = LabAnalysis.analyze(spec, StartResult.Started, idle, load, TestSamples.clusters)
+        val r = LabAnalysis.analyze(spec, context, StartResult.Started, idle, load, TestSamples.clusters)
 
         assertEquals(1e-6, r.ampsPerUnit!!, 0.0)
         assertEquals(-1, r.dischargeSign)
@@ -62,12 +68,16 @@ class LabAnalysisTest {
         assertEquals(0.5, r.idle.chargeCounterAmps!!, 0.02)
         assertFalse(r.pluggedDuringRun)
         assertEquals(0.1, r.cadence.sampleIntervalSeconds!!, 1e-6)
+        assertEquals("fp32_gemm", r.assignment)
+        assertEquals(2, r.runIndex)
+        assertEquals(5, r.runCount)
+        assertEquals(mapOf("A715" to 39.5), r.startTemperatures)
     }
 
     @Test
     fun `cpu rates, clocks and temperatures`() {
         val (idle, load) = run()
-        val r = LabAnalysis.analyze(spec, StartResult.Started, idle, load, TestSamples.clusters)
+        val r = LabAnalysis.analyze(spec, context, StartResult.Started, idle, load, TestSamples.clusters)
 
         // 5 batches per sample (0.1 s) * 10 iterations * 1000 FLOP = 500_000 FLOP/s.
         r.cpus.forEach { cpu ->
@@ -87,7 +97,7 @@ class LabAnalysisTest {
     @Test
     fun `errors and a charger are reported, and a charger voids the counter check`() {
         val (idle, load) = run(errors = 3, plugged = true)
-        val r = LabAnalysis.analyze(spec, StartResult.Started, idle, load, TestSamples.clusters)
+        val r = LabAnalysis.analyze(spec, context, StartResult.Started, idle, load, TestSamples.clusters)
         assertEquals(24L, r.computationErrors) // 3 per CPU, 8 CPUs
         assertTrue(r.pluggedDuringRun)
         assertEquals(null, r.load.chargeCounterAmps)
@@ -96,7 +106,7 @@ class LabAnalysisTest {
     @Test
     fun `a load that never started has an empty load phase`() {
         val (idle, _) = run()
-        val r = LabAnalysis.analyze(spec, StartResult.NoMemory, idle, emptyList(), TestSamples.clusters)
+        val r = LabAnalysis.analyze(spec, context, StartResult.NoMemory, idle, emptyList(), TestSamples.clusters)
         assertEquals("NoMemory", r.startResult)
         assertEquals(0, r.load.samples)
         assertEquals(null, r.load.meanWatts)

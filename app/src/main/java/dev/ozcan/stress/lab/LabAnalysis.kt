@@ -5,15 +5,27 @@ import dev.ozcan.stress.analysis.Point
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.analysis.WorkRate
+import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.engine.StartResult
 import dev.ozcan.stress.telemetry.CpuCluster
 import dev.ozcan.stress.telemetry.Sample
+import dev.ozcan.stress.telemetry.ThermalGroup
+
+/** Where a run sits in its session and how the phone was when it began. */
+data class RunContext(
+    val assignment: CoreAssignment,
+    val index: Int,
+    val count: Int,
+    val startTemperatures: Map<ThermalGroup, Double>,
+    val cooledInTime: Boolean,
+)
 
 /** Turns the samples of one lab run into a [LabResult]. Pure, so it can be tested with made-up samples. */
 object LabAnalysis {
 
     fun analyze(
         spec: LabSpec,
+        run: RunContext,
         startResult: StartResult,
         idle: List<Sample>,
         load: List<Sample>,
@@ -30,8 +42,11 @@ object LabAnalysis {
         val loadSpan = loadWatts.lastOrNull()?.seconds ?: 0.0
 
         return LabResult(
-            tag = spec.tag,
-            assignment = spec.assignment.describe(),
+            assignment = run.assignment.describe(),
+            runIndex = run.index,
+            runCount = run.count,
+            startTemperatures = run.startTemperatures.mapKeys { it.key.label },
+            cooledInTime = run.cooledInTime,
             nice = spec.nice,
             batchMillis = spec.batchMillis,
             idleSeconds = spec.idleSeconds,

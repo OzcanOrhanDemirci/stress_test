@@ -1,28 +1,33 @@
 #!/usr/bin/env node
-// Drives lab runs on the phone and collects their results.
+// Drives lab sessions on the phone and reads their results.
 //
-//   node tools/lab.mjs run   --load fp32_gemm [--seconds 60] [--idle 10] [--tag x] [--nice 0] [--batch 20]
-//                            [--brightness 0.2] [--cool 38]
-//   node tools/lab.mjs sweep --loads dry,fp32_gemm,bf16_mmla [--repeat 2] [same options as run]
-//   node tools/lab.mjs temps
+// The Honor 400 drops every adb connection, wired or wireless, when the cable
+// comes out, so a session runs on the phone by itself: start it with the cable
+// in, unplug, plug back in when it is done, then pull and report.
 //
-// Every run first waits until the hottest CPU zone is below --cool degrees, so
-// candidates are compared from the same starting temperature (a hot chip leaks
-// more and would flatter whichever kernel ran later). Results land in
-// tools/out/. The device is the only one adb sees, or ADB_SERIAL.
+//   node tools/lab.mjs start  --loads "dry;fp32_gemm;0-3:dry,4-7:bf16_mmla" [--repeat 2] [--seconds 60]
+//                             [--idle 10] [--cool 40] [--nice 0] [--batch 20] [--brightness 0.2]
+//   node tools/lab.mjs run    --load fp32_gemm [same options]   one run on the cable, to check the pipeline
+//                                                               (power is not valid while charging)
+//   node tools/lab.mjs pull   [session]     copy a session (default: the newest) to tools/out/<session>/
+//   node tools/lab.mjs report [session]     rank the loads of a pulled session (default: the newest)
+//   node tools/lab.mjs temps                CPU/GPU/DDR temperatures now
+//
+// The device is the only one adb sees, or ADB_SERIAL.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "out");
 const ADB = process.env.ADB ?? join(process.env.LOCALAPPDATA ?? "", "Android/Sdk/platform-tools/adb.exe");
 const PACKAGE = "dev.ozcan.stress";
+const REMOTE = `/sdcard/Android/data/${PACKAGE}/files/lab`;
 
-function adb(args, options = {}) {
+function adb(args) {
     const serial = process.env.ADB_SERIAL ? ["-s", process.env.ADB_SERIAL] : [];
-    return execFileSync(ADB, [...serial, ...args], { encoding: "utf8", maxBuffer: 64 << 20, ...options });
+    return execFileSync(ADB, [...serial, ...args], { encoding: "utf8", maxBuffer: 64 << 20 });
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -36,7 +41,6 @@ function parseArgs(argv) {
     return args;
 }
 
-/** Zone temperatures in °C for the CPU and GPU groups, read through the shell (which may read them all). */
 function readTemps() {
     const script =
         'for z in /sys/class/thermal/thermal_zone*; do t=$(cat $z/type); ' +
@@ -51,157 +55,148 @@ function readTemps() {
     return temps;
 }
 
-async function coolDown(limit) {
-    const started = Date.now();
-    for (;;) {
-        const t = readTemps();
-        const hottest = Math.max(t.A715 ?? 0, t.A510 ?? 0);
-        if (hottest <= limit) {
-            if (Date.now() - started > 1000) process.stdout.write("\n");
-            return t;
-        }
-        process.stdout.write(`\r  soğuma bekleniyor: CPU ${hottest.toFixed(1)} °C > ${limit} °C (${Math.round((Date.now() - started) / 1000)} sn)   `);
-        await sleep(5000);
-    }
-}
-
-async function run(opts) {
-    const load = opts.load ?? (() => { throw new Error("--load gerekli"); })();
-    const idle = Number(opts.idle ?? 10);
-    const seconds = Number(opts.seconds ?? 60);
-    const tag = opts.tag ?? load.replace(/[^A-Za-z0-9._-]/g, "_");
-    const startTemps = await coolDown(Number(opts.cool ?? 38));
-
-    adb(["logcat", "-c"]);
-    const extras = { load, idle, seconds, tag, nice: opts.nice, batch: opts.batch, brightness: opts.brightness };
+function launch(opts, loads, onBattery) {
+    const extras = {
+        load: loads,
+        repeat: opts.repeat,
+        idle: opts.idle,
+        seconds: opts.seconds,
+        cool: opts.cool,
+        nice: opts.nice,
+        batch: opts.batch,
+        brightness: opts.brightness,
+        battery: onBattery ? "1" : "0",
+    };
     const extraArgs = Object.entries(extras)
         .filter(([, v]) => v !== undefined)
-        .flatMap(([k, v]) => ["--es", `lab.${k}`, String(v)]);
+        // The value goes through the device shell, so it is single-quoted there.
+        .flatMap(([k, v]) => ["--es", `lab.${k}`, `'${String(v)}'`]);
+    adb(["logcat", "-c"]);
     adb(["shell", "am", "start", "-S", "-n", `${PACKAGE}/.MainActivity`, ...extraArgs]);
-    console.log(`▶ ${tag}: ${idle} sn boşta + ${seconds} sn yük (başlangıç CPU ${Math.max(startTemps.A715, startTemps.A510).toFixed(1)} °C)`);
+}
 
-    const deadline = Date.now() + (idle + seconds + 90) * 1000;
-    let line;
-    while (Date.now() < deadline) {
-        await sleep(2000);
-        const log = adb(["logcat", "-d", "-s", "STRESS_LAB:*"]);
-        line = log.split(/\r?\n/).find((l) => l.includes("done file=") || l.includes("error spec="));
-        if (line) break;
-    }
-    if (!line) throw new Error(`${tag}: sonuç gelmedi (zaman aşımı)`);
-    if (line.includes("error spec=")) throw new Error(`${tag}: ${line}`);
+function sessions() {
+    return adb(["shell", "ls", REMOTE]).split(/\s+/).filter((s) => /^\d{8}-\d{6}$/.test(s)).sort();
+}
 
-    const remote = /done file=(\S+)/.exec(line)[1];
+function pull(name) {
+    const session = name ?? sessions().at(-1);
+    if (!session) throw new Error("telefonda oturum yok");
     mkdirSync(OUT, { recursive: true });
-    const local = join(OUT, remote.split("/").pop());
-    adb(["pull", remote, local]);
-    adb(["pull", remote.replace(/\.json$/, ".csv"), local.replace(/\.json$/, ".csv")]);
-    const result = JSON.parse(readFileSync(local, "utf8"));
-    printSummary(result);
-    return result;
+    adb(["pull", `${REMOTE}/${session}`, OUT]);
+    const complete = existsSync(join(OUT, session, "session.json"));
+    console.log(`çekildi: tools/out/${session} ${complete ? "(tamamlanmış)" : "(YARIM: session.json yok)"}`);
+    return session;
 }
 
-const fmt = (v, d = 2) => (v === null || v === undefined ? "—" : Number(v).toFixed(d));
-
-function prefix(v) {
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
+const mean = (values) => {
+    const v = values.filter((x) => x !== null && x !== undefined);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+};
+const si = (v) => {
     if (v === null || v === undefined) return "—";
-    for (const [s, p] of [[1e12, "T"], [1e9, "G"], [1e6, "M"]]) if (v >= s) return `${(v / s).toFixed(1)} ${p}`;
+    for (const [s, p] of [[1e12, "T"], [1e9, "G"], [1e6, "M"]]) if (v >= s) return `${(v / s).toFixed(1)}${p}`;
     return v.toFixed(0);
+};
+
+function clusterRate(result, cpus) {
+    const rates = cpus.map((c) => result.cpus[c]?.meanRate).filter((r) => r !== null && r !== undefined);
+    return rates.length ? rates.reduce((a, b) => a + b, 0) : null;
 }
 
-function clusterRates(result) {
-    const groups = { A510: [0, 1, 2, 3], A715: [4, 5, 6], prime: [7] };
-    return Object.fromEntries(
-        Object.entries(groups).map(([name, cpus]) => {
-            const rates = cpus.map((c) => result.cpus[c]?.meanRate).filter((r) => r !== null && r !== undefined);
-            return [name, rates.length ? rates.reduce((a, b) => a + b, 0) : null];
-        }),
-    );
-}
+function report(name) {
+    const session = name ?? readdirSync(OUT).filter((s) => /^\d{8}-\d{6}$/.test(s)).sort().at(-1);
+    if (!session) throw new Error("tools/out altında oturum yok; önce pull");
+    const dir = join(OUT, session);
+    const runs = readdirSync(dir)
+        .filter((f) => /^\d{2}_.*\.json$/.test(f))
+        .sort()
+        .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
+    console.log(`oturum ${session}: ${runs.length} koşu\n`);
 
-function printSummary(r) {
-    const counterRatio = r.load.chargeCounterAmps && r.load.meanDischargeAmps ? r.load.chargeCounterAmps / r.load.meanDischargeAmps : null;
-    const unit = r.cpus.find((c) => c.unit)?.unit ?? "";
-    const rates = clusterRates(r);
-    console.log(
-        `  güç: yük ${fmt(r.load.meanWatts)} W · boşta ${fmt(r.idle.meanWatts)} W · fark ${fmt(r.loadAboveIdleWatts)} W · ` +
-            `ilk30 ${fmt(r.loadFirst30sWatts)} · son30 ${fmt(r.loadLast30sWatts)} · en iyi 5 sn ${fmt(r.loadMax5sWatts)}`,
-    );
-    console.log(
-        `  akım ${fmt(r.load.meanDischargeAmps, 3)} A · sayaç ${fmt(r.load.chargeCounterAmps, 3)} A (oran ${fmt(counterRatio, 3)}) · ` +
-            `${fmt(r.load.meanVolts, 3)} V · şarjda: ${r.pluggedDuringRun ? "EVET (geçersiz)" : "hayır"}`,
-    );
-    console.log(
-        `  iş: A510 ${prefix(rates.A510)}${unit} · A715 ${prefix(rates.A715)}${unit} · prime ${prefix(rates.prime)}${unit} · hata ${r.computationErrors}`,
-    );
-    console.log(
-        `  frekans (ort/son30 MHz): ${r.clusters.map((c) => `${fmt(c.meanMhz, 0)}/${fmt(c.last30sMeanMhz, 0)} of ${fmt(c.maxMhz, 0)}`).join(" · ")}`,
-    );
-    console.log(`  en yüksek sıcaklık: ${Object.entries(r.maxTemperatures).map(([k, v]) => `${k} ${fmt(v, 1)}`).join(" · ")}`);
-    console.log(
-        `  ritim: örnek ${fmt(r.cadence.sampleIntervalSeconds, 3)} sn · akım ${fmt(r.cadence.currentChangeSeconds, 3)} sn · ` +
-            `sayaç ${fmt(r.cadence.chargeCounterChangeSeconds, 3)} sn · gerilim ${fmt(r.cadence.voltageChangeSeconds, 3)} sn · yayın ${r.cadence.batteryBroadcasts}`,
-    );
-}
-
-function shuffle(list) {
-    const a = [...list];
-    for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-}
-
-async function sweep(opts) {
-    const loads = (opts.loads ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-    if (!loads.length) throw new Error("--loads gerekli");
-    const repeat = Number(opts.repeat ?? 2);
-    const order = shuffle(loads.flatMap((l) => Array(repeat).fill(l)));
-    const results = [];
-    for (const [i, load] of order.entries()) {
-        console.log(`\n[${i + 1}/${order.length}]`);
-        results.push(await run({ ...opts, load, tag: undefined }));
-    }
-    const table = loads.map((load) => {
-        const runs = results.filter((r) => r.assignment === load || r.tag === load.replace(/[^A-Za-z0-9._-]/g, "_"));
-        const mean = (f) => {
-            const v = runs.map(f).filter((x) => x !== null && x !== undefined);
-            return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-        };
-        return {
-            load,
-            runs: runs.length,
-            loadW: mean((r) => r.load.meanWatts),
-            aboveIdleW: mean((r) => r.loadAboveIdleWatts),
-            first30W: mean((r) => r.loadFirst30sWatts),
-            max5sW: mean((r) => r.loadMax5sWatts),
-            spreadW: runs.length > 1 ? Math.max(...runs.map((r) => r.load.meanWatts)) - Math.min(...runs.map((r) => r.load.meanWatts)) : null,
-            errors: runs.reduce((a, r) => a + r.computationErrors, 0),
-        };
-    });
-    table.sort((a, b) => (b.first30W ?? 0) - (a.first30W ?? 0));
-    console.log("\n=== sıralama (ilk 30 sn ortalaması) ===");
-    for (const t of table) {
+    for (const r of runs) {
+        const warn = [r.pluggedDuringRun && "ŞARJDA", !r.cooledInTime && "sıcak başladı", r.computationErrors > 0 && `HATA ${r.computationErrors}`]
+            .filter(Boolean)
+            .join(" · ");
+        const start = Math.max(r.startTemperatures.A715 ?? 0, r.startTemperatures.A510 ?? 0);
+        const unit = r.cpus.find((c) => c.unit)?.unit ?? "";
         console.log(
-            `${t.load.padEnd(28)} ilk30 ${fmt(t.first30W)} W · tüm ${fmt(t.loadW)} W · boşta üstü ${fmt(t.aboveIdleW)} W · ` +
-                `en iyi 5 sn ${fmt(t.max5sW)} W · tekrar farkı ${fmt(t.spreadW)} W · hata ${t.errors}`,
+            `${String(r.runIndex + 1).padStart(2)}. ${r.assignment.padEnd(26)} ilk30 ${fmt(r.loadFirst30sWatts)} W · ` +
+                `tüm ${fmt(r.load.meanWatts)} · boşta ${fmt(r.idle.meanWatts)} · ` +
+                `A510 ${si(clusterRate(r, [0, 1, 2, 3]))} A715 ${si(clusterRate(r, [4, 5, 6]))} prime ${si(clusterRate(r, [7]))} ${unit} · ` +
+                `başlangıç ${fmt(start, 1)} °C · sayaç/akım ${fmt(r.load.chargeCounterAmps / r.load.meanDischargeAmps, 3)}` +
+                (warn ? ` · ${warn}` : ""),
         );
     }
-    const file = join(OUT, `sweep-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-    writeFileSync(file, JSON.stringify({ options: opts, table, results }, null, 2));
-    console.log(`\nkayıt: ${file}`);
+
+    const loads = [...new Set(runs.map((r) => r.assignment))];
+    const table = loads.map((load) => {
+        const rs = runs.filter((r) => r.assignment === load);
+        const first30 = rs.map((r) => r.loadFirst30sWatts);
+        return {
+            load,
+            n: rs.length,
+            first30: mean(first30),
+            spread: rs.length > 1 ? Math.max(...first30) - Math.min(...first30) : null,
+            all: mean(rs.map((r) => r.load.meanWatts)),
+            last30: mean(rs.map((r) => r.loadLast30sWatts)),
+            above: mean(rs.map((r) => r.loadAboveIdleWatts)),
+            freqs: rs[0].clusters.map((_, i) => mean(rs.map((r) => r.clusters[i].last30sMeanMhz))),
+            maxA715: mean(rs.map((r) => r.maxTemperatures.A715)),
+            errors: rs.reduce((a, r) => a + r.computationErrors, 0),
+        };
+    });
+    table.sort((a, b) => (b.first30 ?? 0) - (a.first30 ?? 0));
+    console.log("\n=== sıralama: ilk 30 sn ortalama güç ===");
+    for (const t of table) {
+        console.log(
+            `${t.load.padEnd(26)} ilk30 ${fmt(t.first30)} W (±${fmt(t.spread)}) · tüm ${fmt(t.all)} · son30 ${fmt(t.last30)} · ` +
+                `boşta üstü ${fmt(t.above)} · son30 MHz ${t.freqs.map((f) => fmt(f, 0)).join("/")} · A715 en çok ${fmt(t.maxA715, 1)} °C · hata ${t.errors}`,
+        );
+    }
+}
+
+async function runOnCable(opts) {
+    if (!opts.load) throw new Error("--load gerekli");
+    launch(opts, opts.load, false);
+    console.log(`▶ ${opts.load} (kabloda; güç geçersiz)`);
+    const deadline = Date.now() + (Number(opts.idle ?? 10) + Number(opts.seconds ?? 60) + 15 * 60 + 60) * 1000;
+    while (Date.now() < deadline) {
+        await sleep(3000);
+        const log = adb(["logcat", "-d", "-s", "STRESS_LAB:*"]);
+        if (log.includes("session-done")) return report(pull());
+        const error = log.split(/\r?\n/).find((l) => l.includes("error spec="));
+        if (error) throw new Error(error);
+    }
+    throw new Error("zaman aşımı");
 }
 
 const args = parseArgs(process.argv.slice(2));
-const command = args._[0];
 try {
-    if (command === "run") await run(args);
-    else if (command === "sweep") await sweep(args);
-    else if (command === "temps") console.log(readTemps());
-    else {
-        console.error("kullanım: node tools/lab.mjs run|sweep|temps [--seçenekler]");
-        process.exit(2);
+    switch (args._[0]) {
+        case "start": {
+            if (!args.loads) throw new Error("--loads gerekli");
+            launch(args, args.loads, true);
+            const n = args.loads.split(";").filter((s) => s.trim()).length * Number(args.repeat ?? 1);
+            console.log(`oturum başlatıldı: ${n} koşu. Telefon kablonun çıkarılmasını bekliyor.`);
+            break;
+        }
+        case "run":
+            await runOnCable(args);
+            break;
+        case "pull":
+            pull(args._[1]);
+            break;
+        case "report":
+            report(args._[1]);
+            break;
+        case "temps":
+            console.log(readTemps());
+            break;
+        default:
+            console.error("kullanım: node tools/lab.mjs start|run|pull|report|temps [--seçenekler]");
+            process.exit(2);
     }
 } catch (e) {
     console.error(`HATA: ${e.message}`);

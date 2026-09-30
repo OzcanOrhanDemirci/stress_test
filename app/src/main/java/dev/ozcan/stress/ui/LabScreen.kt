@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,22 +63,37 @@ fun LabScreen(spec: Result<LabSpec>) {
     val live by model.live.collectAsStateWithLifecycle()
 
     Column(
-        modifier = Modifier.fillMaxSize().background(StressColors.Background).safeDrawingPadding().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(StressColors.Background)
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        LabText("LAB · ${parsed.tag}", StressColors.TextDim)
+        LabText("LAB · ${parsed.runCount} koşu · ${parsed.loadSeconds} sn yük", StressColors.TextDim)
         when (val s = state) {
             null -> LabText("Hazırlanıyor", StressColors.TextDim)
+            LabState.WaitingForBattery -> LabText("Şarj kablosunu çıkar: ölçüm pilde yapılır.", StressColors.Warn)
+            is LabState.Cooling -> {
+                LabText("${s.run + 1}/${s.runs} · soğuma bekleniyor", StressColors.Text)
+                LabText("CPU ${Format.celsius(s.hottest)} → ${Format.celsius(s.limit)}", StressColors.TextDim)
+            }
             is LabState.Measuring -> {
                 val remaining = ((s.endsAtNanos - SystemClock.elapsedRealtimeNanos()) / 1e9).coerceAtLeast(0.0)
                 val phase = if (s.phase == LabState.Phase.Idle) "boşta ölçüm" else "yük"
+                LabText("${s.run + 1}/${s.runs} · ${s.assignment}", StressColors.Text)
                 LabText("$phase · ${Format.number(remaining, 0)} sn", StressColors.Text)
                 LabText(Format.watts(live?.watts), StressColors.CherenkovDim)
             }
             is LabState.Finished -> {
-                LabText("bitti", StressColors.Good)
-                LabText("yük ${Format.watts(s.result.load.meanWatts)} · boşta ${Format.watts(s.result.idle.meanWatts)}", StressColors.Text)
-                LabText("hesap hatası ${s.result.computationErrors}", StressColors.TextDim)
+                LabText("bitti · ${s.results.size} koşu", StressColors.Good)
+                s.results.forEach { r ->
+                    LabText(
+                        "${r.runIndex + 1}. ${r.assignment} · ${Format.watts(r.load.meanWatts)} · hata ${r.computationErrors}",
+                        StressColors.TextDim,
+                    )
+                }
             }
             is LabState.Failed -> LabText(s.message, StressColors.Bad)
         }

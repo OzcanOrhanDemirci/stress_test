@@ -2,11 +2,17 @@ package dev.ozcan.stress.lab
 
 import kotlinx.serialization.Serializable
 
-/** What one lab run measured. Written as JSON next to the raw samples. */
+/** What one lab run measured. Written as JSON next to the raw samples (CSV) of the run. */
 @Serializable
 data class LabResult(
-    val tag: String,
     val assignment: String,
+    /** Position of this run in the session (0-based) and the session's length. */
+    val runIndex: Int,
+    val runCount: Int,
+    /** Hottest zone of each group when the run began, in °C. */
+    val startTemperatures: Map<String, Double>,
+    /** False when the CPUs had not cooled to the session's limit before the run had to start. */
+    val cooledInTime: Boolean,
     val nice: Int,
     val batchMillis: Int,
     val idleSeconds: Int,
