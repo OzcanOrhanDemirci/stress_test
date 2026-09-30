@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Stress" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+    </style>
+    <color name="background">#FF05080A</color>
+    <color name="icon_background">#FF05080A</color>
+    <color name="icon_foreground">#FF3FD0FF</color>
+</resources>

@@ -1,6 +1,6 @@
 # stress_test: Plan
 
-> Sürüm 1 · 2026-09-30 · **Özcan'ın gözden geçirmesini bekliyor.** Onaydan önce kod yazılmaz.
+> Sürüm 1 · 2026-09-30 · **Özcan onayladı (2026-10-01).** Kararlar §13'te.
 
 ## 0 · Tek ölçüt
 
@@ -176,6 +176,7 @@ Her fazın ölçümleri `docs/OLCUMLER.md`'ye yazılır. Bir faz ancak ölçüt�
 | 3 · Sahne | iki kaba aday telefonda → Özcan seçer → cilalama | sahneli W ≥ yakıcı-yalnız W × 0,97 |
 | 4 · Tam yük + analiz | açlık denemesi, gösterge, sonuç ekranı, geçmiş | tam yük W ≥ CPU ve GPU modlarının her birinden yüksek |
 | 5 · Uzun koşu | 30 dk tam yük | çökme yok · GPU sıfırlanması yok · sonuç ekranındaki sayılar ham kayıtla birebir aynı |
+| 6 · Çip dışı yükler | fener, NPU, modem + video kodlayıcı, kamera/ISP, GNSS, Wi-Fi | her yükün tam yüke kattığı W ölçülü · katkısı olmayan girmez |
 
 ## 12 · Riskler ve bilinmeyenler
 
@@ -187,9 +188,17 @@ Her fazın ölçümleri `docs/OLCUMLER.md`'ye yazılır. Bir faz ancak ölçüt�
 - Düşük pilde çipin pil akımı sınırı (BCL) kısmaya başlar. Başlangıç pil % her koşuda kaydedilir.
 - Telefonun kendi termal kapatması yerinde kalır, root olmadan kapatılamaz. Biz ayrıca koruma eklemiyoruz.
 
-## 13 · Açık sorular (Özcan)
+## 13 · Kararlar (Özcan, 2026-10-01)
 
-1. **Çip dışı yükler:** fener LED'i, NPU (Hexagon), modem. "En yüksek watt"a dahil edilsin mi?
-   Önerim: NPU'yu ilk sürümden sonra değerlendirelim (ayrı SDK ister), fener hayır (çip değil, ısısı arkadan gelir).
-2. **GitHub:** private depo açılsın mı, yoksa yerelde mi kalsın?
-3. Sahne adaylarından (A / B / C) şimdiden içine en yakın geleni varsa söyle, Faz 3'te ilk onu yaparım.
+1. **Çip dışı yükler dahil.** Fener LED'i, NPU (Hexagon) ve modem Faz 6'da eklenir. Aynı fazda telefondaki diğer güç
+   tüketicileri de denenir: donanım video kodlayıcı, kamera + ISP, GNSS, Wi-Fi. **Kural:** bir yük, tam yüke eklendiğinde
+   toplam watt'ı ölçülebilir biçimde artırıyorsa kalır, artırmıyorsa girmez.
+   ⚠️ Modemi hücresel veriyle çalıştırmak veri kotasını tüketir. Bu yüzden Faz 6'ya gelince nasıl yapılacağı sorulacak.
+2. **GitHub:** private depo `OzcanOrhanDemirci/stress_test`.
+3. **Sahne: B · Reaktör.** Modern bir estetik ve radyoaktif his: suyun içinde Çerenkov mavisi parıltı, ışık huzmeleri,
+   ısı dalgalanması, FurMark'ın tüylü halkasının modern hâli. Faz 3'te telefonda gösterilir.
+4. Tetikleyici **"stress devam"**.
+5. **Kod kalitesi baştan yüksek tutulur.** Uygulamanın görevi cihazı zorlamak, bu yüzden kendisi tutarlı ve doğru
+   çalışmak zorunda. Hesap yapan her şeyin testi var. Yakıcı çekirdekler Prime95 gibi kendi sonucunu doğrular:
+   sabit bir başlangıçtan yapılan hesap, bilinen sonuçla karşılaştırılır. Uyuşmazlık **hesap hatası** olarak sayılıp
+   gösterilir. Bu aynı zamanda işin gerçekten yapıldığının kanıtıdır.
