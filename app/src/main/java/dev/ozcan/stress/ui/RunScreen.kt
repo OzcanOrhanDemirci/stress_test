@@ -140,21 +140,23 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (RunRecord
             modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
+            val running = state as? RunState.Running
             when (val s = state) {
                 RunState.Preparing, is RunState.Baseline -> Baseline(s as? RunState.Baseline)
-                is RunState.Running -> if (overlay) Overlay(mode, duration, s, live, history, idle) else Box(Modifier)
+                is RunState.Running -> if (overlay) TopHud(mode, duration, s, live, history, idle) else Box(Modifier)
                 RunState.Analysing -> Message("Sonuçlar hesaplanıyor…", StressColors.Text)
                 is RunState.Finished -> Message("Kaydedildi.", StressColors.Good)
                 is RunState.Failed -> Message(s.message, StressColors.Bad)
             }
-            val failed = state is RunState.Failed
-            if (overlay || failed) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (running != null && overlay) BottomHud(live)
+                val failed = state is RunState.Failed
                 if (failed) {
                     OutlinedButton(onClick = onLeave, modifier = Modifier.fillMaxWidth()) { Text("Geri dön") }
-                } else if (state !is RunState.Analysing && state !is RunState.Finished) {
+                } else if (overlay && state !is RunState.Analysing && state !is RunState.Finished) {
                     Button(
                         onClick = model::stop,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC1A1F22), contentColor = StressColors.Text),
                         shape = RoundedCornerShape(14.dp),
                     ) { Text("DURDUR", fontWeight = FontWeight.Bold, letterSpacing = 3.sp) }
@@ -184,8 +186,11 @@ private fun Message(text: String, color: Color) {
     Text(text, modifier = Modifier.padding(top = 120.dp).fillMaxWidth(), color = color, style = MaterialTheme.typography.titleMedium)
 }
 
+private val HudBackground = Color(0x9905080A)
+
+/** Mode, time, and the number that matters: battery power, with its last two minutes. */
 @Composable
-private fun Overlay(
+private fun TopHud(
     mode: StressMode,
     duration: StressDuration,
     state: RunState.Running,
@@ -194,49 +199,71 @@ private fun Overlay(
     idle: Double?,
 ) {
     val elapsed = (SystemClock.elapsedRealtimeNanos() - state.startedAtNanos) / 1e9
-    val errors = (live?.errors ?: 0L) + (live?.gpu?.errors ?: 0L)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xB305080A), RoundedCornerShape(16.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .background(HudBackground, RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Trefoil(StressColors.Warn, Modifier.size(18.dp))
-                Text(mode.title.uppercase(), style = MaterialTheme.typography.labelLarge, letterSpacing = 2.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Trefoil(StressColors.Warn, Modifier.size(14.dp))
+                Text(mode.title.uppercase(), style = MaterialTheme.typography.labelMedium, letterSpacing = 2.sp)
             }
             val planned = duration.seconds?.let { " / ${Durations.clock(it.toDouble())}" } ?: ""
-            Text("${Durations.clock(elapsed)}$planned", fontFamily = FontFamily.Monospace, color = StressColors.TextDim)
+            Text(
+                "${Durations.clock(elapsed)}$planned",
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.labelMedium,
+                color = StressColors.TextDim,
+            )
         }
-        Text(
-            Format.watts(live?.watts),
-            style = MaterialTheme.typography.displayMedium,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.SemiBold,
-            color = StressColors.Cherenkov,
-        )
-        val above = if (live?.watts != null && idle != null) live.watts - idle else null
-        Text(
-            "boşta ${Format.watts(idle)} · yük +${Format.watts(above)}" + if (live?.plugged == true) " · ŞARJDA" else "",
-            style = MaterialTheme.typography.bodySmall,
-            color = if (live?.plugged == true) StressColors.Warn else StressColors.TextDim,
-            fontFamily = FontFamily.Monospace,
-        )
-        Sparkline(history, StressColors.Cherenkov, Modifier.fillMaxWidth().height(44.dp))
-        val temps = live?.temperatures.orEmpty()
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                Format.watts(live?.watts),
+                style = MaterialTheme.typography.headlineLarge,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold,
+                color = StressColors.Cherenkov,
+            )
+            val above = if (live?.watts != null && idle != null) live.watts - idle else null
+            val plugged = live?.plugged == true
+            Text(
+                if (plugged) "şarjda: geçersiz" else "boşta ${Format.watts(idle)} · yük +${Format.watts(above)}",
+                modifier = Modifier.padding(bottom = 6.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (plugged) StressColors.Warn else StressColors.TextDim,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+        Sparkline(history, StressColors.Cherenkov, Modifier.fillMaxWidth().height(26.dp))
+    }
+}
+
+/** The detail, kept small at the bottom so the middle of the screen belongs to the scene. */
+@Composable
+private fun BottomHud(live: LiveView?) {
+    val errors = (live?.errors ?: 0L) + (live?.gpu?.errors ?: 0L)
+    val temps = live?.temperatures.orEmpty()
+    val small = MaterialTheme.typography.labelSmall
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HudBackground, RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
         Text(
             listOf(ThermalGroup.BigCores, ThermalGroup.LittleCores, ThermalGroup.Gpu, ThermalGroup.Memory)
                 .joinToString("  ") { "${it.label} ${Format.number(temps[it], 0)}°" } +
                 "  Pil ${Format.number(live?.batteryCelsius, 0)}°",
             fontFamily = FontFamily.Monospace,
-            style = MaterialTheme.typography.bodySmall,
+            style = small,
         )
         Text(
-            live?.clusters.orEmpty().joinToString(" · ") { "${it.name} ${it.khz?.div(1000) ?: "—"}" } + " MHz",
+            live?.clusters.orEmpty().joinToString("  ") { "${it.shortName} ${it.khz?.div(1000) ?: "—"}" } + " MHz",
             fontFamily = FontFamily.Monospace,
-            style = MaterialTheme.typography.bodySmall,
+            style = small,
             color = StressColors.TextDim,
         )
         val cpuRate = live?.clusters?.mapNotNull { it.rate }?.takeIf { it.isNotEmpty() }?.sum()
@@ -248,16 +275,16 @@ private fun Overlay(
                     add("GPU ${Format.rate(gpu.rate, gpu.burner?.unit)}")
                     add("${Format.number(gpu.framesPerSecond, 0)} fps")
                 }
-                add("GPU %${Format.number(live?.gpuBusy?.times(100), 0)}")
+                add("GPU meşgul %${Format.number(live?.gpuBusy?.times(100), 0)}")
             }.joinToString(" · "),
             fontFamily = FontFamily.Monospace,
-            style = MaterialTheme.typography.bodySmall,
+            style = small,
             color = StressColors.TextDim,
         )
         Text(
             "Hesap hatası $errors",
             fontFamily = FontFamily.Monospace,
-            style = MaterialTheme.typography.bodySmall,
+            style = small,
             color = if (errors > 0) StressColors.Bad else StressColors.Good,
         )
     }

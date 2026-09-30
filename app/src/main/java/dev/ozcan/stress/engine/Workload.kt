@@ -1,12 +1,43 @@
 package dev.ozcan.stress.engine
 
-/** The GPU side of a workload: a burner under the visible pass, or ([burner] null) the visible pass alone. */
-data class GpuPart(val burner: GpuBurner?) {
-    val key: String get() = burner?.key ?: SCENE_ONLY
+/**
+ * The GPU side of a workload: a burner under the visible pass, or ([burner]
+ * null) the visible pass alone. [scene] and [sceneScalePercent] override the
+ * run's settings when set.
+ *
+ * Text: a burner key or `scene`, optionally followed by `@preview` (the cheap
+ * preview ring instead of the scene) or `@NN` (the scene at NN% of the
+ * screen's resolution): `gpu_fp32@preview`, `scene@35`.
+ */
+data class GpuPart(val burner: GpuBurner?, val scene: Boolean? = null, val sceneScalePercent: Int? = null) {
+
+    val key: String
+        get() {
+            val name = burner?.key ?: SCENE_ONLY
+            return when {
+                scene == false -> "$name@$PREVIEW"
+                sceneScalePercent != null -> "$name@$sceneScalePercent"
+                else -> name
+            }
+        }
 
     companion object {
         /** The text of a GPU part that runs the visible pass without a burner. */
         const val SCENE_ONLY = "scene"
+        private const val PREVIEW = "preview"
+
+        /** Null when [text] names no burner and is not `scene`: then it is a CPU part. */
+        fun parse(text: String, burners: List<GpuBurner>): GpuPart? {
+            val name = text.substringBefore('@')
+            val burner = burners.firstOrNull { it.key == name }
+            if (burner == null && name != SCENE_ONLY) return null
+            if ('@' !in text) return GpuPart(burner)
+            val option = text.substringAfter('@')
+            if (option == PREVIEW) return GpuPart(burner, scene = false)
+            val scale = option.toIntOrNull()
+            require(scale != null && scale in 10..100) { "Bad GPU option '$option' in '$text'" }
+            return GpuPart(burner, scene = true, sceneScalePercent = scale)
+        }
     }
 }
 
@@ -28,16 +59,11 @@ data class Workload(val cpu: CoreAssignment?, val gpu: GpuPart?) {
 
     companion object {
         fun parse(text: String, kernels: List<CpuKernel>, burners: List<GpuBurner>): Workload {
-            val byKey = burners.associateBy { it.key }
             var cpu: CoreAssignment? = null
             var gpu: GpuPart? = null
             for (part in text.split('+').map { it.trim() }) {
                 require(part.isNotEmpty()) { "Empty part in '$text'" }
-                val gpuPart = when {
-                    part == GpuPart.SCENE_ONLY -> GpuPart(null)
-                    byKey.containsKey(part) -> GpuPart(byKey.getValue(part))
-                    else -> null
-                }
+                val gpuPart = GpuPart.parse(part, burners)
                 if (gpuPart != null) {
                     require(gpu == null) { "Two GPU parts in '$text'" }
                     gpu = gpuPart

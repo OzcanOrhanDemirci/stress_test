@@ -98,8 +98,10 @@ data class GpuResult(
     val first10sRate: Double?,
     val last10sRate: Double?,
     val framesPerSecond: Double?,
-    /** Mean GPU time per frame from timestamp queries, in milliseconds. */
+    /** Mean GPU time per frame from timestamp queries, in milliseconds, and its two parts. */
     val meanFrameMillis: Double?,
+    val meanBurnerMillis: Double?,
+    val meanVisibleMillis: Double?,
     val dispatchesPerFrame: Long,
     /** Mean of the kgsl busy counter over the load phase, 0..1. */
     val busyFraction: Double?,

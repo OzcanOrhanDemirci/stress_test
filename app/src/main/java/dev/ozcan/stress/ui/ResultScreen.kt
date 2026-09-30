@@ -94,11 +94,11 @@ fun ResultScreen(record: RunRecord, onBack: () -> Unit) {
                 Field(label, "${Format.celsius(max)}$rise")
             }
         }
-        Panel("Kısılma ve kararlılık") {
+        Panel("Kısılma ve kararlılık (yük altındaki kümeler)") {
             s.firstThrottleSeconds.forEach { (cluster, seconds) ->
                 Field("$cluster ilk kısılma", seconds?.let(Durations::clock) ?: "kısılmadı")
             }
-            Field("CPU kararlılığı", Format.percent(s.cpuStability))
+            s.cpuStability?.let { Field("CPU kararlılığı", Format.percent(it)) }
             s.gpuStability?.let { Field("GPU kararlılığı", Format.percent(it)) }
         }
 

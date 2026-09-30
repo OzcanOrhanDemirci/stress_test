@@ -97,6 +97,14 @@ class RunAnalysisTest {
     }
 
     @Test
+    fun `idle clusters are not reported as throttled`() {
+        val (baseline, load) = run()
+        val gpuOnly = load.map { it.copy(cpu = TestSamples.snapshot(null, 0)) }
+        val summary = RunAnalysis.analyze(baseline, gpuOnly, TestSamples.clusters) { "p${it.policy}" }.first
+        assertTrue(summary.firstThrottleSeconds.isEmpty())
+    }
+
+    @Test
     fun `a charger anywhere voids the power figures`() {
         assertFalse(analyze(plugged = true).first.powerValid)
     }

@@ -150,6 +150,8 @@ object LabAnalysis {
             last10sRate = rate(at(10.0, fromEnd = true), last),
             framesPerSecond = if (seconds > 0) frames / seconds else null,
             meanFrameMillis = if (frames > 0) (last.gpu.gpuNanos - first.gpu.gpuNanos) / 1e6 / frames else null,
+            meanBurnerMillis = if (frames > 0) (last.gpu.burnerNanos - first.gpu.burnerNanos) / 1e6 / frames else null,
+            meanVisibleMillis = if (frames > 0) (last.gpu.visibleNanos - first.gpu.visibleNanos) / 1e6 / frames else null,
             dispatchesPerFrame = last.gpu.dispatchesPerFrame,
             busyFraction = Stats.mean(load.mapNotNull { it.sysfs.gpuBusy?.fraction }),
             errors = last.gpu.errors,

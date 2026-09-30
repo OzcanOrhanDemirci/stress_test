@@ -28,7 +28,7 @@ class KernelDeviceTest {
 
     @Test
     fun tableIsCompleteAndDescribed() {
-        assertEquals(11, kernels.size)
+        assertEquals(15, kernels.size)
         assertEquals(kernels.size, kernels.map { it.key }.toSet().size)
         assertEquals(KernelCatalog.keys, kernels.map { it.key }.toSet())
         kernels.forEach { assertTrue("${it.code} does no work", it.opsPerIteration > 0) }

@@ -73,3 +73,22 @@ Oturum `20261001-010903`: 11 yük × 2 tekrar, karışık sıra, her koşu 10 sn
   A510'da BFMMLA yavaş (4 çekirdek 42 GFLOPS, INT8 SMMLA'nın 1/8'i).
 
 **Sonraki CPU turu:** C8'in tampon boyu (128 KiB · 512 KiB · 1 MiB · 2 MiB) ve küme başına karışımlar (ör. A510'da i8_mmla, A715'te C8).
+
+## Faz 2 · GPU motoru, ilk cihaz ölçümleri (güçsüz)
+
+`GpuEngineDeviceTest`, 2026-10-01 01:51, kablo takılı, ImageReader yüzeyi 632×1368, sahne %50 (316×684), hedef kare 40 ms.
+Kare zamanı iki zaman damgasıyla bölündü: yakıcı + görünen geçiş (sahne).
+
+| Yakıcı | Kare | Yakıcı | Sahne | Gönderim/kare | Gönderim başı | Hız |
+|---|---|---|---|---|---|---|
+| G1 FP32 | 39,3 ms | 15,7 ms | 23,7 ms | 15 | 1,05 ms | ~1,0 TFLOPS (yakıcı süresine göre) |
+| G2 FP16 | 38,5 ms | 15,0 ms | 23,6 ms | 3 | ~5 ms | ~0,2 TFLOPS: FP32'den ~5 kat yavaş (beklenmedik) |
+| G3 doku | 45,8 ms | 17,2 ms | 23,7 ms | 2 | ~8,6 ms | her örnek farklı önbellek satırı: belleğe bağlı |
+| G4 bant genişliği | 42,1 ms | 16,3 ms | 23,8 ms | 4 | ~4 ms | ~16 GB/s okuma+yazma |
+| G5 harmanlama | 40,6 ms | 15,2 ms | 23,7 ms | 69 | 0,22 ms | ~15,7 Gpiksel/s |
+
+- Hesap hatası 0, doğrulanan her gönderim ilk gönderimle birebir aynı.
+- **Sahne pahalı:** 316×684'te 23,7 ms. Telefonun gerçek ekranında %50 ölçekte (632×1368) GPU modunda **14 fps** görüldü, GPU %100 meşgul.
+  Hangi ölçeğin ve hangi yakıcının en çok watt çektiği gece oturumunda ölçülüyor.
+- İki hata bulundu ve düzeltildi: G3 tek gönderimi ~100 ms'ydi (iterasyon 64 → 8); ayar döngüsü kare başına tek gönderimde
+  takılıyordu (tek zaman damgasıyla sabit sahne maliyeti ayrılamıyordu → üç damga, `(hedef − sahne) / gönderim başı`).

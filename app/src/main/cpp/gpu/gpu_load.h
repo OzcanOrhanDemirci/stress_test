@@ -40,7 +40,9 @@ public:
         kFieldChecks = 8,            // dispatches whose digests were compared
         kFieldWidth = 9,
         kFieldHeight = 10,
-        kSnapshotStride = 11,
+        kFieldBurnerNanos = 11,      // sum of GPU time spent in burner work
+        kFieldVisibleNanos = 12,     // sum of GPU time spent drawing what the screen shows
+        kSnapshotStride = 13,
     };
 
     enum State : int { kStateIdle = 0, kStateRunning = 1, kStateDeviceLost = 2, kStateFailed = 3 };

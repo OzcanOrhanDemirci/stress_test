@@ -34,7 +34,10 @@ data class RunSummary(
     val batteryLifeHours: Double?,
     val maxTemperatures: Map<String, Double>,
     val startTemperatures: Map<String, Double>,
-    /** Seconds into the load when each cluster first dropped below 97% of its top clock for three seconds; null if it never did. */
+    /**
+     * For each cluster the load ran on: seconds into the load when it first
+     * dropped below 97% of its top clock for three seconds; null if it never did.
+     */
     val firstThrottleSeconds: Map<String, Double?>,
     /** Worst over best work rate across equal slices of the load (3DMark's stability), 0..1. */
     val cpuStability: Double?,

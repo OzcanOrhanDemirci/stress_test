@@ -5,6 +5,7 @@ import android.hardware.HardwareBuffer
 import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.ozcan.stress.engine.GpuBurner
 import dev.ozcan.stress.engine.GpuCatalog
@@ -49,6 +50,10 @@ class GpuEngineDeviceTest {
         return engine.snapshot().also { engine.request(null) }
     }
 
+    private companion object {
+        const val TAG = "GpuEngineDeviceTest"
+    }
+
     @Test
     fun tableIsDescribed() {
         assertEquals(GpuCatalog.keys, engine.burners.map { it.key }.toSet())
@@ -75,6 +80,14 @@ class GpuEngineDeviceTest {
             if (burner.verified) assertTrue("$name was never checked", s.checks > 0)
             // The frame is sized to the 40 ms target; after three seconds it must be close.
             val frameMillis = s.lastFrameNanos / 1e6
+            val rate = if (s.gpuNanos > 0) s.work * 1e9 / s.gpuNanos else 0.0
+            val frames = s.frames.coerceAtLeast(1)
+            Log.i(
+                TAG,
+                "$name frame %.1f ms (burner %.1f, visible %.1f), %d dispatches, %.3g ${burner.unit.rateSymbol}".format(
+                    frameMillis, s.burnerNanos / 1e6 / frames, s.visibleNanos / 1e6 / frames, s.dispatchesPerFrame, rate,
+                ),
+            )
             assertTrue("$name frame $frameMillis ms, ${s.dispatchesPerFrame} dispatches", frameMillis in 20.0..80.0)
         }
     }

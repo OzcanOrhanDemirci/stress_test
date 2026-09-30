@@ -51,6 +51,10 @@ object KernelCatalog {
             "RAM kopyalama",
             "32 MiB'lık tamponda okuma ve yazma: saf bellek bant genişliği.",
         ),
+        "fp32_s128k" to Description("FP32 FMA · 128 KiB", "C8'in 128 KiB'lık tamponla çalışan hâli."),
+        "fp32_s512k" to Description("FP32 FMA · 512 KiB", "C8'in 512 KiB'lık tamponla çalışan hâli."),
+        "fp32_s1m" to Description("FP32 FMA · 1 MiB", "C8'in 1 MiB'lık tamponla çalışan hâli."),
+        "fp32_s2m" to Description("FP32 FMA · 2 MiB", "C8'in 2 MiB'lık tamponla çalışan hâli."),
     )
 
     val keys: Set<String> get() = descriptions.keys

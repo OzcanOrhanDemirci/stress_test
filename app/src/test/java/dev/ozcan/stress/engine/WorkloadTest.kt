@@ -29,8 +29,19 @@ class WorkloadTest {
     }
 
     @Test
+    fun `gpu parts take a preview or scale option`() {
+        assertEquals(GpuPart(TestSamples.gpuFp32, scene = false), parse("gpu_fp32@preview").gpu)
+        assertEquals(GpuPart(null, scene = true, sceneScalePercent = 35), parse("scene@35").gpu)
+        for (text in listOf("gpu_fp32@preview", "scene@35", "dry+gpu_blend@50")) assertEquals(text, parse(text).describe())
+    }
+
+    @Test
     fun `malformed workloads are rejected`() {
-        for (bad in listOf("", "+", "gpu_fp32+gpu_blend", "scene+gpu_fp32", "dry+fp32_gemm", "dry++gpu_fp32", "nope")) {
+        val bad = listOf(
+            "", "+", "gpu_fp32+gpu_blend", "scene+gpu_fp32", "dry+fp32_gemm", "dry++gpu_fp32", "nope",
+            "gpu_fp32@", "gpu_fp32@fast", "scene@5", "scene@101",
+        )
+        for (bad in bad) {
             assertThrows(bad, IllegalArgumentException::class.java) { parse(bad) }
         }
     }

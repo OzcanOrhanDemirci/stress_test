@@ -47,7 +47,9 @@ constexpr uint32_t kAluGroups = 512;
 constexpr uint32_t kAluIterations = 256;
 constexpr double kAluFlopPerIteration = 128;
 constexpr uint32_t kTextureGroups = 512;
-constexpr uint32_t kTextureIterations = 64;
+// Each sample lands on a different cache line of a 16 MiB texture, so this one
+// is bound by memory: 8 iterations already take ~12 ms on the Adreno 720.
+constexpr uint32_t kTextureIterations = 8;
 constexpr double kSamplesPerIteration = 4;
 constexpr uint32_t kBandwidthGroups = 2048;
 constexpr uint32_t kBandwidthIterations = 16;
@@ -56,6 +58,7 @@ constexpr uint32_t kBlendLayers = 4;
 constexpr uint32_t kTextureSize = 2048;
 
 constexpr uint32_t kFramesInFlight = 3;
+constexpr uint32_t kStampsPerFrame = 3;  // frame start, burner done, visible pass done
 constexpr uint32_t kMaxDispatches = 256;
 constexpr uint32_t kMaxGroups = 2048;  // result slots reserved per dispatch
 
@@ -182,6 +185,7 @@ struct GpuLoad::Renderer {
     uint32_t iterations = 0;
     double workPerDispatch = 0;
     uint32_t perFrame = 1;
+    double perFrameExact = 1.0;  // smoothed ideal dispatch count, see collect()
     uint64_t frameIndex = 0;
     std::vector<uint32_t> golden;
     int64_t startNanos = 0;
@@ -200,6 +204,8 @@ struct GpuLoad::Renderer {
     std::atomic<int64_t> dispatches{0};
     std::atomic<int64_t> work{0};
     std::atomic<int64_t> gpuNanos{0};
+    std::atomic<int64_t> burnerTotalNanos{0};
+    std::atomic<int64_t> visibleTotalNanos{0};
     std::atomic<int64_t> lastFrameNanos{0};
     std::atomic<int64_t> dispatchesPerFrame{0};
     std::atomic<int64_t> errors{0};
@@ -591,7 +597,7 @@ struct GpuLoad::Renderer {
         VkQueryPoolCreateInfo queryInfo{};
         queryInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
         queryInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
-        queryInfo.queryCount = 2 * kFramesInFlight;
+        queryInfo.queryCount = kStampsPerFrame * kFramesInFlight;
         VK_TRY(vkCreateQueryPool(device, &queryInfo, nullptr, &queries));
         return true;
     }
@@ -1105,8 +1111,8 @@ struct GpuLoad::Renderer {
         begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         VK_TRY(vkBeginCommandBuffer(cmd, &begin));
-        vkCmdResetQueryPool(cmd, queries, slot * 2, 2);
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queries, slot * 2);
+        vkCmdResetQueryPool(cmd, queries, slot * kStampsPerFrame, kStampsPerFrame);
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queries, slot * kStampsPerFrame);
 
         VkViewport viewport{0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f};
         VkRect2D scissor{{0, 0}, extent};
@@ -1142,6 +1148,8 @@ struct GpuLoad::Renderer {
             vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 1, &barrier, 0,
                                  nullptr, 0, nullptr);
         }
+
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * kStampsPerFrame + 1);
 
         const float seconds = static_cast<float>(static_cast<double>(nowNanos() - startNanos) * 1e-9);
         const float load = burner >= 0 ? 1.0f : 0.0f;
@@ -1192,20 +1200,26 @@ struct GpuLoad::Renderer {
         vkCmdDraw(cmd, 3, 1, 0, 0);
         vkCmdEndRenderPass(cmd);
 
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * 2 + 1);
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * kStampsPerFrame + 2);
         VK_TRY(vkEndCommandBuffer(cmd));
         return true;
     }
 
     // Reads back a finished frame: its GPU time, its digests, and the next frame's size.
     void collect(uint32_t slot) {
-        std::array<uint64_t, 2> stamps{};
-        int64_t frameNanos = 0;
-        if (vkGetQueryPoolResults(device, queries, slot * 2, 2, sizeof(stamps), stamps.data(), sizeof(uint64_t),
-                                  VK_QUERY_RESULT_64_BIT) == VK_SUCCESS) {
-            const uint64_t ticks = ((stamps[1] & timestampMask) - (stamps[0] & timestampMask)) & timestampMask;
-            frameNanos = static_cast<int64_t>(static_cast<double>(ticks) * timestampPeriodNanos);
+        std::array<uint64_t, kStampsPerFrame> stamps{};
+        int64_t burnerNanos = 0;
+        int64_t visibleNanos = 0;
+        if (vkGetQueryPoolResults(device, queries, slot * kStampsPerFrame, kStampsPerFrame, sizeof(stamps), stamps.data(),
+                                  sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS) {
+            auto nanos = [&](uint64_t from, uint64_t to) {
+                const uint64_t ticks = ((to & timestampMask) - (from & timestampMask)) & timestampMask;
+                return static_cast<int64_t>(static_cast<double>(ticks) * timestampPeriodNanos);
+            };
+            burnerNanos = nanos(stamps[0], stamps[1]);
+            visibleNanos = nanos(stamps[1], stamps[2]);
         }
+        const int64_t frameNanos = burnerNanos + visibleNanos;
 
         const uint32_t count = dispatchesInFlight[slot];
         if (count > 0 && kBurners[static_cast<size_t>(burner)].verified) verify(slot, count);
@@ -1214,14 +1228,20 @@ struct GpuLoad::Renderer {
         dispatches.fetch_add(count, std::memory_order_relaxed);
         work.fetch_add(static_cast<int64_t>(workPerDispatch * count), std::memory_order_relaxed);
         gpuNanos.fetch_add(frameNanos, std::memory_order_relaxed);
+        burnerTotalNanos.fetch_add(burnerNanos, std::memory_order_relaxed);
+        visibleTotalNanos.fetch_add(visibleNanos, std::memory_order_relaxed);
         lastFrameNanos.store(frameNanos, std::memory_order_relaxed);
 
-        // Size the next frames so each takes the target GPU time. Changes are
-        // bounded per frame so one odd measurement cannot swing the load.
-        if (burner >= 0 && frameNanos > 0 && count > 0) {
-            const double ratio = std::clamp(static_cast<double>(targetFrameNanos) / static_cast<double>(frameNanos), 0.5, 2.0);
-            const double next = std::round(static_cast<double>(perFrame) * ratio);
-            perFrame = static_cast<uint32_t>(std::clamp(next, 1.0, static_cast<double>(kMaxDispatches)));
+        // Size the burner so burner plus visible pass fill the target: the
+        // count that fits the time the visible pass leaves, at the cost one
+        // dispatch just took. Half of each correction is applied, so one odd
+        // frame cannot swing the load; at least one dispatch always runs.
+        if (burner >= 0 && burnerNanos > 0 && count > 0) {
+            const double perDispatch = static_cast<double>(burnerNanos) / count;
+            const double room = static_cast<double>(targetFrameNanos - visibleNanos);
+            const double ideal = std::clamp(room / perDispatch, 1.0, static_cast<double>(kMaxDispatches));
+            perFrameExact = 0.5 * perFrameExact + 0.5 * ideal;
+            perFrame = static_cast<uint32_t>(std::lround(perFrameExact));
         }
         dispatchesPerFrame.store(perFrame, std::memory_order_relaxed);
     }
@@ -1361,6 +1381,8 @@ void GpuLoad::snapshot(int64_t* out) const {
     out[kFieldChecks] = r.checks.load(std::memory_order_relaxed);
     out[kFieldWidth] = r.width.load(std::memory_order_relaxed);
     out[kFieldHeight] = r.height.load(std::memory_order_relaxed);
+    out[kFieldBurnerNanos] = r.burnerTotalNanos.load(std::memory_order_relaxed);
+    out[kFieldVisibleNanos] = r.visibleTotalNanos.load(std::memory_order_relaxed);
 }
 
 }  // namespace stress

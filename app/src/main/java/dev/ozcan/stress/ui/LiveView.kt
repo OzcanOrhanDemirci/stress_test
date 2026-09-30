@@ -16,6 +16,7 @@ import dev.ozcan.stress.telemetry.ThermalGroup
 
 data class ClusterLive(
     val name: String,
+    val shortName: String,
     val khz: Long?,
     val maxKhz: Long,
     /** Work per second of the cluster's burner threads, in [LiveView.unit]. */
@@ -94,6 +95,7 @@ data class LiveView(
                 clusters = layout.clusters.mapIndexed { i, cluster ->
                     ClusterLive(
                         name = CoreNames.of(cluster),
+                        shortName = CoreNames.short(cluster),
                         khz = last.sysfs.clusterFreqKhz.getOrNull(i),
                         maxKhz = cluster.maxFreqKhz,
                         rate = rates?.let { r ->

@@ -28,7 +28,11 @@ class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) {
             // The renderer draws on the screen's surface, which the screen provides.
             val deadline = SystemClock.elapsedRealtime() + SURFACE_TIMEOUT_MILLIS
             while (!gpu.hasSurface && SystemClock.elapsedRealtime() < deadline) delay(100)
-            val request = GpuRequest(part.burner, scene = settings.scene, sceneScalePercent = settings.sceneScalePercent)
+            val request = GpuRequest(
+                part.burner,
+                scene = part.scene ?: settings.scene,
+                sceneScalePercent = part.sceneScalePercent ?: settings.sceneScalePercent,
+            )
             withContext(Dispatchers.Default) { gpu.request(request) }
             val started = gpu.lastStart
             if (!gpu.hasSurface) problems += "gpu=NoSurface" else if (started != GpuStartResult.Started) problems += "gpu=$started"

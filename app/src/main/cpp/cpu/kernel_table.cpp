@@ -10,7 +10,7 @@ constexpr uint32_t kL2Buffer = 256 * 1024;         // past L1, inside the L2 of 
 constexpr uint32_t kDramBuffer = 32 * 1024 * 1024; // far past the last-level cache
 
 // Operation counts follow the instruction blocks in tools/gen_kernels.py.
-constexpr std::array<KernelSpec, 11> kTable{{
+constexpr std::array<KernelSpec, 15> kTable{{
     // key          code   kernel                 data            buffer             step neg  ops/step        unit
     {"dry",         "K0",  stress_k_dry,          DataKind::I8,   64,                0,   0,   4,              "OP"},
     {"fp32_reg",    "C1",  stress_k_fp32_reg,     DataKind::F32,  25 * 16,           0,   0,   24 * 4 * 2,     "FLOP"},
@@ -23,6 +23,11 @@ constexpr std::array<KernelSpec, 11> kTable{{
     {"fp32_l2",     "C8",  stress_k_fp32_stream,  DataKind::F32,  kL2Buffer,         64,  32,  16 * 4 * 2,     "FLOP"},
     {"fp32_dram",   "C9",  stress_k_fp32_stream,  DataKind::F32,  kDramBuffer,       64,  32,  16 * 4 * 2,     "FLOP"},
     {"memcopy",     "C10", stress_k_memcopy,      DataKind::I8,   kDramBuffer,       128, 0,   128,            "B"},
+    // C8 won the first sweep; these sizes look for the buffer that draws the most.
+    {"fp32_s128k",  "C11", stress_k_fp32_stream,  DataKind::F32,  128 * 1024,        64,  32,  16 * 4 * 2,     "FLOP"},
+    {"fp32_s512k",  "C12", stress_k_fp32_stream,  DataKind::F32,  512 * 1024,        64,  32,  16 * 4 * 2,     "FLOP"},
+    {"fp32_s1m",    "C13", stress_k_fp32_stream,  DataKind::F32,  1024 * 1024,       64,  32,  16 * 4 * 2,     "FLOP"},
+    {"fp32_s2m",    "C14", stress_k_fp32_stream,  DataKind::F32,  2 * 1024 * 1024,   64,  32,  16 * 4 * 2,     "FLOP"},
 }};
 
 constexpr bool isValid(const KernelSpec& k) {

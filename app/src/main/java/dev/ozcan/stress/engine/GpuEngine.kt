@@ -76,6 +76,9 @@ data class GpuSnapshot(
     val checks: Long,
     val width: Int,
     val height: Int,
+    /** Of [gpuNanos]: time in burner work, and time drawing the visible pass (the scene). */
+    val burnerNanos: Long = 0,
+    val visibleNanos: Long = 0,
 ) {
     val isRunning: Boolean get() = state == GpuState.Running
 
@@ -183,11 +186,13 @@ class GpuEngine {
             checks = buffer[8],
             width = buffer[9].toInt(),
             height = buffer[10].toInt(),
+            burnerNanos = buffer[11],
+            visibleNanos = buffer[12],
         )
     }
 
     companion object {
         /** Must match `GpuLoad::kSnapshotStride`. */
-        const val SNAPSHOT_STRIDE = 11
+        const val SNAPSHOT_STRIDE = 13
     }
 }

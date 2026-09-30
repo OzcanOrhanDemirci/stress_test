@@ -50,7 +50,10 @@ object RunAnalysis {
             batteryLifeHours = batteryLife(load, sustained),
             maxTemperatures = temperatures(load) { it.maxOrNull() },
             startTemperatures = temperatures(load.take(1)) { it.firstOrNull() },
-            firstThrottleSeconds = clusters.mapIndexed { i, c -> clusterName(c) to firstThrottle(load, i, c.maxFreqKhz, origin) }.toMap(),
+            // Only loaded clusters: an idle cluster slows down because it has nothing to do, not because it is hot.
+            firstThrottleSeconds = clusters.withIndex()
+                .filter { (_, c) -> load.any { s -> c.cpus.any { cpu -> s.cpu.workers.getOrNull(cpu)?.kernel != null } } }
+                .associate { (i, c) -> clusterName(c) to firstThrottle(load, i, c.maxFreqKhz, origin) },
             cpuStability = stability(load) { s -> s.cpu.workers.sumOf { it.work } },
             gpuStability = if (load.any { it.gpu.isRunning }) stability(load) { it.gpu.work.toDouble() } else null,
             computationErrors = (load.lastOrNull()?.cpu?.errors ?: 0L) + (load.lastOrNull()?.gpu?.errors ?: 0L),
