@@ -63,7 +63,9 @@ void main() {
     vec2 previous = vec2(dot(v, rt), dot(v, up)) / max(z, 1e-4) * FOCAL * params.resolution.y + 0.5 * params.resolution;
     vec2 texcoord = vec2(previous.x, params.resolution.y - previous.y) / params.resolution;
     bool inside = all(greaterThanEqual(texcoord, vec2(0.0))) && all(lessThanEqual(texcoord, vec2(1.0)));
-    bool valid = params.frame > 0u && z > 0.0 && inside;
+    // A cut to a new shot leaves nothing worth reprojecting.
+    bool sameShot = shotAt(params.time) == shotAt(params.previousTime);
+    bool valid = params.frame > 0u && sameShot && z > 0.0 && inside;
 
     vec3 result = now;
     if (valid) {
