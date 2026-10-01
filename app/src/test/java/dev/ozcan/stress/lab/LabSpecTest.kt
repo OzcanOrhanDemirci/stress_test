@@ -1,6 +1,7 @@
 package dev.ozcan.stress.lab
 
 import dev.ozcan.stress.TestSamples
+import dev.ozcan.stress.engine.GpuRequest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -30,7 +31,7 @@ class LabSpecTest {
         assertEquals(40.0, spec.coolCelsius, 0.0)
         assertTrue(spec.waitForBattery)
         assertTrue(spec.scene)
-        assertEquals(50, spec.sceneScalePercent)
+        assertEquals(GpuRequest.DEFAULT_SCENE_SCALE_PERCENT, spec.sceneScalePercent)
     }
 
     @Test
