@@ -100,6 +100,11 @@ float outsideZone(float along) {
 // ---- the world ----------------------------------------------------------------------------------
 
 float gTime;
+// True while a shadow ray is marched: the cube walls are then one solid mass.
+// Through the narrow gaps between their cubes a shadow ray would creep in tiny
+// steps, run out of them before the wall behind, and let light leak onto the
+// floor in thin lines; from a distant light their detail would not show.
+bool gShadowRay = false;
 
 // Tall white slabs far out either side, in every zone: the world's scale.
 float monoliths(vec3 p) {
@@ -202,20 +207,32 @@ float wallCube(vec3 q, vec2 cell, float side) {
 
 vec2 zoneCubes(vec3 q) {
     float ends = outsideZone(q.z);
+    if (gShadowRay) {
+        float mass = sdBox(vec3(abs(q.x) - 5.85, q.y - 3.85, 0.0), vec3(1.05, 3.85, 1e3));
+        float hung = sdBox(vec3(q.x, q.y - 6.2, q.z - 0.5 * ZONE), vec3(1.15));
+        return vec2(max(min(mass, hung), ends), M_WHITE);
+    }
     // Nothing of the walls nearer than the slab their faces stand in.
-    float d = max(max(ROOM_W - abs(q.x), q.y - 7.8), 0.0) + 0.0;
+    float d = max(max(ROOM_W - abs(q.x), q.y - 7.8), 0.0);
     if (d < 1.5) {
-        // Near the walls: the cubes of the nearest 2 x 2 cells, which a cube
-        // in any other cell cannot be nearer than.
+        // Near the walls: the cubes of the nearest 2 x 2 cells. The point is at
+        // least half a cell inside that block, and every cube keeps 0.05 m
+        // from its cell's sides, so a cube outside the block is 0.6 m away at
+        // the least, however far it stands out: the bound caps the distance.
         float side = q.x > 0.0 ? 3.0 : 7.0;
         vec2 g = vec2(q.y, q.z) / CUBE;
         vec2 cell = floor(g);
         vec2 toward = sign(fract(g) - 0.5);
         d = min(min(wallCube(q, cell, side), wallCube(q, cell + vec2(toward.x, 0.0), side)),
                 min(wallCube(q, cell + vec2(0.0, toward.y), side), wallCube(q, cell + toward, side)));
+        d = min(d, 0.6);
     }
-    d = max(d, ends);
-    float hanging = max(sdBox(vec3(q.x, q.y - 4.8, q.z - 0.5 * ZONE), vec3(1.15)) - 0.015, ends);
+    // The wall the cubes stand out from, behind the shallowest cube's back:
+    // no white shows through the gaps between them.
+    float backing = sdBox(vec3(abs(q.x) - 6.3, q.y - 3.85, 0.0), vec3(0.6, 3.85, 1e3));
+    d = max(min(d, backing), ends);
+    // Its underside, at 5 m, stays above the camera's highest pass (4.3 m).
+    float hanging = max(sdBox(vec3(q.x, q.y - 6.2, q.z - 0.5 * ZONE), vec3(1.15)) - 0.015, ends);
     return vec2(min(d, hanging), M_WHITE);
 }
 
@@ -311,6 +328,7 @@ float occlusion(vec3 p, vec3 n) {
 // Soft shadow from the key light; its start is shifted a little each frame so
 // the edge smooths out as frames accumulate.
 float keyShadow(vec3 p) {
+    gShadowRay = true;
     float s = 1.0;
     float t = 0.03 + 0.03 * wrand();
     for (int i = 0; i < 20; ++i) {
@@ -319,6 +337,7 @@ float keyShadow(vec3 p) {
         t += clamp(h, 0.05, 3.0);
         if (s < 0.01 || t > 30.0) break;
     }
+    gShadowRay = false;
     return clamp(s, 0.0, 1.0);
 }
 
@@ -439,10 +458,12 @@ void framing(float time, out vec3 from, out vec3 target, out vec2 lens) {
     float z = time * SPEED;
     float open = openness(z);
     float ahead = openness(z + 8.0);
-    from = vec3(1.6 * open * sin(z * 0.05), 1.7 + 2.6 * open, z);
+    // The sways repeat with the zones, so every lap flies the same line.
+    float lap = z * 2.0 * PI / PERIOD;
+    from = vec3(1.6 * open * sin(lap * 3.0), 1.7 + 2.6 * open, z);
     float lift = 1.7 + 2.6 * ahead;
     // Looking ahead along the path, turning a little in the open to take in its sides.
-    target = vec3(from.x + 4.5 * open * sin(z * 0.035 + 1.0), mix(lift, 1.9, 0.5) + 0.25 * open, z + 9.0);
+    target = vec3(from.x + 3.0 * open * sin(lap * 2.0 + 1.0), mix(lift, 1.9, 0.5) + 0.25 * open, z + 9.0);
     lens = vec2(10.0, 0.0);  // no depth of field: sharp from near to far
 }
 
