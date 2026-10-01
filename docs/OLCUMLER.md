@@ -176,3 +176,19 @@ Havuz sahnesi %45 ölçekte (yeni boru hattı, parçacık düzeltmesinden sonra,
   hedef karede yakıcıya yer kalmıyor (1 gönderim, ~1 ms).
 - Zaman paylaştırma kurtarmaz: kuralın tutması için sahnenin GPU zamanından payı ≤ %6,4 olmalı
   (2,95·f + 5,45·(1−f) ≥ 0,97 · 5,45); 48 ms'lik sahneyle bu ~1,3 fps demek.
+
+## Orman sahnesi, telefonda (kablo takılı, güç geçersiz)
+
+`forest@45` (569×1231 iç çözünürlük), yakıcısız, faz faz kare süresi (lab koşusu, GPU zaman damgaları):
+
+| Faz | İçerik | Kare |
+|---|---|---|
+| O1 | zemin, 676 ağaç (gövde + 160 kart), sis | 16,4 ms (61 fps, ekran yenilemesine dayalı) |
+| O2 | + gölge haritası (bir kez), 8 dokunuşlu PCF, sisteki huzmeler (12 nokta) | 16,9 ms |
+| O3 | + sık ladin tacı (444 kart/ağaç), kuru dallar, eğrelti, kütük, ıslak zemin | 33,1 ms (30 fps) |
+| O4 | + 8192 yağmur damlası, birikinti halkaları | 31,0 ms |
+
+- 60 Hz ekranda kare süreleri 16,7 ms'nin katlarına oturuyor: 33 ms "16,7 ile 33,3 ms arası" demek. Gerçek GPU süresi
+  yakıcılı bir koşuda (yakıcının aldığı pay) ya da 120 Hz'de daha net görülür.
+- Havuz sahnesi aynı ölçekte 48 ms; orman daha ucuz ama daha çok bellek trafiği çiziyor (üçgen + derinlik). **Pilde gücü
+  henüz ölçülmedi** (sinematik modlar arası ve yakıcıya göre).

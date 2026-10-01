@@ -31,10 +31,11 @@ class StressModeDeviceTest {
     }
 
     @Test
-    fun onlyTheCinematicModeDrawsTheScene() {
+    fun onlyTheCinematicModesDrawAScene() {
+        val cinematic = setOf(StressMode.Cinematic, StressMode.CinematicForest)
         for (mode in StressMode.entries) {
             val gpu = Workload.parse(mode.recipe, kernels, burners).gpu ?: continue
-            assertEquals("${mode.name} scene", mode == StressMode.Cinematic, gpu.scene != false)
+            assertEquals("${mode.name} scene", mode in cinematic, gpu.scene != false)
         }
     }
 }

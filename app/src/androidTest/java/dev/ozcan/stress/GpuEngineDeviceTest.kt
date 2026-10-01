@@ -14,6 +14,7 @@ import dev.ozcan.stress.engine.GpuRequest
 import dev.ozcan.stress.engine.GpuSnapshot
 import dev.ozcan.stress.engine.GpuStartResult
 import dev.ozcan.stress.engine.GpuState
+import dev.ozcan.stress.engine.SceneKind
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,13 +43,15 @@ class GpuEngineDeviceTest {
         drain.quitSafely()
     }
 
-    private fun run(burner: GpuBurner?, millis: Long): GpuSnapshot {
+    private fun run(request: GpuRequest, millis: Long): GpuSnapshot {
         engine.attach(reader.surface)
-        engine.request(GpuRequest(burner))
-        assertEquals("${burner?.code} did not start", GpuStartResult.Started, engine.lastStart)
+        engine.request(request)
+        assertEquals("$request did not start", GpuStartResult.Started, engine.lastStart)
         Thread.sleep(millis)
         return engine.snapshot().also { engine.request(null) }
     }
+
+    private fun run(burner: GpuBurner?, millis: Long): GpuSnapshot = run(GpuRequest(burner), millis)
 
     private companion object {
         const val TAG = "GpuEngineDeviceTest"
@@ -57,6 +60,15 @@ class GpuEngineDeviceTest {
     @Test
     fun tableIsDescribed() {
         assertEquals(GpuCatalog.keys, engine.burners.map { it.key }.toSet())
+    }
+
+    @Test
+    fun everySceneRuns() {
+        for (kind in SceneKind.entries) {
+            val s = run(GpuRequest(null, sceneKind = kind), 2_000)
+            assertEquals("$kind state", GpuState.Running, s.state)
+            assertTrue("$kind frames ${s.frames}", s.frames > 5)
+        }
     }
 
     @Test

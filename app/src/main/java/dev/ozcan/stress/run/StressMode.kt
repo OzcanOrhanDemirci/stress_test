@@ -18,9 +18,15 @@ enum class StressMode(val title: String, val detail: String, val recipe: String,
         usesGpu = true,
     ),
     Cinematic(
-        "Sinematik",
+        "Sinematik · Havuz",
         "Havuz reaktörü sahnesi, CPU tam yükte. Göz için: en yüksek güçten biraz düşük.",
         "fp32_l2+scene",
+        usesGpu = true,
+    ),
+    CinematicForest(
+        "Sinematik · Orman",
+        "Yağmurlu, sisli bir orman, tepeden süzülen ışık huzmeleri; CPU tam yükte. Göz için.",
+        "fp32_l2+forest",
         usesGpu = true,
     ),
     Cpu(
