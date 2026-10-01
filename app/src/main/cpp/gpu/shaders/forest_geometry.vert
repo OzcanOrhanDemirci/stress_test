@@ -128,12 +128,66 @@ void cardVertex(Tree t, int card, vec2 q) {
     vec3 n = normalize(d + (vec3(rnd(s), rnd(s), rnd(s)) - 0.5) * 0.9);
     vec3 a = normalize(cross(n, abs(n.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
     vec3 b = cross(n, a);
-    float size = mix(0.6, 0.95, rnd(s));
+    float size = mix(0.45, 0.7, rnd(s));
     world = centre + (a * (q.x * 2.0 - 1.0) + b * (q.y * 2.0 - 1.0)) * size * 0.5;
     normal = n;
     uv = q * 2.0 - 1.0;
     material = M_LEAVES;
     shade = mix(0.35, 1.0, r);
+    variant = rnd(s);
+}
+
+// A fern: FRONDS fronds round its centre, each arching up and out and down
+// to the ground, a strip of FROND_SEGMENTS quads.
+void fernVertex(Fern f, int v) {
+    int quad = v / 6;
+    vec2 q = quadCorner(v % 6);
+    int frond = quad / FROND_SEGMENTS;
+    uint s = hashu(f.seed + uint(frond) * 131u);
+    float az = (float(frond) + 0.6 * rnd(s)) / float(FRONDS) * 2.0 * PI;
+    float len = f.size * mix(0.7, 1.1, rnd(s));
+    float lift = mix(0.7, 1.15, rnd(s));
+    float t = (float(quad % FROND_SEGMENTS) + q.y) / float(FROND_SEGMENTS);
+    vec3 dir = vec3(cos(az), 0.0, sin(az));
+    vec3 side = vec3(-dir.z, 0.0, dir.x);
+    float rise = len * lift * (1.4 * t - 1.45 * t * t);
+    vec3 axis = f.base + dir * (len * t) + vec3(0.0, max(rise, 0.02), 0.0);
+    vec3 tangent = normalize(dir + vec3(0.0, lift * (1.4 - 2.9 * t), 0.0));
+    float width = len * 0.24 * pow(max(sin(PI * min(t, 0.999)), 0.0), 0.6) + 0.01;
+    float across = q.x * 2.0 - 1.0;
+    // The leaflets droop either side of the stem.
+    world = axis + side * (across * width) - vec3(0.0, 0.25 * width * across * across, 0.0);
+    normal = normalize(cross(side, tangent));
+    uv = vec2(t, across);
+    material = M_FERN;
+    shade = mix(0.5, 1.0, t);
+    variant = rnd(s);
+}
+
+// A fallen trunk lying across the ground, sunk into it a little.
+void logVertex(int log, int v) {
+    uint s = hashu(uint(log) * 9973u + 7u);
+    vec2 start = (vec2(rnd(s), rnd(s)) - 0.5) * 52.0;
+    float az = rnd(s) * 2.0 * PI;
+    float len = mix(4.0, 9.0, rnd(s));
+    float radius = mix(0.18, 0.4, rnd(s));
+    vec2 end = start + vec2(cos(az), sin(az)) * len;
+    vec3 p0 = vec3(start.x, terrain(start) + radius * 0.55, start.y);
+    vec3 p1 = vec3(end.x, terrain(end) + radius * 0.55, end.y);
+    int quad = v / 6;
+    vec2 q = quadCorner(v % 6);
+    float a = (float(quad % TRUNK_SIDES) + q.x) / float(TRUNK_SIDES) * 2.0 * PI;
+    float t = (float(quad / TRUNK_SIDES) + q.y) / float(LOG_RINGS);
+    vec3 dir = normalize(p1 - p0);
+    vec3 side = normalize(cross(vec3(0.0, 1.0, 0.0), dir));
+    vec3 lift = cross(dir, side);
+    vec3 n = side * cos(a) + lift * sin(a);
+    float r = radius * (1.0 - 0.25 * t) * (0.92 + 0.08 * sin(a * 3.0 + t * 7.0));
+    world = mix(p0, p1, t) + n * r;
+    normal = n;
+    uv = vec2(a * radius, t * len);
+    material = M_LOG;
+    shade = 0.6 + 0.4 * max(n.y, 0.0);
     variant = rnd(s);
 }
 
@@ -174,6 +228,21 @@ void main() {
     bool shadow = params.part >= PART_SHADOW;
     if (part == PART_TERRAIN) {
         terrainVertex(instance, v);
+    } else if (part == PART_LOGS) {
+        logVertex(instance, v);
+    } else if (part == PART_FERNS) {
+        Fern f = fernAt(instance);
+        if (!f.alive) {
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+            world = vec3(0.0);
+            normal = vec3(0.0, 1.0, 0.0);
+            uv = vec2(0.0);
+            material = M_FERN;
+            shade = 0.0;
+            variant = 0.0;
+            return;
+        }
+        fernVertex(f, v);
     } else {
         Tree t = treeAt(instance);
         if (!t.alive) {

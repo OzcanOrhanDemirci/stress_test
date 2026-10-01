@@ -331,6 +331,10 @@ class ForestScene:
         self.cards = (shader_int(counts, "WHORLS") * shader_int(counts, "PER_WHORL") * shader_int(counts, "SPRAYS")
                       + shader_int(counts, "DEAD_BRANCHES"))
         self.trees = shader_int(counts, "FOREST_GRID") ** 2
+        self.frond = shader_int(counts, "FRONDS") * shader_int(counts, "FROND_SEGMENTS")
+        self.ferns = shader_int(counts, "FERN_GRID") ** 2
+        self.log = shader_int(counts, "TRUNK_SIDES") * shader_int(counts, "LOG_RINGS")
+        self.logs = shader_int(counts, "LOGS")
         shadow_res = shader_int(counts, "SHADOW_RES")
         geometry = ctx.program(vertex_shader=gl_source("forest_geometry.vert"), fragment_shader=gl_source("forest_geometry.frag"))
         caster = ctx.program(vertex_shader=gl_source("forest_geometry.vert"), fragment_shader=gl_source("forest_shadow.frag"))
@@ -366,6 +370,10 @@ class ForestScene:
         self.casters.render(moderngl.TRIANGLES, vertices=self.trunk * 6, instances=self.trees)
         self.write(0.0, 0, shadow + 2)
         self.casters.render(moderngl.TRIANGLES, vertices=self.cards * 6, instances=self.trees)
+        self.write(0.0, 0, shadow + 3)
+        self.casters.render(moderngl.TRIANGLES, vertices=self.frond * 6, instances=self.ferns)
+        self.write(0.0, 0, shadow + 4)
+        self.casters.render(moderngl.TRIANGLES, vertices=self.log * 6, instances=self.logs)
         self.ctx.disable(moderngl.DEPTH_TEST)
 
     def prepare(self, t):
@@ -389,6 +397,10 @@ class ForestScene:
         self.pulled.render(moderngl.TRIANGLES, vertices=self.trunk * 6, instances=self.trees)
         part(2)
         self.pulled.render(moderngl.TRIANGLES, vertices=self.cards * 6, instances=self.trees)
+        part(3)
+        self.pulled.render(moderngl.TRIANGLES, vertices=self.frond * 6, instances=self.ferns)
+        part(4)
+        self.pulled.render(moderngl.TRIANGLES, vertices=self.log * 6, instances=self.logs)
         ctx.disable(moderngl.DEPTH_TEST)
         # Sunbeams, added onto the colour.
         self.light_fbo.use()

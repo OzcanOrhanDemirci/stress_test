@@ -166,18 +166,57 @@ float twigCover(vec2 p, float seed) {
     return max(stem, twigs);
 }
 
-// A beech twig: six leaves round a centre, each a pointed ellipse. uv in -1..1.
+// A beech spray: a dozen small leaves, an inner ring and an outer one, each a
+// pointed ellipse. uv in -1..1.
 float leafCover(vec2 p, float seed) {
     float cover = 0.0;
-    for (int i = 0; i < 6; ++i) {
-        float a = seed * 6.283 + float(i) * 1.047 + 0.35 * sin(float(i) * 7.1 + seed * 19.0);
+    for (int i = 0; i < 12; ++i) {
+        float ring = i < 5 ? 0.38 : 0.72;
+        float a = seed * 6.283 + float(i) * (i < 5 ? 1.2566 : 0.8976) + 0.4 * sin(float(i) * 7.1 + seed * 19.0);
         vec2 dir = vec2(cos(a), sin(a));
-        vec2 q = p - dir * 0.47;
+        vec2 q = p - dir * ring;
         vec2 l = vec2(dot(q, dir), dot(q, vec2(-dir.y, dir.x)));
-        float width = 0.17 * (1.0 - smoothstep(0.0, 0.42, l.x) * 0.7);
-        cover = max(cover, step((l.x * l.x) / 0.16 + (l.y * l.y) / (width * width), 1.0));
+        float width = 0.11 * (1.0 - smoothstep(0.0, 0.26, l.x) * 0.7);
+        cover = max(cover, step((l.x * l.x) / 0.07 + (l.y * l.y) / (width * width), 1.0));
     }
     return cover;
+}
+
+// A fern frond: a stem with leaflets leaving it in pairs, lobed at their
+// edges, longest a third of the way out. uv: along 0..1, across -1..1.
+float fernCover(vec2 p, float seed) {
+    float x = p.x, y = abs(p.y);
+    float halfWidth = 0.95 * sin(PI * pow(clamp(x, 0.0, 1.0), 0.75));
+    if (y > halfWidth) return 0.0;
+    float along = (x - 0.3 * y) * 15.0 + (p.y > 0.0 ? 0.5 : 0.0) + seed * 2.0;
+    float gap = abs(fract(along) - 0.5);
+    float leaflet = step(gap, 0.32 - 0.2 * y / max(halfWidth, 1e-3) + 0.06 * sin(y * 85.0 + seed * 9.0));
+    return max(step(y, 0.02), leaflet);
+}
+
+// ---- the forest floor's plants and fallen trees ----------------------------------------------------
+
+const float FERN_CELL = 1.0;
+
+struct Fern {
+    vec3 base;
+    float size;
+    uint seed;
+    bool alive;
+};
+
+// Ferns gather in patches, thickest where the canopy opens.
+Fern fernAt(int index) {
+    ivec2 cell = ivec2(index % FERN_GRID, index / FERN_GRID) - FERN_GRID / 2;
+    uint s = hash2u(cell + ivec2(1000, 3000));
+    Fern f;
+    vec2 xz = (vec2(cell) + 0.15 + 0.7 * vec2(rnd(s), rnd(s))) * FERN_CELL;
+    float thicket = vnoise(xz * 0.13 + 5.0) + 0.25 * exp(-pow(length(xz - CLEARING) - CLEARING_R, 2.0) / 8.0);
+    f.alive = thicket > 0.42 && rnd(s) < 0.85;
+    f.size = mix(0.55, 1.15, rnd(s)) * smoothstep(0.42, 0.7, thicket + 0.1);
+    f.base = vec3(xz.x, terrain(xz), xz.y);
+    f.seed = s;
+    return f;
 }
 
 // ---- the sun's shadow map ------------------------------------------------------------------------

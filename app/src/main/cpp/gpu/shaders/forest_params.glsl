@@ -18,6 +18,8 @@ FOREST_PUSH uniform Forest {
 const uint PART_TERRAIN = 0u;
 const uint PART_TRUNKS = 1u;
 const uint PART_CARDS = 2u;
+const uint PART_FERNS = 3u;
+const uint PART_LOGS = 4u;
 const uint PART_SHADOW = 8u;  // added to a part: drawn into the sun's shadow map
 
 // Materials, passed from the vertex to the fragment shader.
@@ -27,3 +29,5 @@ const uint M_NEEDLES = 2u;
 const uint M_LEAVES = 3u;
 const uint M_TWIGS = 4u;
 const uint M_SMOOTH_BARK = 5u;  // a beech's
+const uint M_FERN = 6u;
+const uint M_LOG = 7u;
