@@ -35,7 +35,7 @@ const vec3 KEY_DIR = vec3(-0.346, 0.865, 0.3633);   // normalised: high, a littl
 const vec3 KEY = vec3(1.0, 0.98, 0.95) * 1.7;
 const vec3 VOID = vec3(0.90, 0.93, 0.97);           // the white world, far off
 const float HAZE = 0.006;                           // how fast distance turns to white
-const vec3 GLASS_TINT = vec3(0.93, 0.97, 1.0);
+const vec3 GLASS_TINT = vec3(0.86, 0.95, 0.96);  // what a pane passes, straight through: a cool green-blue
 
 // Materials.
 const float M_WHITE = 1.0;
@@ -378,12 +378,15 @@ vec3 radianceWhite(vec3 ro, vec3 rd, out float depth) {
         vec3 p = ro + rd * h.t;
         float dist = travelled + h.t;
         if (h.glass) {
-            // A pane: the white world mirrored a little at a glance, the rest goes through, tinted.
+            // A pane: the white world mirrored a little at a glance, the rest
+            // goes through, tinted the more glass it crosses: seen at a slant a
+            // pane's colour deepens, as thick glass does.
             vec3 n = glassNormal(p);
             if (dot(n, rd) > 0.0) n = -n;
-            float f = 0.04 + 0.96 * schlick(dot(-rd, n));
+            float cosine = max(dot(-rd, n), 0.15);
+            float f = 0.04 + 0.96 * schlick(cosine);
             colour += through * f * haze(sky(reflect(rd, n)), dist);
-            through *= (1.0 - f) * GLASS_TINT;
+            through *= (1.0 - f) * pow(GLASS_TINT, vec3(1.0 / cosine));
             ro = p + rd * 0.03;
             travelled = dist + 0.03;
             continue;
