@@ -950,7 +950,9 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->targetFrameNanos = int64_t{std::clamp(targetFrameMillis, 5, 200)} * 1'000'000;
     renderer->scene = scene;
     renderer->sceneScale = static_cast<float>(std::clamp(sceneScalePercent, 10, 100)) / 100.0f;
-    renderer->sceneKind = sceneKind == 1 ? SceneRenderer::Kind::Forest : SceneRenderer::Kind::Pool;
+    renderer->sceneKind = sceneKind == 1   ? SceneRenderer::Kind::Forest
+                          : sceneKind == 2 ? SceneRenderer::Kind::White
+                                           : SceneRenderer::Kind::Pool;
     if (pthread_create(&renderer->thread, nullptr, &Renderer::threadMain, renderer.get()) != 0) {
         renderer->destroy();
         return kSetupFailed;

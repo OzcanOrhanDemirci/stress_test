@@ -4,6 +4,7 @@ package dev.ozcan.stress.engine
 enum class SceneKind(val key: String, val code: Int) {
     Pool("scene", 0),
     Forest("forest", 1),
+    White("white", 2),
 }
 
 /**
@@ -11,7 +12,7 @@ enum class SceneKind(val key: String, val code: Int) {
  * null) the visible pass alone. [scene] and [sceneScalePercent] override the
  * run's settings when set; [kind] is the scene drawn.
  *
- * Text: a burner key, `scene` (the pool) or `forest`, optionally followed by
+ * Text: a burner key, `scene` (the pool), `forest` or `white`, optionally followed by
  * `@preview` (the cheap preview ring instead of the scene) or `@NN` (the
  * scene at NN% of the screen's resolution): `gpu_fp32@preview`, `scene@35`,
  * `forest@45`.

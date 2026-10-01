@@ -14,6 +14,8 @@ namespace stress {
  * Two scenes share everything after their own pass:
  *   pool    the reactor pool, one full-screen ray-marching shader, with the
  *           water and particles below
+ *   white   a white world of boxes, rings and glass, one full-screen
+ *           ray-marching shader, finished without blur
  *   forest  triangles made in the vertex shader (sky, ground, trunks, leaf
  *           cards) with a depth buffer, lit through the sun's shadow map
  *           (drawn once: nothing moves), and sunbeams in the mist added on
@@ -33,7 +35,7 @@ namespace stress {
 class SceneRenderer {
 public:
     /** Which scene is drawn; the passes that follow the camera are built for it. */
-    enum class Kind { Pool = 0, Forest = 1 };
+    enum class Kind { Pool = 0, Forest = 1, White = 2 };
 
     struct ForestParams {
         float width;
@@ -139,6 +141,7 @@ private:
     void recordForest(VkCommandBuffer cmd, const FrameParams& frame);
     void recordForestShadow(VkCommandBuffer cmd);
     void recordRain(VkCommandBuffer cmd, const FrameParams& frame);
+    void clearParticles(VkCommandBuffer cmd);
     void clearWater(VkCommandBuffer cmd);
     void recordWater(VkCommandBuffer cmd, float time);
     bool createPipelines(VkRenderPass presentPass);
@@ -221,7 +224,7 @@ private:
 
     VkPipelineLayout sceneLayout_ = VK_NULL_HANDLE;
     VkPipelineLayout samplingLayout_ = VK_NULL_HANDLE;
-    VkPipeline scenePipeline_ = VK_NULL_HANDLE;
+    VkPipeline scenePipeline_ = VK_NULL_HANDLE;   // the pool's, or the white world's
     VkPipeline taaPipeline_ = VK_NULL_HANDLE;
     VkPipeline downPipeline_ = VK_NULL_HANDLE;
     VkPipeline upPipeline_ = VK_NULL_HANDLE;

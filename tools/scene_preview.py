@@ -55,6 +55,8 @@ layout(location = 1) out float fragDistance;
 
 POOL_TAIL = ("void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
              " fragDistance = d; }")
+WHITE_TAIL = ("void main() { float d; fragColor = vec4(renderWhite(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
+              " fragDistance = d; }")
 
 
 def gl_source(name, defines=()):
@@ -203,7 +205,7 @@ class Post:
         self.blurred_fbo = ctx.framebuffer(color_attachments=[self.blurred])
         self.screen = ctx.framebuffer(color_attachments=[ctx.texture(screen, 4)])
         self.threshold = renderer_constant("kBloomThreshold")
-        self.strength = renderer_constant("kBloomStrength")
+        self.strength = renderer_constant("kWhiteBloomStrength" if "SCENE_WHITE" in defines else "kBloomStrength")
 
     def target(self, size, data=None):
         texture = self.ctx.texture(size, 4, None if data is None else data.tobytes(), dtype="f2")
@@ -312,6 +314,35 @@ class PoolScene:
 
     def layer(self, t):
         return self.particles.draw(t, self.distance) if self.particles else None
+
+
+class WhiteScene:
+    """The white world: one full-screen shader (white.glsl), nothing simulated."""
+
+    defines = ("SCENE_WHITE",)
+
+    def __init__(self, ctx, quad, size):
+        self.size = size
+        self.program = ctx.program(vertex_shader=VERTEX, fragment_shader=HEAD + gl_source("white.glsl") + WHITE_TAIL)
+        self.vao = ctx.vertex_array(self.program, [(quad, "2f", "position")])
+        self.distance = ctx.texture(size, 1, dtype="f4")
+        self.fbo = ctx.framebuffer(color_attachments=[ctx.texture(size, 4, dtype="f4"), self.distance])
+        self.program["resolution"].value = size
+
+    def prepare(self, t):
+        self.program["time"].value = t
+
+    def draw(self, t, i):
+        if "frame" in self.program:
+            self.program["frame"].value = i
+        if "jitter" in self.program:
+            self.program["jitter"].value = jitter(i)
+        self.fbo.use()
+        self.vao.render(moderngl.TRIANGLES)
+        return read_rgb(self.fbo, self.size)
+
+    def layer(self, t):
+        return None
 
 
 class ForestScene:
@@ -436,7 +467,7 @@ class ForestScene:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scene", default="pool", choices=["pool", "forest"])
+    parser.add_argument("--scene", default="pool", choices=["pool", "forest", "white"])
     parser.add_argument("--times", default="0,6,12,18")
     parser.add_argument("--width", type=int, default=632)
     parser.add_argument("--height", type=int, default=1368)
@@ -449,6 +480,8 @@ def main():
     size = (args.width, args.height)
     if args.scene == "forest":
         scene = ForestScene(ctx, quad, size)
+    elif args.scene == "white":
+        scene = WhiteScene(ctx, quad, size)
     else:
         scene = PoolScene(ctx, quad, size, particles=not args.no_particles)
     post = Post(ctx, quad, size, (args.width * 2, args.height * 2), scene.defines)

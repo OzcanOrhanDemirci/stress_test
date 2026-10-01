@@ -62,10 +62,19 @@ float hash(vec2 p) {
 void main() {
     vec2 uv = gl_FragCoord.xy / params.resolution;
     vec3 c = catmullRom(uv);
+#ifdef SCENE_WHITE
+    // The white world is about clarity: no colour fringing; a light unsharp
+    // mask takes back what the upscale softened.
+    vec2 texel = 1.0 / vec2(textureSize(scene, 0));
+    vec3 around = 0.25 * (texture(scene, uv + vec2(texel.x, 0.0)).rgb + texture(scene, uv - vec2(texel.x, 0.0)).rgb +
+                          texture(scene, uv + vec2(0.0, texel.y)).rgb + texture(scene, uv - vec2(0.0, texel.y)).rgb);
+    c = max(c + (c - around) * 0.45, vec3(0.0));
+#else
     // Colour fringing towards the edges, like a real lens.
     vec2 shift = (uv - 0.5) * 0.004;
     c.r = mix(c.r, texture(scene, uv + shift).r, 0.6);
     c.b = mix(c.b, texture(scene, uv - shift).b, 0.6);
+#endif
     ivec2 size = textureSize(distances, 0);
     float depth = texelFetch(distances, clamp(ivec2(uv * vec2(size)), ivec2(0), size - 1), 0).r;
     float blur = blurRadius(lensAt(params.time), depth, float(size.y));
@@ -74,7 +83,11 @@ void main() {
     c += texture(bloom, uv).rgb * params.bloomStrength;
 
     c = aces(c * 0.9);
+#ifdef SCENE_WHITE
+    c *= 0.85 + 0.15 * pow(16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y), 0.3);  // barely a vignette, no grain
+#else
     c *= 0.35 + 0.65 * pow(16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y), 0.22);
     c += (hash(gl_FragCoord.xy + fract(params.time) * 97.0) - 0.5) * 0.015;
+#endif
     color = vec4(pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2)), 1.0);
 }

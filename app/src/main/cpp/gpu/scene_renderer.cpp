@@ -18,6 +18,10 @@
 #include "shaders/forest_shadow_frag.h"
 #include "shaders/forest_sky_frag.h"
 #include "shaders/taa_forest_frag.h"
+#include "shaders/dof_white_frag.h"
+#include "shaders/final_white_frag.h"
+#include "shaders/taa_white_frag.h"
+#include "shaders/white_scene_frag.h"
 #include "shaders/particles_comp.h"
 #include "shaders/particles_frag.h"
 #include "shaders/particles_vert.h"
@@ -41,6 +45,8 @@ constexpr float kHistoryBlend = 0.1f;
 /** Light below this (linear HDR) does not bloom. */
 constexpr float kBloomThreshold = 1.0f;
 constexpr float kBloomStrength = 0.12f;
+/** The white world keeps its edges clean: a trace of bloom round the lit lines only. */
+constexpr float kWhiteBloomStrength = 0.04f;
 
 VkAttachmentDescription attachment(VkFormat format, VkAttachmentLoadOp load, VkImageLayout initial) {
     VkAttachmentDescription a{};
@@ -397,10 +403,18 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     const std::span<const uint32_t> vertex = kFullscreenVertSpirv;
     // The passes that follow the camera are built for the scene drawn (scene.glsl).
     const bool forest = kind_ == Kind::Forest;
-    const std::span<const uint32_t> taa = forest ? std::span<const uint32_t>(kTaaForestFragSpirv) : kTaaFragSpirv;
-    const std::span<const uint32_t> dof = forest ? std::span<const uint32_t>(kDofForestFragSpirv) : kDofFragSpirv;
-    const std::span<const uint32_t> final = forest ? std::span<const uint32_t>(kFinalForestFragSpirv) : kFinalFragSpirv;
-    return named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, kPoolSceneFragSpirv, vk::Blend::None,
+    const bool white = kind_ == Kind::White;
+    const std::span<const uint32_t> taa = forest  ? std::span<const uint32_t>(kTaaForestFragSpirv)
+                                          : white ? std::span<const uint32_t>(kTaaWhiteFragSpirv)
+                                                  : std::span<const uint32_t>(kTaaFragSpirv);
+    const std::span<const uint32_t> dof = forest  ? std::span<const uint32_t>(kDofForestFragSpirv)
+                                          : white ? std::span<const uint32_t>(kDofWhiteFragSpirv)
+                                                  : std::span<const uint32_t>(kDofFragSpirv);
+    const std::span<const uint32_t> final = forest  ? std::span<const uint32_t>(kFinalForestFragSpirv)
+                                            : white ? std::span<const uint32_t>(kFinalWhiteFragSpirv)
+                                                    : std::span<const uint32_t>(kFinalFragSpirv);
+    const std::span<const uint32_t> scene = white ? std::span<const uint32_t>(kWhiteSceneFragSpirv) : kPoolSceneFragSpirv;
+    return named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, scene, vk::Blend::None,
                                  scenePipeline_), "PoolScene") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, taa, vk::Blend::None, taaPipeline_), "Taa") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kBloomDownFragSpirv, vk::Blend::None,
@@ -449,6 +463,14 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
     if (kind_ == Kind::Forest) {
         recordForest(cmd, frame);
         recordRain(cmd, frame);
+    } else if (kind_ == Kind::White) {
+        pass(cmd, scenePass_, sceneFramebuffer_, extent_);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scenePipeline_);
+        vkCmdPushConstants(cmd, sceneLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(frame), &frame);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+        vkCmdEndRenderPass(cmd);
+        readable(cmd);
+        clearParticles(cmd);
     } else {
         recordWater(cmd, time);
         pass(cmd, scenePass_, sceneFramebuffer_, extent_);
@@ -740,6 +762,21 @@ void SceneRenderer::recordForest(VkCommandBuffer cmd, const FrameParams& frame) 
     readable(cmd);
 }
 
+// No particles in the white world; the passes after the scene still read their layer.
+void SceneRenderer::clearParticles(VkCommandBuffer cmd) {
+    VkClearValue clear{};
+    VkRenderPassBeginInfo begin{};
+    begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin.renderPass = particlePass_;
+    begin.framebuffer = particleFramebuffer_;
+    begin.renderArea = {{0, 0}, extent_};
+    begin.clearValueCount = 1;
+    begin.pClearValues = &clear;
+    vkCmdBeginRenderPass(cmd, &begin, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdEndRenderPass(cmd);
+    readable(cmd);
+}
+
 // The forest's particle layer: rain, drawn as streaks in the pool's particle
 // pass (cleared, added to), hidden behind the forest by its distances.
 void SceneRenderer::recordRain(VkCommandBuffer cmd, const FrameParams& frame) {
@@ -858,7 +895,8 @@ void SceneRenderer::recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float ti
     const VkRect2D scissor{{0, 0}, screen};
     vkCmdSetViewport(cmd, 0, 1, &viewport);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
-    FinalParams params{static_cast<float>(screen.width), static_cast<float>(screen.height), time, kBloomStrength};
+    const float bloom = kind_ == Kind::White ? kWhiteBloomStrength : kBloomStrength;
+    FinalParams params{static_cast<float>(screen.width), static_cast<float>(screen.height), time, bloom};
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, finalPipeline_);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, samplingLayout_, 0, 1, &finalSets_[written_], 0, nullptr);
     vkCmdPushConstants(cmd, samplingLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);
