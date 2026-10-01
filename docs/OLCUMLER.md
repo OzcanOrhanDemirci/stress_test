@@ -199,7 +199,8 @@ Havuz sahnesi %45 ölçekte (yeni boru hattı, parçacık düzeltmesinden sonra,
 |---|---|---|
 | white@45 (ilk hâl) | 41,2 ms | iz 400 m, yansıma 120 m |
 | white@60 | 67,6 ms | aynı, ölçek seçimi için |
-| **white@45** | **32,9-33,2 ms (30 fps)** | iz 220 m, yansıma 90 m, tolerans uzaklıkla büyür, gölge 20 adım |
+| white@45 | 32,9-33,2 ms (30 fps) | iz 220 m, yansıma 90 m, tolerans uzaklıkla büyür, gölge 20 adım (25 sn: ilk iki bölge) |
+| **white@45, son hâl** | **37,6 ms (26,6 fps), bir tam tur (60 sn)** | küp duvarı mesafe sınırı düzeltmesiyle; küp odası en pahalısı |
 
 - Uygulamanın Çalıştır ekranından **Sinematik · Beyaz** (CPU fp32_l2 tam yükte): 21-31 fps (küp odası en pahalı bölge),
   CPU 165-178 GFLOPS, hesap hatası 0. Uygulamanın kendi akışıyla sinematik modun ilk uçtan uca koşusu.
