@@ -17,7 +17,8 @@ namespace stress {
  *   motes   particle physics step (compute), drawn as points into their own target
  *   taa     reproject last frame's history, clip, blend      (ping-pong pair)
  *   bloom   5 steps down (threshold on the first), 4 back up (additive)
- *   final   Catmull-Rom upscale + bloom + tone map, inside the caller's present pass
+ *   dof     depth of field: the history gathered over each pixel's blur  (half resolution)
+ *   final   Catmull-Rom upscale + depth of field + bloom + tone map, inside the caller's present pass
  *
  * Every frame moves the scene's samples by a sub-pixel jitter and reseeds its
  * random effects, so the history converges on a clean, anti-aliased image.
@@ -59,6 +60,17 @@ public:
 
     /** Bubbles and sparks together; six in ten are bubbles. */
     static constexpr uint32_t kParticles = 49152;
+
+    struct DofParams {
+        float texelX;
+        float texelY;
+        float targetWidth;
+        float targetHeight;
+        float time;
+        float sceneHeight;
+        float pad0;
+        float pad1;
+    };
 
     struct WaterParams {
         uint32_t step;
@@ -117,6 +129,7 @@ private:
     vk::Image distance_;
     std::array<vk::Image, 2> history_{};
     std::array<vk::Image, kBloomLevels> bloom_{};
+    vk::Image dof_;  // half the scene, like bloom_[0]
     VkSampler sampler_ = VK_NULL_HANDLE;
 
     VkRenderPass scenePass_ = VK_NULL_HANDLE;
@@ -128,6 +141,7 @@ private:
     std::array<VkFramebuffer, 2> historyFramebuffers_{};
     std::array<VkFramebuffer, kBloomLevels> bloomWrite_{};
     std::array<VkFramebuffer, kBloomLevels> bloomAdd_{};
+    VkFramebuffer dofFramebuffer_ = VK_NULL_HANDLE;
 
     VkDescriptorSetLayout setLayout_ = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool_ = VK_NULL_HANDLE;
@@ -136,6 +150,7 @@ private:
     std::array<VkDescriptorSet, kBloomLevels> downSets_{};
     std::array<VkDescriptorSet, kBloomLevels> upSets_{};
     std::array<VkDescriptorSet, 2> finalSets_{};
+    std::array<VkDescriptorSet, 2> dofSets_{};
     VkDescriptorSetLayout particleSetLayout_ = VK_NULL_HANDLE;
     VkDescriptorSet particleSet_ = VK_NULL_HANDLE;
     VkPipelineLayout particleLayout_ = VK_NULL_HANDLE;
@@ -163,6 +178,7 @@ private:
     VkPipeline downPipeline_ = VK_NULL_HANDLE;
     VkPipeline upPipeline_ = VK_NULL_HANDLE;
     VkPipeline finalPipeline_ = VK_NULL_HANDLE;
+    VkPipeline dofPipeline_ = VK_NULL_HANDLE;
 
     uint32_t frame_ = 0;
     uint32_t written_ = 0;  // history image written by the last record()

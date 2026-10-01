@@ -11,8 +11,9 @@ at, frame by frame, without a phone:
 `--frames` jittered, reseeded frames of the same moment: what the phone's
 history holds once it has settled. Everything else is the phone's own
 shaders: the water surface is simulated from time 0 (water_*.comp), and the
-average goes through the bloom chain and the final pass (bloom_*.frag,
-final.frag) at the phone's screen size, twice the scene's. Frames land in
+average goes through the bloom chain, the depth of field and the final pass
+(bloom_*.frag, dof.frag, final.frag) at the phone's screen size, twice the
+scene's. Frames land in
 tools/out/preview/, with a side-by-side sheet when there are several.
 Needs `pip install moderngl pillow numpy`.
 """
@@ -45,11 +46,13 @@ uniform uint frame;
 uniform vec2 jitter;
 uniform sampler2D water;
 #define POOL_WATER water
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out float fragDistance;
 """
 
 TAILS = {
-    "pool": "void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0); }",
+    "pool": "void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
+            " fragDistance = d; }",
 }
 
 
@@ -115,7 +118,7 @@ class Water:
 
 
 class Post:
-    """The renderer's chain after the history: bloom down and up, then the final picture."""
+    """The renderer's chain after the history: bloom down and up, depth of field, then the final picture."""
 
     LEVELS = 5  # SceneRenderer::kBloomLevels
 
@@ -128,6 +131,7 @@ class Post:
 
         self.down = program("bloom_down.frag")
         self.up = program("bloom_up.frag")
+        self.dof = program("dof.frag")
         self.final = program("final.frag")
         self.params = ctx.buffer(reserve=32)
         self.none = self.target(scene, np.zeros((scene[1], scene[0], 4), dtype="f2"))  # the phone's particle layer
@@ -137,6 +141,8 @@ class Post:
             size = (max(1, size[0] // 2), max(1, size[1] // 2))
             texture = self.target(size)
             self.levels.append((texture, ctx.framebuffer(color_attachments=[texture])))
+        self.blurred = self.target(self.levels[0][0].size)
+        self.blurred_fbo = ctx.framebuffer(color_attachments=[self.blurred])
         self.screen = ctx.framebuffer(color_attachments=[ctx.texture(screen, 4)])
         self.threshold = renderer_constant("kBloomThreshold")
         self.strength = renderer_constant("kBloomStrength")
@@ -146,8 +152,9 @@ class Post:
         texture.repeat_x = texture.repeat_y = False
         return texture
 
-    def run(self, history, t):
-        """`history`: the scene, linear HDR, at the scene size. Returns the screen as 8-bit RGB."""
+    def run(self, history, distance, t):
+        """`history`: the scene, linear HDR, at the scene size; `distance`: each pixel's
+        distance along its ray. Returns the screen as 8-bit RGB."""
         ubo = self.params
         source = history
         for i, (texture, fbo) in enumerate(self.levels):
@@ -172,6 +179,14 @@ class Post:
             self.up.render(moderngl.TRIANGLES)
         self.ctx.disable(moderngl.BLEND)
 
+        self.blurred_fbo.use()
+        ubo.write(struct.pack("<8f", 1 / history.width, 1 / history.height, self.blurred.width, self.blurred.height,
+                              t, history.height, 0.0, 0.0))
+        ubo.bind_to_uniform_block(0)
+        history.use(location=0)
+        distance.use(location=1)
+        self.dof.render(moderngl.TRIANGLES)
+
         self.screen.use()
         width, height = self.screen.size
         ubo.write(struct.pack("<4f", width, height, t, self.strength) + bytes(16))
@@ -179,6 +194,8 @@ class Post:
         history.use(location=0)
         self.levels[0][0].use(location=1)
         self.none.use(location=2)
+        self.blurred.use(location=3)
+        distance.use(location=4)
         self.final.render(moderngl.TRIANGLES)
         rgb = np.frombuffer(self.screen.read(components=3), dtype=np.uint8).reshape(height, width, 3)
         return rgb[::-1]
@@ -206,7 +223,8 @@ def main():
     vao = ctx.vertex_array(program, [(quad, "2f", "position")])
     scene = (args.width, args.height)
     target = ctx.texture(scene, 4, dtype="f4")
-    fbo = ctx.framebuffer(color_attachments=[target])
+    distance = ctx.texture(scene, 1, dtype="f4")
+    fbo = ctx.framebuffer(color_attachments=[target, distance])
     program["resolution"].value = scene
     post = Post(ctx, quad, scene, (args.width * 2, args.height * 2))
     OUT.mkdir(parents=True, exist_ok=True)
@@ -240,8 +258,9 @@ def main():
             # A NaN would smear across the bloom; count it, then blank it.
             print(f"  WARNING: {broken} non-finite pixels")
             hdr = np.nan_to_num(hdr, nan=0.0, posinf=0.0, neginf=0.0)
+        # The phone keeps one frame's distances, not an average: the last one here.
         history = post.target(scene, hdr.astype("f2"))
-        image = post.run(history, t)
+        image = post.run(history, distance, t)
         history.release()
         path = OUT / f"{args.scene}_t{t:05.1f}.png"
         Image.fromarray(image).save(path)

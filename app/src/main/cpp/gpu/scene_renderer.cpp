@@ -6,6 +6,7 @@
 
 #include "shaders/bloom_down_frag.h"
 #include "shaders/bloom_up_frag.h"
+#include "shaders/dof_frag.h"
 #include "shaders/final_frag.h"
 #include "shaders/particles_comp.h"
 #include "shaders/particles_frag.h"
@@ -106,6 +107,7 @@ bool SceneRenderer::createTargets() {
         level = {std::max(1u, level.width / 2), std::max(1u, level.height / 2)};
         if (!vk_->createImage(level, kHdr, usage, b)) return false;
     }
+    if (!vk_->createImage(bloom_[0].extent, kHdr, usage, dof_)) return false;
     return vk_->linearClampSampler(sampler_);
 }
 
@@ -140,11 +142,13 @@ bool SceneRenderer::createPasses() {
         if (!vk_->framebuffer(writePass_, view, bloom_[i].extent, bloomWrite_[i])) return false;
         bloomAdd_[i] = bloomWrite_[i];
     }
-    return true;
+    const std::array<VkImageView, 1> dofView{dof_.view};
+    return vk_->framebuffer(writePass_, dofView, dof_.extent, dofFramebuffer_);
 }
 
 bool SceneRenderer::createDescriptors() {
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings{};
+    // Up to five images a pass samples; each pass's set fills the bindings its shader names.
+    std::array<VkDescriptorSetLayoutBinding, 5> bindings{};
     for (uint32_t i = 0; i < bindings.size(); ++i) {
         bindings[i].binding = i;
         bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -158,8 +162,8 @@ bool SceneRenderer::createDescriptors() {
     VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &setLayout_));
 
     // Sampling sets, the particles' set, the water's three and the scene's one.
-    constexpr uint32_t kSets = 2 + 2 + kBloomLevels + kBloomLevels + 2 + 1 + 3 + 1;
-    const std::array<VkDescriptorPoolSize, 3> sizes{{{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kSets * 3},
+    constexpr uint32_t kSets = 2 + 2 + kBloomLevels + kBloomLevels + 2 + 2 + 1 + 3 + 1;
+    const std::array<VkDescriptorPoolSize, 3> sizes{{{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kSets * 5},
                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
                                                      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 * 4}}};
     VkDescriptorPoolCreateInfo poolInfo{};
@@ -200,7 +204,8 @@ bool SceneRenderer::createDescriptors() {
     for (uint32_t w = 0; w < 2; ++w) {
         if (!allocate(taaSets_[w], {&color_, &distance_, &history_[1 - w]})) return false;
         if (!allocate(firstDownSets_[w], {&history_[w], &particles_})) return false;
-        if (!allocate(finalSets_[w], {&history_[w], &bloom_[0], &particles_})) return false;
+        if (!allocate(finalSets_[w], {&history_[w], &bloom_[0], &particles_, &dof_, &distance_})) return false;
+        if (!allocate(dofSets_[w], {&history_[w], &distance_})) return false;
     }
     for (uint32_t i = 1; i < kBloomLevels; ++i) {
         if (!allocate(downSets_[i], {&bloom_[i - 1], &particles_})) return false;
@@ -339,7 +344,8 @@ bool SceneRenderer::createWater() {
 
 bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     VkPushConstantRange push{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(FrameParams)};
-    static_assert(sizeof(FrameParams) == 32 && sizeof(BloomParams) == 32 && sizeof(FinalParams) <= 32,
+    static_assert(sizeof(FrameParams) == 32 && sizeof(BloomParams) == 32 && sizeof(DofParams) == 32 &&
+                      sizeof(FinalParams) <= 32,
                   "push constant blocks must match the shaders");
     VkPipelineLayoutCreateInfo sceneInfo{};
     sceneInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -376,6 +382,7 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
                                  downPipeline_) &&
            vk_->graphicsPipeline(addPass_, 1, samplingLayout_, vertex, kBloomUpFragSpirv, vk::Blend::Additive,
                                  upPipeline_) &&
+           vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kDofFragSpirv, vk::Blend::None, dofPipeline_) &&
            vk_->graphicsPipeline(presentPass, 1, samplingLayout_, vertex, kFinalFragSpirv, vk::Blend::None,
                                  finalPipeline_);
 }
@@ -470,6 +477,21 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
         vkCmdEndRenderPass(cmd);
         readable(cmd);
     }
+
+    DofParams dof{};
+    dof.texelX = 1.0f / static_cast<float>(extent_.width);
+    dof.texelY = 1.0f / static_cast<float>(extent_.height);
+    dof.targetWidth = static_cast<float>(dof_.extent.width);
+    dof.targetHeight = static_cast<float>(dof_.extent.height);
+    dof.time = time;
+    dof.sceneHeight = static_cast<float>(extent_.height);
+    pass(cmd, writePass_, dofFramebuffer_, dof_.extent);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, dofPipeline_);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, samplingLayout_, 0, 1, &dofSets_[w], 0, nullptr);
+    vkCmdPushConstants(cmd, samplingLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(dof), &dof);
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+    vkCmdEndRenderPass(cmd);
+    readable(cmd);
 
     written_ = w;
     previousTime_ = time;
@@ -579,7 +601,7 @@ void SceneRenderer::destroy() {
     if (vk_ == nullptr) return;
     VkDevice d = vk_->device;
     for (VkPipeline p : {scenePipeline_, taaPipeline_, downPipeline_, upPipeline_, finalPipeline_, simulatePipeline_,
-                         particlePipeline_, waterStepPipeline_, waterSurfacePipeline_}) {
+                         particlePipeline_, waterStepPipeline_, waterSurfacePipeline_, dofPipeline_}) {
         if (p) vkDestroyPipeline(d, p, nullptr);
     }
     if (waterLayout_) vkDestroyPipelineLayout(d, waterLayout_, nullptr);
@@ -604,6 +626,7 @@ void SceneRenderer::destroy() {
     for (VkFramebuffer f : bloomWrite_) {
         if (f) vkDestroyFramebuffer(d, f, nullptr);
     }
+    if (dofFramebuffer_) vkDestroyFramebuffer(d, dofFramebuffer_, nullptr);
     for (VkRenderPass p : {scenePass_, writePass_, addPass_}) {
         if (p) vkDestroyRenderPass(d, p, nullptr);
     }
@@ -612,6 +635,7 @@ void SceneRenderer::destroy() {
     vk_->destroy(distance_);
     for (auto& h : history_) vk_->destroy(h);
     for (auto& b : bloom_) vk_->destroy(b);
+    vk_->destroy(dof_);
     *this = SceneRenderer{};
 }
 

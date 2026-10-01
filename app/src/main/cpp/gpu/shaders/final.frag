@@ -1,16 +1,23 @@
 #version 450
 // The picture on the screen: the accumulated scene scaled up with a
-// Catmull-Rom filter (sharper than bilinear), bloom added, then the film
-// finish: ACES tone curve, a touch of lens colour fringing, vignette, grain.
+// Catmull-Rom filter (sharper than bilinear), the depth of field blended in
+// where the lens blurs, bloom added, then the film finish: ACES tone curve,
+// a touch of lens colour fringing, vignette, grain.
+#extension GL_GOOGLE_include_directive : require
+
 layout(set = 0, binding = 0) uniform sampler2D scene;
 layout(set = 0, binding = 1) uniform sampler2D bloom;
 layout(set = 0, binding = 2) uniform sampler2D particles;
+layout(set = 0, binding = 3) uniform sampler2D dof;
+layout(set = 0, binding = 4) uniform sampler2D distances;  // R32F: fetched, never filtered
 
 layout(push_constant) uniform Final {
     vec2 resolution;   // screen, pixels
     float time;
     float bloomStrength;
 } params;
+
+#include "pool.glsl"
 
 layout(location = 0) flat in int layer;
 layout(location = 0) out vec4 color;
@@ -59,6 +66,10 @@ void main() {
     vec2 shift = (uv - 0.5) * 0.004;
     c.r = mix(c.r, texture(scene, uv + shift).r, 0.6);
     c.b = mix(c.b, texture(scene, uv - shift).b, 0.6);
+    ivec2 size = textureSize(distances, 0);
+    float depth = texelFetch(distances, clamp(ivec2(uv * vec2(size)), ivec2(0), size - 1), 0).r;
+    float blur = blurRadius(lensAt(params.time), depth, float(size.y));
+    c = mix(c, texture(dof, uv).rgb, smoothstep(0.5, 2.0, blur));
     c += texture(particles, uv).rgb;
     c += texture(bloom, uv).rgb * params.bloomStrength;
 

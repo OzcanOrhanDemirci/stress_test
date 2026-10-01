@@ -741,7 +741,17 @@ void lookAt(vec3 from, vec3 target, out vec3 position, out vec3 forward, out vec
     up = cross(forward, right);
 }
 
-void camera(float time, out vec3 position, out vec3 forward, out vec3 right, out vec3 up) {
+// Distance along a ray from `from` towards `target` to the water's surface:
+// where a shot looking into the pool is focused, since the distance the
+// renderer keeps for a pixel ends at the surface.
+float toSurface(vec3 from, vec3 target) {
+    return from.y / max(-normalize(target - from).y, 0.05);
+}
+
+// The shot at a moment: where the camera stands, what it looks at, and its
+// lens, (focus distance, aperture). The aperture is how far a point at
+// infinity blurs, as a fraction of the image height.
+void framing(float time, out vec3 from, out vec3 target, out vec2 lens) {
     int shot = shotAt(time);
     float t = fract(time / SHOT_SECONDS);   // 0..1 through the shot
     float e = t * t * (3.0 - 2.0 * t);      // eased
@@ -750,24 +760,49 @@ void camera(float time, out vec3 position, out vec3 forward, out vec3 right, out
         // across the pool to the hall beyond, rising to look down into the water.
         float a = 0.2 + 0.9 * e;
         float r = mix(6.0, 5.0, e);
-        vec3 target = mix(vec3(0.0, 1.4, 0.0), vec3(0.0, -1.2, 0.0), e);
-        lookAt(vec3(sin(a) * r, mix(1.3, 5.2, e), cos(a) * r), target, position, forward, right, up);
+        from = vec3(sin(a) * r, mix(1.3, 5.2, e), cos(a) * r);
+        target = mix(vec3(0.0, 1.4, 0.0), vec3(0.0, -1.2, 0.0), e);
+        lens = vec2(length(target - from), 0.006);
     } else if (shot == 1) {
         // Low over the water, inside the pool, gliding under the ring; the surface mirrors everything.
-        vec3 from = mix(vec3(0.5, 0.6, 2.15), vec3(-0.1, 0.35, 0.9), e);
-        lookAt(from, vec3(-0.3, -1.4, -1.0), position, forward, right, up);
+        from = mix(vec3(0.5, 0.6, 2.15), vec3(-0.1, 0.35, 0.9), e);
+        target = vec3(-0.3, -1.4, -1.0);
+        lens = vec2(toSurface(from, target), 0.008);
     } else if (shot == 2) {
-        // Close round the spikes of the ring.
+        // Close round the spikes of the ring: a macro lens, the hall melts away behind.
         float a = 1.9 + 0.7 * e;
-        vec3 from = vec3(cos(a) * 2.7, 2.2 - 0.3 * e, sin(a) * 2.7);
-        vec3 onRing = RING_CENTRE + vec3(cos(a - 0.35) * RING_R, 0.0, sin(a - 0.35) * RING_R);
-        lookAt(from, onRing, position, forward, right, up);
+        from = vec3(cos(a) * 2.7, 2.2 - 0.3 * e, sin(a) * 2.7);
+        target = RING_CENTRE + vec3(cos(a - 0.35) * RING_R, 0.0, sin(a - 0.35) * RING_R);
+        lens = vec2(length(target - from), 0.03);
     } else {
-        // Straight down onto the core, sinking towards the water.
-        float h = mix(6.5, 3.4, e);
-        vec3 from = vec3(0.35 * sin(t * 2.0), h, 0.6 + 0.2 * cos(t * 2.0));
-        lookAt(from, vec3(0.0, -3.0, 0.0), position, forward, right, up);
+        // Straight down onto the core, sinking towards the water; the ring passes blurred in front.
+        from = vec3(0.35 * sin(t * 2.0), mix(6.5, 3.4, e), 0.6 + 0.2 * cos(t * 2.0));
+        target = vec3(0.0, -3.0, 0.0);
+        lens = vec2(toSurface(from, target), 0.012);
     }
+}
+
+void camera(float time, out vec3 position, out vec3 forward, out vec3 right, out vec3 up) {
+    vec3 from, target;
+    vec2 lens;
+    framing(time, from, target, lens);
+    lookAt(from, target, position, forward, right, up);
+}
+
+// Depth of field (dof.frag, final.frag): the lens at a moment, and how far a
+// point `dist` along its ray blurs through it, in pixels of an image
+// `height` tall.
+const float MAX_BLUR = 0.02;
+
+vec2 lensAt(float time) {
+    vec3 from, target;
+    vec2 lens;
+    framing(time, from, target, lens);
+    return lens;
+}
+
+float blurRadius(vec2 lens, float dist, float height) {
+    return min(lens.y * abs(1.0 - lens.x / max(dist, 1e-3)), MAX_BLUR) * height;
 }
 
 const float FOCAL = 1.3;
