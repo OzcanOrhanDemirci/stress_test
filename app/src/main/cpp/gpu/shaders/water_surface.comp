@@ -1,0 +1,30 @@
+#version 450
+// What the scene needs from the height field, ready to sample with a
+// filter: the slope (for the surface normal) and the curvature (where the
+// surface focuses light into caustics).
+//   surface = (dh/dx, dh/dz, laplacian of h, h)
+#extension GL_GOOGLE_include_directive : require
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+#include "water_params.glsl"
+
+layout(WATER_SLOT(0), r32f) uniform readonly image2D state;  // the newest heights
+layout(WATER_SLOT(3), rgba16f) uniform writeonly image2D surface;
+
+float heightAt(ivec2 c) {
+    return imageLoad(state, clamp(c, ivec2(0), ivec2(WATER_N - 1))).x;
+}
+
+void main() {
+    ivec2 c = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(c, ivec2(WATER_N)))) return;
+    float h = heightAt(c);
+    float east = heightAt(c + ivec2(1, 0));
+    float west = heightAt(c - ivec2(1, 0));
+    float north = heightAt(c + ivec2(0, 1));
+    float south = heightAt(c - ivec2(0, 1));
+    vec2 slope = vec2(east - west, north - south) / (2.0 * WATER_DX);
+    float curvature = (east + west + north + south - 4.0 * h) / (WATER_DX * WATER_DX);
+    imageStore(surface, c, vec4(slope, curvature, h));
+}

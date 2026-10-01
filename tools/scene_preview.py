@@ -10,11 +10,14 @@ at, frame by frame, without a phone:
 `pool` is written for temporal accumulation, so each image averages
 `--frames` jittered, reseeded frames of the same moment, then gets the
 phone's post-processing (bloom, tone mapping, vignette, grain): what the
-phone shows once its history has settled. Frames land in tools/out/preview/.
+phone shows once its history has settled. Its water surface is simulated
+from time 0 with the phone's own compute shaders (water_*.comp). Frames land
+in tools/out/preview/.
 Needs `pip install moderngl pillow numpy`.
 """
 import argparse
 import pathlib
+import struct
 import time
 
 import moderngl
@@ -37,12 +40,66 @@ uniform vec2 resolution;
 uniform float time;
 uniform uint frame;
 uniform vec2 jitter;
+uniform sampler2D water;
+#define POOL_WATER water
 out vec4 fragColor;
 """
 
 TAILS = {
     "pool": "void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0); }",
 }
+
+def compute_source(name):
+    """One of the phone's compute shaders, for desktop OpenGL: includes inlined."""
+    lines = []
+    for line in (SHADERS / name).read_text().splitlines():
+        if line.startswith("#version"):
+            lines.append("#version 430")
+        elif line.startswith("#extension GL_GOOGLE_include_directive"):
+            continue
+        elif line.startswith("#include"):
+            lines.append((SHADERS / line.split('"')[1]).read_text())
+        else:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+class Water:
+    """The pool's surface: the renderer's simulation, a fixed step at a time."""
+
+    N = 256  # water_params.glsl: WATER_N
+    HZ = 60.0  # WATER_HZ
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self.stepper = ctx.compute_shader(compute_source("water_step.comp"))
+        self.deriver = ctx.compute_shader(compute_source("water_surface.comp"))
+        still = np.zeros((self.N, self.N), dtype="f4").tobytes()
+        # Heights: a step before, now, next; they take turns, as on the phone.
+        self.heights = [ctx.texture((self.N, self.N), 1, still, dtype="f4") for _ in range(3)]
+        self.surface = ctx.texture((self.N, self.N), 4, dtype="f2")
+        self.surface.repeat_x = self.surface.repeat_y = False
+        self.params = ctx.buffer(reserve=16)
+        self.steps = 0
+
+    def advance(self, seconds):
+        """Steps on to `seconds`, then derives the surface the scene samples."""
+        groups = self.N // 8
+        while self.steps < int(seconds * self.HZ):
+            self.params.write(struct.pack("<4I", self.steps, 0, 0, 0))
+            self.params.bind_to_uniform_block(0)
+            i = self.steps % 3
+            self.heights[(i + 1) % 3].bind_to_image(0, read=True, write=False)
+            self.heights[i].bind_to_image(1, read=True, write=False)
+            self.heights[(i + 2) % 3].bind_to_image(2, read=False, write=True)
+            self.stepper.run(groups, groups)
+            self.ctx.memory_barrier()
+            self.steps += 1
+        self.heights[(self.steps + 1) % 3].bind_to_image(0, read=True, write=False)
+        self.surface.bind_to_image(3, read=False, write=True)
+        self.deriver.run(groups, groups)
+        self.ctx.memory_barrier()
+
 
 # R2 low-discrepancy sequence: well spread sub-pixel offsets, as the renderer uses.
 def jitter(i):
@@ -114,9 +171,17 @@ def main():
     fbo.use()
     program["resolution"].value = (args.width, args.height)
     OUT.mkdir(parents=True, exist_ok=True)
+    water = Water(ctx)
 
     frames = args.frames
+    images = []
     for t in [float(x) for x in args.times.split(",")]:
+        if t * Water.HZ < water.steps:
+            water = Water(ctx)  # the simulation only runs forward
+        water.advance(t)
+        water.surface.use(location=0)
+        if "water" in program:
+            program["water"].value = 0
         program["time"].value = t
         total = np.zeros((args.height, args.width, 3), dtype=np.float64)
         ctx.finish()
@@ -139,7 +204,10 @@ def main():
         image = finish(hdr, int(t * 100))
         path = OUT / f"{args.scene}_t{t:05.1f}.png"
         Image.fromarray(image).save(path)
+        images.append(image)
         print(f"{path.name}  {ms:.1f} ms/frame (with readback)")
+    if len(images) > 1:
+        Image.fromarray(np.concatenate(images, axis=1)).save(OUT / f"{args.scene}_sheet.png")
 
 
 if __name__ == "__main__":

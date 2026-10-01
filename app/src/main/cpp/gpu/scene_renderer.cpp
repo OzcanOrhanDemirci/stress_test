@@ -13,6 +13,8 @@
 #include "shaders/fullscreen_vert.h"
 #include "shaders/pool_scene_frag.h"
 #include "shaders/taa_frag.h"
+#include "shaders/water_step_comp.h"
+#include "shaders/water_surface_comp.h"
 
 namespace stress {
 namespace {
@@ -53,7 +55,10 @@ bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, 
     vk_ = &vk;
     extent_ = {std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.width) * scale)),
                std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.height) * scale))};
-    if (!createTargets() || !createPasses() || !createDescriptors() || !createPipelines(presentPass)) return false;
+    if (!createTargets() || !createPasses() || !createDescriptors() || !createWater() ||
+        !createPipelines(presentPass)) {
+        return false;
+    }
     // The first frame samples the history before anything wrote it: give it a readable layout.
     return vk.runOnce([&](VkCommandBuffer cmd) {
         for (auto& h : history_) {
@@ -61,7 +66,26 @@ bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, 
                            VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
         }
+        clearWater(cmd);
     });
+}
+
+// Still water to start from; the water images stay in GENERAL layout for good.
+void SceneRenderer::clearWater(VkCommandBuffer cmd) {
+    const VkClearColorValue zero{};
+    const VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    for (const vk::Image* image : {&waterHeights_[0], &waterHeights_[1], &waterHeights_[2], &waterSurface_}) {
+        vk::transition(cmd, image->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 0,
+                       VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        vkCmdClearColorImage(cmd, image->image, VK_IMAGE_LAYOUT_GENERAL, &zero, 1, &range);
+    }
+    VkMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &barrier, 0,
+                         nullptr, 0, nullptr);
 }
 
 bool SceneRenderer::createTargets() {
@@ -133,9 +157,11 @@ bool SceneRenderer::createDescriptors() {
     layoutInfo.pBindings = bindings.data();
     VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &setLayout_));
 
-    constexpr uint32_t kSets = 2 + 2 + kBloomLevels + kBloomLevels + 2 + 1;
-    const std::array<VkDescriptorPoolSize, 2> sizes{{{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kSets * 3},
-                                                     {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}}};
+    // Sampling sets, the particles' set, the water's three and the scene's one.
+    constexpr uint32_t kSets = 2 + 2 + kBloomLevels + kBloomLevels + 2 + 1 + 3 + 1;
+    const std::array<VkDescriptorPoolSize, 3> sizes{{{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kSets * 3},
+                                                     {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
+                                                     {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 * 4}}};
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.maxSets = kSets;
@@ -226,17 +252,103 @@ bool SceneRenderer::createParticleDescriptors() {
     return true;
 }
 
+bool SceneRenderer::createWater() {
+    const VkExtent2D cells{kWaterCells, kWaterCells};
+    for (auto& h : waterHeights_) {
+        if (!vk_->createImage(cells, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, h)) {
+            return false;
+        }
+    }
+    if (!vk_->createImage(cells, kHdr,
+                          VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                          waterSurface_)) {
+        return false;
+    }
+
+    // Steps and the surface pass: heights now, before and next, then the surface (water_*.comp).
+    std::array<VkDescriptorSetLayoutBinding, 4> storage{};
+    for (uint32_t i = 0; i < storage.size(); ++i) {
+        storage[i].binding = i;
+        storage[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        storage[i].descriptorCount = 1;
+        storage[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(storage.size());
+    layoutInfo.pBindings = storage.data();
+    VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &waterSetLayout_));
+    VkDescriptorSetLayoutBinding sampled{};
+    sampled.binding = 0;
+    sampled.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    sampled.descriptorCount = 1;
+    sampled.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &sampled;
+    VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &sceneSetLayout_));
+
+    auto allocate = [&](VkDescriptorSetLayout layout, VkDescriptorSet& set) {
+        VkDescriptorSetAllocateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        info.descriptorPool = descriptorPool_;
+        info.descriptorSetCount = 1;
+        info.pSetLayouts = &layout;
+        VK_TRY(vkAllocateDescriptorSets(vk_->device, &info, &set));
+        return true;
+    };
+    for (uint32_t i = 0; i < waterSets_.size(); ++i) {
+        if (!allocate(waterSetLayout_, waterSets_[i])) return false;
+        const std::array<const vk::Image*, 4> images{&waterHeights_[(i + 1) % 3], &waterHeights_[i],
+                                                     &waterHeights_[(i + 2) % 3], &waterSurface_};
+        std::array<VkDescriptorImageInfo, 4> infos{};
+        std::array<VkWriteDescriptorSet, 4> writes{};
+        for (uint32_t b = 0; b < images.size(); ++b) {
+            infos[b] = {VK_NULL_HANDLE, images[b]->view, VK_IMAGE_LAYOUT_GENERAL};
+            writes[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[b].dstSet = waterSets_[i];
+            writes[b].dstBinding = b;
+            writes[b].descriptorCount = 1;
+            writes[b].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            writes[b].pImageInfo = &infos[b];
+        }
+        vkUpdateDescriptorSets(vk_->device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    }
+    if (!allocate(sceneSetLayout_, sceneSet_)) return false;
+    const VkDescriptorImageInfo surface{sampler_, waterSurface_.view, VK_IMAGE_LAYOUT_GENERAL};
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.dstSet = sceneSet_;
+    write.dstBinding = 0;
+    write.descriptorCount = 1;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.pImageInfo = &surface;
+    vkUpdateDescriptorSets(vk_->device, 1, &write, 0, nullptr);
+
+    VkPushConstantRange push{VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(WaterParams)};
+    static_assert(sizeof(WaterParams) == 16, "push constant block must match water_params.glsl");
+    VkPipelineLayoutCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.setLayoutCount = 1;
+    info.pSetLayouts = &waterSetLayout_;
+    info.pushConstantRangeCount = 1;
+    info.pPushConstantRanges = &push;
+    VK_TRY(vkCreatePipelineLayout(vk_->device, &info, nullptr, &waterLayout_));
+    return vk_->computePipeline(waterLayout_, kWaterStepCompSpirv, waterStepPipeline_) &&
+           vk_->computePipeline(waterLayout_, kWaterSurfaceCompSpirv, waterSurfacePipeline_);
+}
+
 bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     VkPushConstantRange push{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(FrameParams)};
     static_assert(sizeof(FrameParams) == 32 && sizeof(BloomParams) == 32 && sizeof(FinalParams) <= 32,
                   "push constant blocks must match the shaders");
     VkPipelineLayoutCreateInfo sceneInfo{};
     sceneInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    sceneInfo.setLayoutCount = 1;
+    sceneInfo.pSetLayouts = &sceneSetLayout_;
     sceneInfo.pushConstantRangeCount = 1;
     sceneInfo.pPushConstantRanges = &push;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &sceneInfo, nullptr, &sceneLayout_));
     VkPipelineLayoutCreateInfo samplingInfo = sceneInfo;
-    samplingInfo.setLayoutCount = 1;
     samplingInfo.pSetLayouts = &setLayout_;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &samplingInfo, nullptr, &samplingLayout_));
 
@@ -302,8 +414,10 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
     frame.frame = frame_;
     frame.blend = kHistoryBlend;
 
+    recordWater(cmd, time);
     pass(cmd, scenePass_, sceneFramebuffer_, extent_);
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scenePipeline_);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, sceneLayout_, 0, 1, &sceneSet_, 0, nullptr);
     vkCmdPushConstants(cmd, sceneLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(frame), &frame);
     vkCmdDraw(cmd, 3, 1, 0, 0);
     vkCmdEndRenderPass(cmd);
@@ -360,6 +474,43 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
     written_ = w;
     previousTime_ = time;
     ++frame_;
+}
+
+void SceneRenderer::recordWater(VkCommandBuffer cmd, float time) {
+    // The steps due by now, at a fixed rate; a slow frame catches up only so far.
+    const auto due = static_cast<uint64_t>(static_cast<double>(std::max(time, 0.0f)) * kWaterHz);
+    if (due > waterSteps_ + kMaxWaterSteps) waterSteps_ = due - kMaxWaterSteps;
+
+    // Last frame's steps wrote heights these read; its scene read the surface written below.
+    VkMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+    constexpr uint32_t groups = kWaterCells / 8;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, waterStepPipeline_);
+    for (; waterSteps_ < due; ++waterSteps_, ++waterTurn_) {
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, waterLayout_, 0, 1, &waterSets_[waterTurn_ % 3], 0,
+                                nullptr);
+        const WaterParams params{static_cast<uint32_t>(waterSteps_), 0, 0, 0};
+        vkCmdPushConstants(cmd, waterLayout_, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(params), &params);
+        vkCmdDispatch(cmd, groups, groups, 1);
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &barrier,
+                             0, nullptr, 0, nullptr);
+    }
+    // The set of the next turn sees the newest heights as "now".
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, waterSurfacePipeline_);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, waterLayout_, 0, 1, &waterSets_[waterTurn_ % 3], 0,
+                            nullptr);
+    vkCmdDispatch(cmd, groups, groups, 1);
+    VkMemoryBarrier sampled{};
+    sampled.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    sampled.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    sampled.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &sampled, 0,
+                         nullptr, 0, nullptr);
 }
 
 void SceneRenderer::recordParticles(VkCommandBuffer cmd, float time) {
@@ -428,9 +579,14 @@ void SceneRenderer::destroy() {
     if (vk_ == nullptr) return;
     VkDevice d = vk_->device;
     for (VkPipeline p : {scenePipeline_, taaPipeline_, downPipeline_, upPipeline_, finalPipeline_, simulatePipeline_,
-                         particlePipeline_}) {
+                         particlePipeline_, waterStepPipeline_, waterSurfacePipeline_}) {
         if (p) vkDestroyPipeline(d, p, nullptr);
     }
+    if (waterLayout_) vkDestroyPipelineLayout(d, waterLayout_, nullptr);
+    if (waterSetLayout_) vkDestroyDescriptorSetLayout(d, waterSetLayout_, nullptr);
+    if (sceneSetLayout_) vkDestroyDescriptorSetLayout(d, sceneSetLayout_, nullptr);
+    for (auto& h : waterHeights_) vk_->destroy(h);
+    vk_->destroy(waterSurface_);
     if (particleLayout_) vkDestroyPipelineLayout(d, particleLayout_, nullptr);
     if (particleSetLayout_) vkDestroyDescriptorSetLayout(d, particleSetLayout_, nullptr);
     if (particleFramebuffer_) vkDestroyFramebuffer(d, particleFramebuffer_, nullptr);

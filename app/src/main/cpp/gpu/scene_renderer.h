@@ -11,6 +11,8 @@ namespace stress {
  * The cinematic scene: drawn at a reduced resolution, accumulated over time,
  * bloomed, and finished onto the screen.
  *
+ *   water   wave-equation steps on the pool's surface (compute, fixed 60 Hz),
+ *           then its slope and curvature for the scene to sample
  *   scene   pool reactor -> HDR colour + ray distance       (scene resolution)
  *   motes   particle physics step (compute), drawn as points into their own target
  *   taa     reproject last frame's history, clip, blend      (ping-pong pair)
@@ -58,6 +60,19 @@ public:
     /** Bubbles and sparks together; six in ten are bubbles. */
     static constexpr uint32_t kParticles = 49152;
 
+    struct WaterParams {
+        uint32_t step;
+        uint32_t pad0;
+        uint32_t pad1;
+        uint32_t pad2;
+    };
+
+    /** water_params.glsl: WATER_N cells a side, WATER_HZ steps a second. */
+    static constexpr uint32_t kWaterCells = 256;
+    static constexpr double kWaterHz = 60.0;
+    /** A slow frame catches up at most this many steps; beyond that the water slows down. */
+    static constexpr uint64_t kMaxWaterSteps = 4;
+
     struct FinalParams {
         float width;
         float height;
@@ -85,6 +100,9 @@ private:
     bool createPasses();
     bool createDescriptors();
     bool createParticleDescriptors();
+    bool createWater();
+    void clearWater(VkCommandBuffer cmd);
+    void recordWater(VkCommandBuffer cmd, float time);
     bool createPipelines(VkRenderPass presentPass);
     void recordParticles(VkCommandBuffer cmd, float time);
     void pass(VkCommandBuffer cmd, VkRenderPass renderPass, VkFramebuffer framebuffer, VkExtent2D extent);
@@ -123,6 +141,20 @@ private:
     VkPipelineLayout particleLayout_ = VK_NULL_HANDLE;
     VkPipeline simulatePipeline_ = VK_NULL_HANDLE;
     VkPipeline particlePipeline_ = VK_NULL_HANDLE;
+
+    // Heights take turns: step i reads [i % 3] (a step before) and [(i + 1) % 3]
+    // (now), writes [(i + 2) % 3]; waterSets_[i % 3] binds them so.
+    std::array<vk::Image, 3> waterHeights_{};
+    vk::Image waterSurface_;
+    VkDescriptorSetLayout waterSetLayout_ = VK_NULL_HANDLE;
+    std::array<VkDescriptorSet, 3> waterSets_{};
+    VkPipelineLayout waterLayout_ = VK_NULL_HANDLE;
+    VkPipeline waterStepPipeline_ = VK_NULL_HANDLE;
+    VkPipeline waterSurfacePipeline_ = VK_NULL_HANDLE;
+    VkDescriptorSetLayout sceneSetLayout_ = VK_NULL_HANDLE;  // the surface, sampled by the scene
+    VkDescriptorSet sceneSet_ = VK_NULL_HANDLE;
+    uint64_t waterSteps_ = 0;  // simulated time, in steps: seeds the bursts
+    uint32_t waterTurn_ = 0;   // steps actually taken: picks the heights' turn
 
     VkPipelineLayout sceneLayout_ = VK_NULL_HANDLE;
     VkPipelineLayout samplingLayout_ = VK_NULL_HANDLE;

@@ -4,6 +4,11 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include "frame_params.glsl"
+
+// The simulated water surface (water_surface.comp), in GENERAL layout.
+layout(set = 0, binding = 0) uniform sampler2D water;
+#define POOL_WATER water
+
 #include "pool.glsl"
 
 layout(location = 0) flat in int layer;

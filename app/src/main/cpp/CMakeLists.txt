@@ -57,6 +57,8 @@ add_shader(final.frag final_frag kFinalFragSpirv)
 add_shader(particles.comp particles_comp kParticlesCompSpirv)
 add_shader(particles.vert particles_vert kParticlesVertSpirv)
 add_shader(particles.frag particles_frag kParticlesFragSpirv)
+add_shader(water_step.comp water_step_comp kWaterStepCompSpirv)
+add_shader(water_surface.comp water_surface_comp kWaterSurfaceCompSpirv)
 
 target_compile_features(stress PRIVATE cxx_std_20)
 target_include_directories(stress PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})

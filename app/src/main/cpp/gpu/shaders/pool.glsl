@@ -362,19 +362,25 @@ float caustics(vec2 p) {
     return c / 3.0;
 }
 
-// Water surface normal: a few travelling waves and rings spreading from the tubes.
+// The simulated surface (water_step.comp, water_surface.comp): slope,
+// curvature and height at a point. The renderer binds it as POOL_WATER;
+// shaders that include this file without it see still water.
+vec4 waterSurface(vec2 xz) {
+#ifdef POOL_WATER
+    return textureLod(POOL_WATER, xz / (2.0 * POOL_R) + 0.5, 0.0);
+#else
+    return vec4(0.0);
+#endif
+}
+
+// Water surface normal: a slow swell of travelling waves, and the simulated
+// ripples on top.
 vec3 waterNormal(vec2 xz) {
     vec2 g = vec2(0.0);
     g += 0.018 * vec2(cos(xz.x * 3.1 + gTime * 1.4), 0.0);
     g += 0.014 * vec2(0.0, cos(xz.y * 2.7 - gTime * 1.1));
     g += 0.010 * cos(dot(xz, vec2(4.3, 3.7)) + gTime * 2.0) * vec2(4.3, 3.7) / 5.7;
-    for (int i = 0; i < 4; ++i) {
-        vec2 source = vec2((i & 1) == 0 ? 0.55 : -0.55, (i & 2) == 0 ? 0.55 : -0.55);
-        vec2 d = xz - source;
-        float r = length(d);
-        float wave = sin(r * 14.0 - gTime * 4.0 + float(i)) * exp(-r * 1.6);
-        g += 0.035 * wave * d / max(r, 1e-3);
-    }
+    g += waterSurface(xz).xy;
     return normalize(vec3(-g.x, 1.0, -g.y));
 }
 
@@ -544,8 +550,11 @@ vec3 shadeWater(vec3 p, vec3 rd, vec3 n, float mat) {
     vec3 light = coreLight(p);
     vec3 toCore = normalize(CORE - p);
     float nl = max(dot(n, toCore), 0.0) * 0.8 + 0.2;
-    // Sunlight-like caustics from the lamps above, fading with depth.
-    float c = caustics(p.xz + p.y * 0.3) * exp(p.y * 0.35);
+    // Sunlight-like caustics from the lamps above, fading with depth. Where
+    // the simulated surface bulges like a lens it gathers the light below
+    // it: brighter under a crest, darker under a trough.
+    float focus = clamp(1.0 + 0.012 * p.y * waterSurface(p.xz).z, 0.25, 3.0);
+    float c = caustics(p.xz + p.y * 0.3) * exp(p.y * 0.35) * focus;
     vec3 causticLight = mix(AMBER, vec3(1.0), 0.5) * c * 0.35;
     return albedo * (light * nl + causticLight) / PI + ggx(n, -rd, toCore, roughness, vec3(0.04)) * light;
 }

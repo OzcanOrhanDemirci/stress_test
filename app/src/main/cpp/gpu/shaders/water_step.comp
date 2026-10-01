@@ -1,0 +1,59 @@
+#version 450
+// One step of the pool's surface: the wave equation on the grid,
+//   h' = 2h - h_before + c * (sum of the four neighbours - 4h),
+// damped a little. The pool wall and the tubes reflect waves: a solid
+// neighbour counts as the cell's own height. Bubbles bursting over the core
+// drop small dents into the surface; the rings they send out cross, reflect
+// off the wall and scatter round the tubes.
+#extension GL_GOOGLE_include_directive : require
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+#include "water_params.glsl"
+
+// Three height images take turns: now, a step before, and the next step.
+layout(WATER_SLOT(0), r32f) uniform readonly image2D current;
+layout(WATER_SLOT(1), r32f) uniform readonly image2D before;
+layout(WATER_SLOT(2), r32f) uniform writeonly image2D next;
+
+// c = (wave speed * step / cell)^2; 0.5 is the stability limit. 0.15 moves
+// ripples at about 0.44 m/s with 60 steps a second.
+const float WAVE = 0.15;
+const float DAMPING = 0.997;
+
+// Up to two bursts a step, somewhere over the core, each a Gaussian dent.
+float bursts(vec2 xz, uint step) {
+    float dent = 0.0;
+    for (uint i = 0u; i < 2u; ++i) {
+        uint h = waterHash(step * 2u + i + 40503u);
+        if ((h & 7u) != 0u) continue;  // one chance in eight: about fifteen a second
+        uint hx = waterHash(h);
+        uint hz = waterHash(hx);
+        vec2 at = (vec2(float(hx), float(hz)) * (1.0 / 4294967295.0) - 0.5) * 1.4;
+        float size = 0.03 + 0.03 * float(waterHash(hz) & 255u) / 255.0;
+        vec2 d = xz - at;
+        dent -= 0.002 * exp(-dot(d, d) / (size * size));
+    }
+    return dent;
+}
+
+float neighbour(ivec2 c, float own) {
+    c = clamp(c, ivec2(0), ivec2(WATER_N - 1));
+    return waterSolid(waterPosition(c)) ? own : imageLoad(current, c).x;
+}
+
+void main() {
+    ivec2 c = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(c, ivec2(WATER_N)))) return;
+    vec2 xz = waterPosition(c);
+    if (waterSolid(xz)) {
+        imageStore(next, c, vec4(0.0));
+        return;
+    }
+    float h = imageLoad(current, c).x;
+    float around = neighbour(c + ivec2(1, 0), h) + neighbour(c - ivec2(1, 0), h) +
+                   neighbour(c + ivec2(0, 1), h) + neighbour(c - ivec2(0, 1), h);
+    float h2 = (2.0 * h - imageLoad(before, c).x + WAVE * (around - 4.0 * h)) * DAMPING;
+    h2 += bursts(xz, params.step);
+    imageStore(next, c, vec4(h2));
+}
