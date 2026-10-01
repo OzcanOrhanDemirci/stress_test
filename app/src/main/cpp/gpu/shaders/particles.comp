@@ -46,8 +46,8 @@ void main() {
     float dt = params.dt;
 
     if (params.frame == 0u) {
-        // Six in ten are bubbles. Stagger their start so they do not rise as one sheet.
-        if (i < params.count * 6u / 10u) {
+        // Half are bubbles. Stagger their start so they do not rise as one sheet.
+        if (i < params.count / 2u) {
             bubble(p, seed);
             p.position.y += random(seed) * (-CORE.y - 0.9);
         } else {

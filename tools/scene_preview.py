@@ -10,10 +10,11 @@ at, frame by frame, without a phone:
 `pool` is written for temporal accumulation, so each image averages
 `--frames` jittered, reseeded frames of the same moment: what the phone's
 history holds once it has settled. Everything else is the phone's own
-shaders: the water surface is simulated from time 0 (water_*.comp), and the
-average goes through the bloom chain, the depth of field and the final pass
-(bloom_*.frag, dof.frag, final.frag) at the phone's screen size, twice the
-scene's. Frames land in
+shaders: the water surface and the particles are simulated from time 0
+(water_*.comp, particles.comp) and the particles drawn as points
+(particles.vert/frag); the average goes through the bloom chain, the depth of
+field and the final pass (bloom_*.frag, dof.frag, final.frag) at the phone's
+screen size, twice the scene's. Frames land in
 tools/out/preview/, with a side-by-side sheet when there are several.
 Needs `pip install moderngl pillow numpy`.
 """
@@ -30,6 +31,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SHADERS = ROOT / "app/src/main/cpp/gpu/shaders"
 RENDERER = ROOT / "app/src/main/cpp/gpu/scene_renderer.cpp"
+RENDERER_HEADER = ROOT / "app/src/main/cpp/gpu/scene_renderer.h"
 OUT = ROOT / "tools/out/preview"
 
 VERTEX = """
@@ -70,14 +72,20 @@ def gl_source(name):
         elif "flat in int layer" in line:
             continue  # fullscreen.vert's output; the desktop vertex shader has none
         else:
-            lines.append(line.replace("layout(set = 0, binding = ", "layout(binding = ")
-                         .replace("layout(push_constant)", "layout(std140, binding = 0)"))
+            line = re.sub(r"\bset\s*=\s*\d+\s*,\s*", "", line) if "layout(" in line else line
+            lines.append(line.replace("layout(push_constant)", "layout(std140, binding = 0)")
+                         .replace("gl_VertexIndex", "gl_VertexID").replace("gl_InstanceIndex", "gl_InstanceID"))
     return "\n".join(lines)
 
 
 def renderer_constant(name):
     """A float constant of SceneRenderer, read from its source: one place to change it."""
     return float(re.search(rf"{name} = ([0-9.]+)f;", RENDERER.read_text()).group(1))
+
+
+def renderer_count(name):
+    """An integer constant of SceneRenderer's header."""
+    return int(re.search(rf"{name} = (\d+);", RENDERER_HEADER.read_text()).group(1))
 
 
 class Water:
@@ -117,6 +125,51 @@ class Water:
         self.ctx.memory_barrier()
 
 
+class Particles:
+    """The renderer's particles: a physics step a frame (60 Hz here), then drawn as points."""
+
+    HZ = 60.0
+
+    def __init__(self, ctx, scene):
+        self.ctx = ctx
+        self.count = renderer_count("kParticles")
+        self.scene = scene
+        self.stepper = ctx.compute_shader(gl_source("particles.comp"))
+        draw = ctx.program(vertex_shader=gl_source("particles.vert"), fragment_shader=gl_source("particles.frag"))
+        self.vao = ctx.vertex_array(draw, [])
+        self.buffer = ctx.buffer(reserve=self.count * 32)
+        self.params = ctx.buffer(reserve=32)
+        self.target = ctx.texture(scene, 4, dtype="f2")
+        self.target.repeat_x = self.target.repeat_y = False
+        self.fbo = ctx.framebuffer(color_attachments=[self.target])
+        self.frames = 0
+
+    def write(self, t, dt):
+        self.params.write(struct.pack("<4f4I", self.scene[0], self.scene[1], t, dt, self.count, self.frames, 0, 0))
+        self.params.bind_to_uniform_block(0)
+        self.buffer.bind_to_storage_buffer(0)
+
+    def advance(self, seconds):
+        """Steps on to `seconds`; the first step gives every particle its start."""
+        while self.frames <= int(seconds * self.HZ):
+            self.write(self.frames / self.HZ, 0.0 if self.frames == 0 else 1.0 / self.HZ)
+            self.stepper.run((self.count + 63) // 64)
+            self.ctx.memory_barrier()
+            self.frames += 1
+
+    def draw(self, t, distance):
+        """The points at time `t`, depth-tested against the scene's `distance`."""
+        self.fbo.use()
+        self.fbo.clear(0.0, 0.0, 0.0, 0.0)
+        self.ctx.enable(moderngl.BLEND | moderngl.PROGRAM_POINT_SIZE)
+        self.ctx.blend_func = moderngl.ONE, moderngl.ONE
+        self.write(t, 0.0)
+        distance.use(location=1)
+        self.vao.render(moderngl.POINTS, vertices=self.count)
+        self.ctx.disable(moderngl.BLEND | moderngl.PROGRAM_POINT_SIZE)
+        return self.target
+
+
 class Post:
     """The renderer's chain after the history: bloom down and up, depth of field, then the final picture."""
 
@@ -152,10 +205,11 @@ class Post:
         texture.repeat_x = texture.repeat_y = False
         return texture
 
-    def run(self, history, distance, t):
+    def run(self, history, distance, particles, t):
         """`history`: the scene, linear HDR, at the scene size; `distance`: each pixel's
-        distance along its ray. Returns the screen as 8-bit RGB."""
+        distance along its ray; `particles`: their layer, or None. Returns the screen as 8-bit RGB."""
         ubo = self.params
+        particles = particles or self.none
         source = history
         for i, (texture, fbo) in enumerate(self.levels):
             fbo.use()
@@ -163,7 +217,7 @@ class Post:
                                   self.threshold, 1.0 if i == 0 else 0.0, 0.0, 0.0))
             ubo.bind_to_uniform_block(0)
             source.use(location=0)
-            self.none.use(location=1)
+            particles.use(location=1)
             self.down.render(moderngl.TRIANGLES)
             source = texture
         self.ctx.enable(moderngl.BLEND)
@@ -193,7 +247,7 @@ class Post:
         ubo.bind_to_uniform_block(0)
         history.use(location=0)
         self.levels[0][0].use(location=1)
-        self.none.use(location=2)
+        particles.use(location=2)
         self.blurred.use(location=3)
         distance.use(location=4)
         self.final.render(moderngl.TRIANGLES)
@@ -214,6 +268,7 @@ def main():
     parser.add_argument("--width", type=int, default=632)
     parser.add_argument("--height", type=int, default=1368)
     parser.add_argument("--frames", type=int, default=16)
+    parser.add_argument("--no-particles", action="store_true")
     args = parser.parse_args()
 
     ctx = moderngl.create_standalone_context(require=430)
@@ -229,13 +284,17 @@ def main():
     post = Post(ctx, quad, scene, (args.width * 2, args.height * 2))
     OUT.mkdir(parents=True, exist_ok=True)
     water = Water(ctx)
+    particles = None if args.no_particles else Particles(ctx, scene)
 
     frames = args.frames
     images = []
     for t in [float(x) for x in args.times.split(",")]:
         if t * Water.HZ < water.steps:
-            water = Water(ctx)  # the simulation only runs forward
+            water = Water(ctx)  # the simulations only run forward
+            particles = particles and Particles(ctx, scene)
         water.advance(t)
+        if particles:
+            particles.advance(t)
         water.surface.use(location=0)
         if "water" in program:
             program["water"].value = 0
@@ -260,7 +319,8 @@ def main():
             hdr = np.nan_to_num(hdr, nan=0.0, posinf=0.0, neginf=0.0)
         # The phone keeps one frame's distances, not an average: the last one here.
         history = post.target(scene, hdr.astype("f2"))
-        image = post.run(history, distance, t)
+        layer = particles.draw(t, distance) if particles else None
+        image = post.run(history, distance, layer, t)
         history.release()
         path = OUT / f"{args.scene}_t{t:05.1f}.png"
         Image.fromarray(image).save(path)

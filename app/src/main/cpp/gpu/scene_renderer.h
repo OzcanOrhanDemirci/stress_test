@@ -58,8 +58,8 @@ public:
         float spare1;
     };
 
-    /** Bubbles and sparks together; six in ten are bubbles. */
-    static constexpr uint32_t kParticles = 49152;
+    /** Bubbles and sparks together, half each: enough to read as streams, few enough not to veil the scene. */
+    static constexpr uint32_t kParticles = 16384;
 
     struct DofParams {
         float texelX;

@@ -50,8 +50,12 @@ data class GpuRequest(
     val sceneScalePercent: Int = DEFAULT_SCENE_SCALE_PERCENT,
 ) {
     companion object {
-        /** Half the screen's resolution in each direction; to be settled by measurement on the phone. */
-        const val DEFAULT_SCENE_SCALE_PERCENT = 50
+        /**
+         * The cinematic scene's resolution, as a share of the screen's in each
+         * direction; temporal accumulation and a Catmull-Rom upscale make up
+         * the rest. 45 % runs at ~49 ms a frame, ~20 fps (docs/OLCUMLER.md).
+         */
+        const val DEFAULT_SCENE_SCALE_PERCENT = 45
 
         /**
          * Long enough that the frame's fixed costs are small next to the burner,
