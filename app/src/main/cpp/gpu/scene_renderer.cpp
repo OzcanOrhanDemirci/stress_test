@@ -26,7 +26,7 @@ constexpr VkFormat kDistance = VK_FORMAT_R32_SFLOAT;
 constexpr float kHistoryBlend = 0.1f;
 /** Light below this (linear HDR) does not bloom. */
 constexpr float kBloomThreshold = 1.0f;
-constexpr float kBloomStrength = 0.35f;
+constexpr float kBloomStrength = 0.12f;
 
 VkAttachmentDescription attachment(VkFormat format, VkAttachmentLoadOp load, VkImageLayout initial) {
     VkAttachmentDescription a{};

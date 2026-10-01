@@ -1,22 +1,24 @@
 """Renders the scenes on the development machine's GPU.
 
 The scenes (app/src/main/cpp/gpu/shaders/*.glsl) are plain GLSL shared with
-the phone's renderer; this wraps them for desktop OpenGL so they can be looked
+the phone's renderer; this runs them on desktop OpenGL so they can be looked
 at, frame by frame, without a phone:
 
     python tools/scene_preview.py [--scene pool] [--times 0,4,8]
                                   [--width 632] [--height 1368] [--frames 16]
 
 `pool` is written for temporal accumulation, so each image averages
-`--frames` jittered, reseeded frames of the same moment, then gets the
-phone's post-processing (bloom, tone mapping, vignette, grain): what the
-phone shows once its history has settled. Its water surface is simulated
-from time 0 with the phone's own compute shaders (water_*.comp). Frames land
-in tools/out/preview/.
+`--frames` jittered, reseeded frames of the same moment: what the phone's
+history holds once it has settled. Everything else is the phone's own
+shaders: the water surface is simulated from time 0 (water_*.comp), and the
+average goes through the bloom chain and the final pass (bloom_*.frag,
+final.frag) at the phone's screen size, twice the scene's. Frames land in
+tools/out/preview/, with a side-by-side sheet when there are several.
 Needs `pip install moderngl pillow numpy`.
 """
 import argparse
 import pathlib
+import re
 import struct
 import time
 
@@ -26,6 +28,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SHADERS = ROOT / "app/src/main/cpp/gpu/shaders"
+RENDERER = ROOT / "app/src/main/cpp/gpu/scene_renderer.cpp"
 OUT = ROOT / "tools/out/preview"
 
 VERTEX = """
@@ -49,8 +52,10 @@ TAILS = {
     "pool": "void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0); }",
 }
 
-def compute_source(name):
-    """One of the phone's compute shaders, for desktop OpenGL: includes inlined."""
+
+def gl_source(name):
+    """One of the phone's shaders, for desktop OpenGL: includes inlined,
+    descriptor sets dropped, push constants as uniform block 0."""
     lines = []
     for line in (SHADERS / name).read_text().splitlines():
         if line.startswith("#version"):
@@ -58,10 +63,18 @@ def compute_source(name):
         elif line.startswith("#extension GL_GOOGLE_include_directive"):
             continue
         elif line.startswith("#include"):
-            lines.append((SHADERS / line.split('"')[1]).read_text())
+            lines.append(gl_source(line.split('"')[1]))
+        elif "flat in int layer" in line:
+            continue  # fullscreen.vert's output; the desktop vertex shader has none
         else:
-            lines.append(line)
+            lines.append(line.replace("layout(set = 0, binding = ", "layout(binding = ")
+                         .replace("layout(push_constant)", "layout(std140, binding = 0)"))
     return "\n".join(lines)
+
+
+def renderer_constant(name):
+    """A float constant of SceneRenderer, read from its source: one place to change it."""
+    return float(re.search(rf"{name} = ([0-9.]+)f;", RENDERER.read_text()).group(1))
 
 
 class Water:
@@ -72,8 +85,8 @@ class Water:
 
     def __init__(self, ctx):
         self.ctx = ctx
-        self.stepper = ctx.compute_shader(compute_source("water_step.comp"))
-        self.deriver = ctx.compute_shader(compute_source("water_surface.comp"))
+        self.stepper = ctx.compute_shader(gl_source("water_step.comp"))
+        self.deriver = ctx.compute_shader(gl_source("water_surface.comp"))
         still = np.zeros((self.N, self.N), dtype="f4").tobytes()
         # Heights: a step before, now, next; they take turns, as on the phone.
         self.heights = [ctx.texture((self.N, self.N), 1, still, dtype="f4") for _ in range(3)]
@@ -101,55 +114,80 @@ class Water:
         self.ctx.memory_barrier()
 
 
+class Post:
+    """The renderer's chain after the history: bloom down and up, then the final picture."""
+
+    LEVELS = 5  # SceneRenderer::kBloomLevels
+
+    def __init__(self, ctx, quad, scene, screen):
+        self.ctx = ctx
+
+        def program(name):
+            p = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source(name))
+            return ctx.vertex_array(p, [(quad, "2f", "position")])
+
+        self.down = program("bloom_down.frag")
+        self.up = program("bloom_up.frag")
+        self.final = program("final.frag")
+        self.params = ctx.buffer(reserve=32)
+        self.none = self.target(scene, np.zeros((scene[1], scene[0], 4), dtype="f2"))  # the phone's particle layer
+        self.levels = []
+        size = scene
+        for _ in range(self.LEVELS):
+            size = (max(1, size[0] // 2), max(1, size[1] // 2))
+            texture = self.target(size)
+            self.levels.append((texture, ctx.framebuffer(color_attachments=[texture])))
+        self.screen = ctx.framebuffer(color_attachments=[ctx.texture(screen, 4)])
+        self.threshold = renderer_constant("kBloomThreshold")
+        self.strength = renderer_constant("kBloomStrength")
+
+    def target(self, size, data=None):
+        texture = self.ctx.texture(size, 4, None if data is None else data.tobytes(), dtype="f2")
+        texture.repeat_x = texture.repeat_y = False
+        return texture
+
+    def run(self, history, t):
+        """`history`: the scene, linear HDR, at the scene size. Returns the screen as 8-bit RGB."""
+        ubo = self.params
+        source = history
+        for i, (texture, fbo) in enumerate(self.levels):
+            fbo.use()
+            ubo.write(struct.pack("<8f", 1 / source.width, 1 / source.height, texture.width, texture.height,
+                                  self.threshold, 1.0 if i == 0 else 0.0, 0.0, 0.0))
+            ubo.bind_to_uniform_block(0)
+            source.use(location=0)
+            self.none.use(location=1)
+            self.down.render(moderngl.TRIANGLES)
+            source = texture
+        self.ctx.enable(moderngl.BLEND)
+        self.ctx.blend_func = moderngl.ONE, moderngl.ONE
+        for i in range(self.LEVELS - 2, -1, -1):
+            texture, fbo = self.levels[i]
+            smaller = self.levels[i + 1][0]
+            fbo.use()
+            ubo.write(struct.pack("<8f", 1 / smaller.width, 1 / smaller.height, texture.width, texture.height,
+                                  0.0, 0.0, 1.0, 1.0))
+            ubo.bind_to_uniform_block(0)
+            smaller.use(location=0)
+            self.up.render(moderngl.TRIANGLES)
+        self.ctx.disable(moderngl.BLEND)
+
+        self.screen.use()
+        width, height = self.screen.size
+        ubo.write(struct.pack("<4f", width, height, t, self.strength) + bytes(16))
+        ubo.bind_to_uniform_block(0)
+        history.use(location=0)
+        self.levels[0][0].use(location=1)
+        self.none.use(location=2)
+        self.final.render(moderngl.TRIANGLES)
+        rgb = np.frombuffer(self.screen.read(components=3), dtype=np.uint8).reshape(height, width, 3)
+        return rgb[::-1]
+
+
 # R2 low-discrepancy sequence: well spread sub-pixel offsets, as the renderer uses.
 def jitter(i):
     g = 1.32471795724474602596
     return ((0.5 + i / g) % 1.0) - 0.5, ((0.5 + i / (g * g)) % 1.0) - 0.5
-
-
-def aces(x):
-    return np.clip((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0)
-
-
-def box_blur(img, radius, axis):
-    """Mean over a window of 2*radius+1 along one axis, edges clamped."""
-    pad = [(0, 0)] * img.ndim
-    pad[axis] = (radius + 1, radius)
-    c = np.cumsum(np.pad(img, pad, mode="edge"), axis=axis)
-    n = img.shape[axis]
-    upper = np.take(c, np.arange(2 * radius + 1, 2 * radius + 1 + n), axis=axis)
-    lower = np.take(c, np.arange(0, n), axis=axis)
-    return (upper - lower) / (2 * radius + 1)
-
-
-def blur(img, radius):
-    """Three box blurs: close to a Gaussian of about that radius."""
-    r = max(1, int(radius / 1.7))
-    for _ in range(3):
-        img = box_blur(box_blur(img, r, 0), r, 1)
-    return img
-
-
-def bloom(hdr):
-    """Bright parts, blurred at three widths and added back: the glow round lights."""
-    bright = np.clip(hdr - 1.0, 0.0, None)
-    scale = hdr.shape[1] / 632
-    total = np.zeros_like(hdr)
-    for radius, weight in ((4, 0.5), (14, 0.35), (40, 0.25)):
-        total += weight * blur(bright, radius * scale)
-    return hdr + total
-
-
-def finish(hdr, seed):
-    """The phone's post-processing, in numpy."""
-    color = aces(bloom(hdr) * 0.9)
-    h, w, _ = color.shape
-    y, x = np.mgrid[0:h, 0:w]
-    q = np.stack([x / w, y / h], axis=-1)
-    vignette = 0.35 + 0.65 * (16 * q[..., 0] * q[..., 1] * (1 - q[..., 0]) * (1 - q[..., 1])) ** 0.22
-    color *= vignette[..., None]
-    color += (np.random.default_rng(seed).random((h, w, 1)) - 0.5) * 0.015
-    return (np.clip(color, 0, 1) ** (1 / 2.2) * 255).astype(np.uint8)
 
 
 def main():
@@ -166,10 +204,11 @@ def main():
     program = ctx.program(vertex_shader=VERTEX, fragment_shader=HEAD + source + TAILS[args.scene])
     quad = ctx.buffer(np.array([-1, -1, 3, -1, -1, 3], dtype="f4").tobytes())
     vao = ctx.vertex_array(program, [(quad, "2f", "position")])
-    target = ctx.texture((args.width, args.height), 4, dtype="f4")
+    scene = (args.width, args.height)
+    target = ctx.texture(scene, 4, dtype="f4")
     fbo = ctx.framebuffer(color_attachments=[target])
-    fbo.use()
-    program["resolution"].value = (args.width, args.height)
+    program["resolution"].value = scene
+    post = Post(ctx, quad, scene, (args.width * 2, args.height * 2))
     OUT.mkdir(parents=True, exist_ok=True)
     water = Water(ctx)
 
@@ -183,7 +222,8 @@ def main():
         if "water" in program:
             program["water"].value = 0
         program["time"].value = t
-        total = np.zeros((args.height, args.width, 3), dtype=np.float64)
+        fbo.use()
+        total = np.zeros((args.height, args.width, 4), dtype=np.float64)
         ctx.finish()
         start = time.perf_counter()
         for i in range(frames):
@@ -192,8 +232,7 @@ def main():
             if "jitter" in program:
                 program["jitter"].value = jitter(i)
             vao.render(moderngl.TRIANGLES)
-            data = np.frombuffer(fbo.read(components=4, dtype="f4"), dtype=np.float32).reshape(args.height, args.width, 4)
-            total += data[::-1, :, :3]
+            total += np.frombuffer(fbo.read(components=4, dtype="f4"), dtype=np.float32).reshape(args.height, args.width, 4)
         ms = (time.perf_counter() - start) * 1000 / frames
         hdr = (total / frames).astype(np.float32)
         broken = int((~np.isfinite(hdr)).any(axis=2).sum())
@@ -201,13 +240,16 @@ def main():
             # A NaN would smear across the bloom; count it, then blank it.
             print(f"  WARNING: {broken} non-finite pixels")
             hdr = np.nan_to_num(hdr, nan=0.0, posinf=0.0, neginf=0.0)
-        image = finish(hdr, int(t * 100))
+        history = post.target(scene, hdr.astype("f2"))
+        image = post.run(history, t)
+        history.release()
         path = OUT / f"{args.scene}_t{t:05.1f}.png"
         Image.fromarray(image).save(path)
-        images.append(image)
+        images.append(Image.fromarray(image).resize((args.width, args.height), Image.LANCZOS))
         print(f"{path.name}  {ms:.1f} ms/frame (with readback)")
     if len(images) > 1:
-        Image.fromarray(np.concatenate(images, axis=1)).save(OUT / f"{args.scene}_sheet.png")
+        sheet = np.concatenate([np.asarray(i) for i in images], axis=1)
+        Image.fromarray(sheet).save(OUT / f"{args.scene}_sheet.png")
 
 
 if __name__ == "__main__":
