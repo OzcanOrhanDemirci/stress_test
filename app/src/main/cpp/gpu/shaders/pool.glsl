@@ -522,7 +522,8 @@ vec3 shadeAir(vec3 p, vec3 rd, vec3 n, float mat, bool primary) {
         float cone = smoothstep(0.6, 0.9, dot(-l, normalize(vec3(0.0, 0.3, 0.0) - lamp)));
         if (nl * cone <= 0.0) continue;
         vec3 radiance = AMBER * 110.0 * share * cone / dist2;
-        float shadow = airShadow(p + n * 0.02, target);
+        // In a reflection the blur of the gloss hides a shadow's edge: no shadow ray.
+        float shadow = primary ? airShadow(p + n * 0.02, target) : 1.0;
         color += (diffuse / PI + ggx(n, v, l, roughness, f0)) * radiance * nl * shadow;
     }
 
@@ -715,13 +716,14 @@ vec3 radiance(vec3 ro, vec3 rd, out float depth) {
         vec3 p = ro + rd * air.y;
         vec3 n = normalAir(p);
         color += shadeAir(p, rd, n, air.x, true);
-        // Polished metal: one mirror bounce.
-        if (air.x == M_RING || air.x == M_TUBE || air.x == M_DECK) {
-            float gloss = air.x == M_DECK ? 0.12 : 0.04;
-            vec3 wobble = normalize(vec3(rand(), rand(), rand()) - 0.5) * gloss;
+        // Polished metal: one mirror bounce. Not the deck: its rough sheen
+        // came out as speckle at a few samples a pixel, and the lamps' own
+        // highlights on it stay.
+        if (air.x == M_RING || air.x == M_TUBE) {
+            vec3 wobble = normalize(vec3(rand(), rand(), rand()) - 0.5) * 0.04;
             vec3 rr = normalize(reflect(rd, n) + wobble);
             if (dot(rr, n) < 0.0) rr = reflect(rr, n);
-            float weight = air.x == M_DECK ? 0.3 : 0.55;
+            const float weight = 0.55;
             float tw2 = hitWater(p + n * 0.01, rr);
             vec2 bounce = traceAir(p + n * 0.01, rr, 48, 20.0);
             vec3 seen;
