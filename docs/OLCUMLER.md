@@ -154,3 +154,25 @@ Tarifler sahneyi gösteriyor. Sahneli hâlleri pilde henüz ölçülmedi, bu öl
   yine de o da alan alana çevrildi.
 - **%45 ölçekte (569×1231) kare 49,0 ms, 20,4 fps**, yakıcısız. Masaüstü tahmini (GL zamanlayıcısı × eski sahnenin telefon/masaüstü
   oranı) 35-65 ms idi.
+
+## Sinematik sahnenin gücü (pilde, aktif soğutma)
+
+Oturum `20261001-033735`: 6 yük × 2 tekrar, karışık sıra, 10 sn boşta + 60 sn yük, aynı vantilatör + metal yüzey.
+Havuz sahnesi %45 ölçekte (yeni boru hattı, parçacık düzeltmesinden sonra, güverte sekmesi kaldırılmadan önce). Hata 0.
+
+| Yük | İlk 30 sn | Tekrar farkı | Kare | Not |
+|---|---|---|---|---|
+| fp32_l2 + gpu_fp32@preview | **10,13 W** | ±0,49 | 40,0 ms | en yüksek, görünen geçiş 0,5 ms önizleme |
+| fp32_l2 + gpu_fp32 (sahneli, Tam yük tarifi) | 8,97 W | ±0,24 | 52,3 ms (sahne 48,8) | yakıcı kare başına en az 1 gönderim |
+| fp32_l2 + sahne | 8,89 W | ±0,40 | 47,8 ms | |
+| gpu_fp32@preview | **5,45 W** | ±0,01 | 40,2 ms | |
+| gpu_fp32 (sahneli, GPU tarifi) | 3,27 W | ±0,03 | 52,3 ms | |
+| sahne | 2,95 W | ±0,01 | 47,8 ms (20,9 fps) | |
+
+**Okuma:**
+- **Sahne GPU'yu %100 meşgul ediyor ama 2,95 W çekiyor, FP32 yakıcısı 5,45 W.** GPU'da da Prime95 / Cinebench farkı var:
+  ışın yürütme (dallanan döngüler, gecikme bekleyen zincirler) ALU'ları yakıcı kadar doldurmuyor. Eski reaktör sahnesi de ~2,9 W'tı.
+- **Kabul kuralı tutmadı:** sahneli Tam yük 8,97 W, sahnesiz 10,13 W → **0,885** (kural ≥ 0,97). Sahne 48 ms sürünce 40 ms'lik
+  hedef karede yakıcıya yer kalmıyor (1 gönderim, ~1 ms).
+- Zaman paylaştırma kurtarmaz: kuralın tutması için sahnenin GPU zamanından payı ≤ %6,4 olmalı
+  (2,95·f + 5,45·(1−f) ≥ 0,97 · 5,45); 48 ms'lik sahneyle bu ~1,3 fps demek.
