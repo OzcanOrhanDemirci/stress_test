@@ -30,6 +30,23 @@ const vec3 CORE = vec3(0.0, -3.2, 0.0);
 const vec3 RING_CENTRE = vec3(0.0, 1.55, 0.0);
 const float RING_R = 1.55;
 
+// The scripted sequence: shots of SHOT_SECONDS each, over and over, as in a
+// benchmark demo. Shot boundaries are cuts: the TAA pass sees the shot
+// number change and drops its history.
+const float SHOT_SECONDS = 14.0;
+const int SHOTS = 4;
+
+// A TRIGA pulse, once a cycle, half way through the descent onto the core:
+// the reactor's power jumps a thousandfold for milliseconds, the pool
+// flashes blue and the glow dies away over a second or so.
+const float PULSE_AT = 3.0 * SHOT_SECONDS + 7.0;
+
+// The flash's brightness on top of the steady glow, 0 outside it.
+float flash(float time) {
+    float s = mod(time, SHOT_SECONDS * float(SHOTS)) - PULSE_AT;
+    return s < 0.0 ? 0.0 : 7.0 * smoothstep(0.0, 0.06, s) * exp(-s / 0.45);
+}
+
 // Materials.
 const float M_DECK = 1.0;
 const float M_RING = 2.0;
@@ -121,7 +138,7 @@ float smin(float a, float b, float k) {
 
 void beginFrame(float time) {
     gTime = time;
-    gPulse = 1.0 + 0.35 * pow(0.5 + 0.5 * sin(time * 2.2), 8.0);
+    gPulse = 1.0 + 0.35 * pow(0.5 + 0.5 * sin(time * 2.2), 8.0) + flash(time);
     gTilt = rot(0.16 * sin(time * 0.23));
     gSpin = rot(time * 0.35);
 }
@@ -725,11 +742,6 @@ vec3 radiance(vec3 ro, vec3 rd, out float depth) {
 
 // ---- camera ------------------------------------------------------------------------------------
 
-// A scripted sequence of shots, as in a benchmark demo. Shot boundaries are
-// cuts: the TAA pass sees the shot number change and drops its history.
-const float SHOT_SECONDS = 14.0;
-const int SHOTS = 4;
-
 int shotAt(float time) {
     return int(mod(floor(time / SHOT_SECONDS), float(SHOTS)));
 }
@@ -775,8 +787,10 @@ void framing(float time, out vec3 from, out vec3 target, out vec2 lens) {
         target = RING_CENTRE + vec3(cos(a - 0.35) * RING_R, 0.0, sin(a - 0.35) * RING_R);
         lens = vec2(length(target - from), 0.03);
     } else {
-        // Straight down onto the core, sinking towards the water; the ring passes blurred in front.
+        // Straight down onto the core, sinking towards the water; the ring passes
+        // blurred in front. The pulse shakes the camera for a moment.
         from = vec3(0.35 * sin(t * 2.0), mix(6.5, 3.4, e), 0.6 + 0.2 * cos(t * 2.0));
+        from += vec3(sin(time * 47.0), sin(time * 53.0 + 1.0), sin(time * 41.0 + 2.0)) * 0.006 * flash(time);
         target = vec3(0.0, -3.0, 0.0);
         lens = vec2(toSurface(from, target), 0.012);
     }
