@@ -276,3 +276,8 @@ Catmull-Rom büyütmenin üstüne hafif keskinleştirme. Zamansal birikim kenarl
 
 **Kimlik:** radyasyon yoncası yerine **kadran** (240 derecelik ölçek, ibre) logo, başlatıcı simgesi ve koşu ekranında;
 tema Çerenkov mavisi yerine grafit + turuncu (güç ve ısı) + camgöbeği (ikinci seri). Güç modlarının ekranı yük kadranı.
+10. **Proje kapandı (Özcan, 2026-10-01).** "Hobi projesi olarak görevimizi tamamladık." Çip dışı yükler (fener, modem,
+    kamera) tariflere eklenmedi: Özcan gerektiğinde koşu sırasında elle açar. Açık kalan ve bilerek bırakılanlar:
+    sinematik modların pilde gücü (yalnız havuzlu olan ölçüldü), 30 dk'lık uzun koşu (Faz 5), ADPF ile `core_ctl`
+    denemesi, G2 FP16'nın FP32'den yavaş olmasının nedeni, 10 dk'lık şarj sayacı çapraz kontrolü. Depo private kalır;
+    proje README'si (İngilizce + Türkçe) kapanışta yazıldı.
