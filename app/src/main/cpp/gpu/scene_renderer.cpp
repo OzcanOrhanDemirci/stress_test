@@ -12,6 +12,8 @@
 #include "shaders/dof_forest_frag.h"
 #include "shaders/forest_geometry_frag.h"
 #include "shaders/forest_geometry_vert.h"
+#include "shaders/forest_light_frag.h"
+#include "shaders/forest_shadow_frag.h"
 #include "shaders/forest_sky_frag.h"
 #include "shaders/taa_forest_frag.h"
 #include "shaders/particles_comp.h"
@@ -177,8 +179,8 @@ bool SceneRenderer::createDescriptors() {
     layoutInfo.pBindings = bindings.data();
     VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &setLayout_));
 
-    // Sampling sets, the particles' set, the water's three and the scene's one.
-    constexpr uint32_t kSets = 2 + 2 + kBloomLevels + kBloomLevels + 2 + 2 + 1 + 3 + 1;
+    // Sampling sets, the particles' set, the water's three, the scene's one, the forest's two.
+    constexpr uint32_t kSets = 2 + 2 + kBloomLevels + kBloomLevels + 2 + 2 + 1 + 3 + 1 + 2;
     const std::array<VkDescriptorPoolSize, 3> sizes{{{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kSets * 5},
                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
                                                      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 * 4}}};
@@ -543,11 +545,52 @@ bool SceneRenderer::createForest() {
     if (!vk_->renderPass(colours, true, forestPass_, &depth)) return false;
     const std::array<VkImageView, 3> views{color_.view, distance_.view, depth_.view};
     if (!vk_->framebuffer(forestPass_, views, extent_, forestFramebuffer_)) return false;
+    // The sunbeams are added onto the colour the forest pass leaves.
+    const std::array<VkImageView, 1> lit{color_.view};
+    if (!vk_->framebuffer(addPass_, lit, extent_, lightFramebuffer_)) return false;
+    if (!createForestShadow()) return false;
+
+    VkDescriptorSetLayoutBinding sampled[2]{};
+    for (uint32_t i = 0; i < 2; ++i) {
+        sampled[i].binding = i;
+        sampled[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        sampled[i].descriptorCount = 1;
+        sampled[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 2;
+    layoutInfo.pBindings = sampled;
+    VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &forestSetLayout_));
+    const VkDescriptorImageInfo shadowInfo{shadowSampler_, shadow_.view, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL};
+    const VkDescriptorImageInfo distanceInfo{sampler_, distance_.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+    for (VkDescriptorSet* set : {&forestSurfaceSet_, &forestLightSet_}) {
+        VkDescriptorSetAllocateInfo allocate{};
+        allocate.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocate.descriptorPool = descriptorPool_;
+        allocate.descriptorSetCount = 1;
+        allocate.pSetLayouts = &forestSetLayout_;
+        VK_TRY(vkAllocateDescriptorSets(vk_->device, &allocate, set));
+        std::array<VkWriteDescriptorSet, 2> writes{};
+        for (uint32_t b = 0; b < 2; ++b) {
+            writes[b].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[b].dstSet = *set;
+            writes[b].dstBinding = b;
+            writes[b].descriptorCount = 1;
+            writes[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            writes[b].pImageInfo = b == 0 ? &shadowInfo : &distanceInfo;
+        }
+        // The surfaces' set names only the shadow map: the distances are being drawn while it is bound.
+        const uint32_t count = set == &forestSurfaceSet_ ? 1u : 2u;
+        vkUpdateDescriptorSets(vk_->device, count, writes.data(), 0, nullptr);
+    }
 
     VkPushConstantRange push{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ForestParams)};
     static_assert(sizeof(ForestParams) == 32, "push constant block must match forest_params.glsl");
     VkPipelineLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.setLayoutCount = 1;
+    info.pSetLayouts = &forestSetLayout_;
     info.pushConstantRangeCount = 1;
     info.pPushConstantRanges = &push;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &info, nullptr, &forestLayout_));
@@ -555,12 +598,93 @@ bool SceneRenderer::createForest() {
                                        vk::Blend::None, forestSkyPipeline_), "ForestSky") &&
            named(vk_->graphicsPipeline(forestPass_, 2, forestLayout_, kForestGeometryVertSpirv, kForestGeometryFragSpirv,
                                        vk::Blend::None, forestGeometryPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-                                       vk::Depth::TestWrite), "ForestGeometry");
+                                       vk::Depth::TestWrite), "ForestGeometry") &&
+           named(vk_->graphicsPipeline(shadowPass_, 0, forestLayout_, kForestGeometryVertSpirv, kForestShadowFragSpirv,
+                                       vk::Blend::None, forestShadowPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                                       vk::Depth::TestWrite), "ForestShadow") &&
+           named(vk_->graphicsPipeline(addPass_, 1, forestLayout_, kFullscreenVertSpirv, kForestLightFragSpirv,
+                                       vk::Blend::Additive, forestLightPipeline_), "ForestLight");
+}
+
+// The sun's shadow map: 16-bit depth, which every device can draw into and
+// sample; nearest texels, compared in the shader's own disc of taps.
+bool SceneRenderer::createForestShadow() {
+    const VkExtent2D size{static_cast<uint32_t>(SHADOW_RES), static_cast<uint32_t>(SHADOW_RES)};
+    if (!vk_->createImage(size, VK_FORMAT_D16_UNORM,
+                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, shadow_)) {
+        return false;
+    }
+    VkAttachmentDescription depth{};
+    depth.format = VK_FORMAT_D16_UNORM;
+    depth.samples = VK_SAMPLE_COUNT_1_BIT;
+    depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depth.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    if (!vk_->renderPass({}, false, shadowPass_, &depth)) return false;
+    const std::array<VkImageView, 1> view{shadow_.view};
+    if (!vk_->framebuffer(shadowPass_, view, size, shadowFramebuffer_)) return false;
+
+    VkSamplerCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.magFilter = VK_FILTER_NEAREST;
+    info.minFilter = VK_FILTER_NEAREST;
+    info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    info.compareEnable = VK_TRUE;
+    info.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    info.maxLod = 0.0f;
+    VK_TRY(vkCreateSampler(vk_->device, &info, nullptr, &shadowSampler_));
+    return true;
+}
+
+// The trunks and cards seen from the sun, cut to their outlines. Once: nothing moves.
+void SceneRenderer::recordForestShadow(VkCommandBuffer cmd) {
+    VkClearValue clear{};
+    clear.depthStencil = {1.0f, 0};
+    VkRenderPassBeginInfo begin{};
+    begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin.renderPass = shadowPass_;
+    begin.framebuffer = shadowFramebuffer_;
+    begin.renderArea = {{0, 0}, shadow_.extent};
+    begin.clearValueCount = 1;
+    begin.pClearValues = &clear;
+    vkCmdBeginRenderPass(cmd, &begin, VK_SUBPASS_CONTENTS_INLINE);
+    const auto side = static_cast<float>(SHADOW_RES);
+    const VkViewport viewport{0.0f, 0.0f, side, side, 0.0f, 1.0f};
+    const VkRect2D scissor{{0, 0}, shadow_.extent};
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestShadowPipeline_);
+    ForestParams params{side, side, 0.0f, 0.0f, 0.0f, 0, 0, 0.0f};
+    const VkShaderStageFlags stages = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    const int trees = FOREST_GRID * FOREST_GRID;
+    params.part = 8 + 1;  // forest_params.glsl: PART_SHADOW + PART_TRUNKS
+    vkCmdPushConstants(cmd, forestLayout_, stages, 0, sizeof(params), &params);
+    vkCmdDraw(cmd, static_cast<uint32_t>(TRUNK_SIDES * TRUNK_RINGS * 6), static_cast<uint32_t>(trees), 0, 0);
+    params.part = 8 + 2;  // PART_SHADOW + PART_CARDS
+    vkCmdPushConstants(cmd, forestLayout_, stages, 0, sizeof(params), &params);
+    vkCmdDraw(cmd, static_cast<uint32_t>(WHORLS * PER_WHORL * 2 * 6), static_cast<uint32_t>(trees), 0, 0);
+    vkCmdEndRenderPass(cmd);
+    VkMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &barrier,
+                         0, nullptr, 0, nullptr);
 }
 
 // The forest: the sky behind everything, then the ground, the trunks and the
 // leaf cards, each a draw whose vertex shader makes its own geometry.
 void SceneRenderer::recordForest(VkCommandBuffer cmd, const FrameParams& frame) {
+    if (!shadowDrawn_) {
+        recordForestShadow(cmd);
+        shadowDrawn_ = true;
+    }
     std::array<VkClearValue, 3> clears{};
     clears[2].depthStencil = {1.0f, 0};
     VkRenderPassBeginInfo begin{};
@@ -587,9 +711,18 @@ void SceneRenderer::recordForest(VkCommandBuffer cmd, const FrameParams& frame) 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestSkyPipeline_);
     draw(0, 3, 1);
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestGeometryPipeline_);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestLayout_, 0, 1, &forestSurfaceSet_, 0, nullptr);
     draw(0, TERRAIN_N * 6, TERRAIN_N);                     // forest_params.glsl: PART_TERRAIN
     draw(1, TRUNK_SIDES * TRUNK_RINGS * 6, trees);         // PART_TRUNKS
     draw(2, WHORLS * PER_WHORL * 2 * 6, trees);            // PART_CARDS
+    vkCmdEndRenderPass(cmd);
+    readable(cmd);
+
+    // Sunbeams in the mist, added onto the colour.
+    pass(cmd, addPass_, lightFramebuffer_, extent_);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestLightPipeline_);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestLayout_, 0, 1, &forestLightSet_, 0, nullptr);
+    draw(0, 3, 1);
     vkCmdEndRenderPass(cmd);
     readable(cmd);
 }
@@ -713,10 +846,16 @@ void SceneRenderer::destroy() {
     VkDevice d = vk_->device;
     for (VkPipeline p : {scenePipeline_, taaPipeline_, downPipeline_, upPipeline_, finalPipeline_, simulatePipeline_,
                          particlePipeline_, waterStepPipeline_, waterSurfacePipeline_, dofPipeline_, forestSkyPipeline_,
-                         forestGeometryPipeline_}) {
+                         forestGeometryPipeline_, forestShadowPipeline_, forestLightPipeline_}) {
         if (p) vkDestroyPipeline(d, p, nullptr);
     }
     if (forestLayout_) vkDestroyPipelineLayout(d, forestLayout_, nullptr);
+    if (forestSetLayout_) vkDestroyDescriptorSetLayout(d, forestSetLayout_, nullptr);
+    if (lightFramebuffer_) vkDestroyFramebuffer(d, lightFramebuffer_, nullptr);
+    if (shadowFramebuffer_) vkDestroyFramebuffer(d, shadowFramebuffer_, nullptr);
+    if (shadowPass_) vkDestroyRenderPass(d, shadowPass_, nullptr);
+    if (shadowSampler_) vkDestroySampler(d, shadowSampler_, nullptr);
+    vk_->destroy(shadow_);
     if (forestFramebuffer_) vkDestroyFramebuffer(d, forestFramebuffer_, nullptr);
     if (forestPass_) vkDestroyRenderPass(d, forestPass_, nullptr);
     vk_->destroy(depth_);

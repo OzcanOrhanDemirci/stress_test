@@ -101,7 +101,8 @@ bool Context::createView(VkImage image, VkFormat format, VkImageView& out) const
     info.image = image;
     info.viewType = VK_IMAGE_VIEW_TYPE_2D;
     info.format = format;
-    const VkImageAspectFlags aspect = format == kDepthFormat ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    const bool depth = format == kDepthFormat || format == VK_FORMAT_D16_UNORM;
+    const VkImageAspectFlags aspect = depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     info.subresourceRange = {aspect, 0, 1, 0, 1};
     VK_TRY(vkCreateImageView(device, &info, nullptr, &out));
     return true;

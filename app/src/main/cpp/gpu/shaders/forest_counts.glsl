@@ -7,3 +7,4 @@ const int TRUNK_SIDES = 10;
 const int TRUNK_RINGS = 14;
 const int WHORLS = 16;        // a spruce's whorls of branches
 const int PER_WHORL = 5;      // branches a whorl; each carries two cards
+const int SHADOW_RES = 2048;  // the sun's shadow map, texels a side

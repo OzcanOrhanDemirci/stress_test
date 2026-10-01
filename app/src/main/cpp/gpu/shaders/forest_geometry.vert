@@ -129,10 +129,22 @@ vec4 project(vec3 p) {
     return clip;
 }
 
+// Clip position in the sun's shadow map (sunSpace()), depth 0..1 in either API.
+vec4 projectSun(vec3 p) {
+    vec3 s = sunSpace(p);
+#ifdef VULKAN
+    return vec4(s.xy, s.z, 1.0);
+#else
+    return vec4(s.xy, s.z * 2.0 - 1.0, 1.0);
+#endif
+}
+
 void main() {
     int v = gl_VertexIndex;
     int instance = gl_InstanceIndex;
-    if (params.part == PART_TERRAIN) {
+    uint part = params.part % PART_SHADOW;
+    bool shadow = params.part >= PART_SHADOW;
+    if (part == PART_TERRAIN) {
         terrainVertex(instance, v);
     } else {
         Tree t = treeAt(instance);
@@ -147,11 +159,11 @@ void main() {
             variant = 0.0;
             return;
         }
-        if (params.part == PART_TRUNKS) {
+        if (part == PART_TRUNKS) {
             trunkVertex(t, v);
         } else {
             cardVertex(t, v / 6, quadCorner(v % 6));
         }
     }
-    gl_Position = project(world);
+    gl_Position = shadow ? projectSun(world) : project(world);
 }

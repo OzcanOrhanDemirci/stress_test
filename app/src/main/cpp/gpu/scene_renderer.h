@@ -15,7 +15,8 @@ namespace stress {
  *   pool    the reactor pool, one full-screen ray-marching shader, with the
  *           water and particles below
  *   forest  triangles made in the vertex shader (sky, ground, trunks, leaf
- *           cards) with a depth buffer
+ *           cards) with a depth buffer, lit through the sun's shadow map
+ *           (drawn once: nothing moves), and sunbeams in the mist added on
  *
  *   water   wave-equation steps on the pool's surface (compute, fixed 60 Hz),
  *           then its slope and curvature for the scene to sample
@@ -134,7 +135,9 @@ private:
     bool createParticleDescriptors();
     bool createWater();
     bool createForest();
+    bool createForestShadow();
     void recordForest(VkCommandBuffer cmd, const FrameParams& frame);
+    void recordForestShadow(VkCommandBuffer cmd);
     void clearParticles(VkCommandBuffer cmd);
     void clearWater(VkCommandBuffer cmd);
     void recordWater(VkCommandBuffer cmd, float time);
@@ -162,6 +165,18 @@ private:
     VkPipelineLayout forestLayout_ = VK_NULL_HANDLE;
     VkPipeline forestSkyPipeline_ = VK_NULL_HANDLE;
     VkPipeline forestGeometryPipeline_ = VK_NULL_HANDLE;
+    // The sun's shadow map and the sunbeam pass that reads it with the distances.
+    vk::Image shadow_;
+    VkSampler shadowSampler_ = VK_NULL_HANDLE;  // depth comparison, nearest
+    VkRenderPass shadowPass_ = VK_NULL_HANDLE;
+    VkFramebuffer shadowFramebuffer_ = VK_NULL_HANDLE;
+    VkPipeline forestShadowPipeline_ = VK_NULL_HANDLE;
+    VkPipeline forestLightPipeline_ = VK_NULL_HANDLE;
+    VkFramebuffer lightFramebuffer_ = VK_NULL_HANDLE;
+    VkDescriptorSetLayout forestSetLayout_ = VK_NULL_HANDLE;  // 0: shadow map, 1: distances
+    VkDescriptorSet forestSurfaceSet_ = VK_NULL_HANDLE;       // the shadow map alone
+    VkDescriptorSet forestLightSet_ = VK_NULL_HANDLE;         // shadow map and distances
+    bool shadowDrawn_ = false;
     VkSampler sampler_ = VK_NULL_HANDLE;
 
     VkRenderPass scenePass_ = VK_NULL_HANDLE;

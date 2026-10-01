@@ -17,41 +17,26 @@ layout(location = 5) flat in float variant;
 layout(location = 0) out vec4 colour;
 layout(location = 1) out float distanceOut;
 
-// A spruce spray seen flat: a stem, side twigs leaving it forwards in a
-// herringbone, needles thick along each twig; the outline tapers to the tip.
-// uv: along the branch 0..1, across -1..1.
-float needleCover(vec2 p, float seed) {
-    float halfWidth = smoothstep(0.0, 0.14, p.x) * (1.0 - 0.82 * p.x * p.x);
-    float edge = abs(p.y) / max(halfWidth, 1e-3);
-    if (edge > 1.0) return 0.0;
-    float clumps = vnoise(vec2(p.x * 55.0, p.y * 22.0) + seed * 31.0);
-    float twig = abs(fract(p.x * 12.0 + abs(p.y) * 1.7 + seed * 5.0) - 0.5);
-    float cover = smoothstep(0.46, 0.2, twig + 0.28 * clumps) * smoothstep(1.0, 0.75, edge + 0.25 * clumps);
-    return max(cover, step(abs(p.y), 0.03 * (1.0 - p.x)));
-}
+layout(set = 0, binding = 0) uniform sampler2DShadow sunDepth;
 
-// A beech twig: six leaves round a centre, each a pointed ellipse. uv in -1..1.
-float leafCover(vec2 p, float seed) {
-    float cover = 0.0;
-    for (int i = 0; i < 6; ++i) {
-        float a = seed * 6.283 + float(i) * 1.047 + 0.35 * sin(float(i) * 7.1 + seed * 19.0);
-        vec2 dir = vec2(cos(a), sin(a));
-        vec2 q = p - dir * 0.47;
-        vec2 l = vec2(dot(q, dir), dot(q, vec2(-dir.y, dir.x)));
-        float width = 0.17 * (1.0 - smoothstep(0.0, 0.42, l.x) * 0.7);
-        cover = max(cover, step((l.x * l.x) / 0.16 + (l.y * l.y) / (width * width), 1.0));
+// Sunlight reaching a surface point: the shadow map read at eight points of a
+// small disc (the sun's penumbra a few metres under the canopy), the disc
+// turned differently at every pixel and frame so the soft edge builds up as
+// frames accumulate. The point is lifted off its surface a little first.
+float sunlight(vec3 p, vec3 n) {
+    vec3 s = sunSpace(p + n * 0.05);
+    if (any(greaterThan(abs(s.xy), vec2(1.0)))) return 1.0;
+    uint seed = hashu(uint(gl_FragCoord.x) * 1973u + uint(gl_FragCoord.y) * 9277u + params.frame * 26699u);
+    float turn = rnd(seed) * 2.0 * PI;
+    const float PENUMBRA = 0.1;  // metres
+    vec2 radius = PENUMBRA / SHADOW_HALF * 0.5;
+    float lit = 0.0;
+    for (int i = 0; i < 8; ++i) {
+        float a = turn + float(i) * 2.39996;
+        vec2 o = vec2(cos(a), sin(a)) * sqrt((float(i) + 0.5) / 8.0) * radius;
+        lit += texture(sunDepth, vec3(s.xy * 0.5 + 0.5 + o, s.z - 0.0003));
     }
-    return cover;
-}
-
-// Until the shadow map (phase O2): sunlight gets through where the canopy
-// opens. Follow the sun up from the point to the crowns' height; inside the
-// clearing up there it is open, elsewhere only scattered flecks.
-float canopyOpening(vec3 p) {
-    vec3 up = p + SUN_DIR * ((terrain(p.xz) + 17.0 - p.y) / SUN_DIR.y);
-    float gap = 1.0 - smoothstep(CLEARING_R - 2.5, CLEARING_R + 1.5, length(up.xz - CLEARING));
-    float flecks = smoothstep(0.66, 0.82, vnoise(up.xz * 0.8));
-    return max(gap, 0.55 * flecks);
+    return lit / 8.0;
 }
 
 void main() {
@@ -66,19 +51,17 @@ void main() {
     vec3 albedo;
     float translucent = 0.0;
     float gloss = 0.0;  // wet sheen
-    float sunlit = canopyOpening(world);
+    float sunlit = sunlight(world, n);
     if (material == M_NEEDLES) {
         if (needleCover(uv, variant) < 0.5) discard;
         albedo = mix(vec3(0.030, 0.050, 0.028), vec3(0.060, 0.085, 0.035), smoothstep(0.55, 1.0, uv.x) + 0.3 * variant);
         translucent = 0.35;
         gloss = 0.3;
-        sunlit = max(sunlit, 0.35 * shade);
     } else if (material == M_LEAVES) {
         if (leafCover(uv, variant) < 0.5) discard;
         albedo = mix(vec3(0.06, 0.09, 0.025), vec3(0.10, 0.12, 0.03), variant);
         translucent = 0.6;
         gloss = 0.4;
-        sunlit = max(sunlit, 0.45 * shade);
     } else if (material == M_BARK) {
         // Grey-brown bark in vertical plates; moss climbs the wetter, north side and the foot.
         float plates = vnoise(vec2(uv.x * 7.0, uv.y * 0.9) + variant * 40.0);

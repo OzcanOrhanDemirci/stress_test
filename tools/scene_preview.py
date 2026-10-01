@@ -315,8 +315,10 @@ class PoolScene:
 
 
 class ForestScene:
-    """The forest: the sky, then the ground, trunks and leaf cards as triangles with a
-    depth buffer, every vertex made in its shader (forest_geometry.vert)."""
+    """The forest: the sun's shadow map (drawn once: nothing moves), the sky, then
+    the ground, trunks and leaf cards as triangles with a depth buffer, every
+    vertex made in its shader (forest_geometry.vert); then the sunbeams in the
+    mist added on (forest_light.frag)."""
 
     defines = ("SCENE_FOREST",)
 
@@ -328,26 +330,53 @@ class ForestScene:
         self.trunk = shader_int(counts, "TRUNK_SIDES") * shader_int(counts, "TRUNK_RINGS")
         self.cards = shader_int(counts, "WHORLS") * shader_int(counts, "PER_WHORL") * 2
         self.trees = shader_int(counts, "FOREST_GRID") ** 2
+        shadow_res = shader_int(counts, "SHADOW_RES")
         geometry = ctx.program(vertex_shader=gl_source("forest_geometry.vert"), fragment_shader=gl_source("forest_geometry.frag"))
+        caster = ctx.program(vertex_shader=gl_source("forest_geometry.vert"), fragment_shader=gl_source("forest_shadow.frag"))
         sky = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source("forest_sky.frag"))
+        light = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source("forest_light.frag"))
         self.pulled = ctx.vertex_array(geometry, [])
+        self.casters = ctx.vertex_array(caster, [])
         self.backdrop = ctx.vertex_array(sky, [(quad, "2f", "position")])
+        self.beams = ctx.vertex_array(light, [(quad, "2f", "position")])
+        colour = ctx.texture(size, 4, dtype="f4")
         self.distance = ctx.texture(size, 1, dtype="f4")
-        self.fbo = ctx.framebuffer(color_attachments=[ctx.texture(size, 4, dtype="f4"), self.distance],
-                                   depth_attachment=ctx.depth_renderbuffer(size))
+        self.fbo = ctx.framebuffer(color_attachments=[colour, self.distance], depth_attachment=ctx.depth_renderbuffer(size))
+        self.light_fbo = ctx.framebuffer(color_attachments=[colour])
         self.params = ctx.buffer(reserve=32)
+        # Nearest texels compared in the shader's own disc of taps, as on the phone.
+        self.shadow = ctx.depth_texture((shadow_res, shadow_res))
+        self.shadow.compare_func = "<="
+        self.shadow.filter = (moderngl.NEAREST, moderngl.NEAREST)
+        self.shadow.repeat_x = self.shadow.repeat_y = False
+        self.draw_shadow(ctx.framebuffer(depth_attachment=self.shadow))
+
+    def write(self, t, i, part):
+        jx, jy = jitter(i)
+        self.params.write(struct.pack("<5f2If", self.size[0], self.size[1], jx, jy, t, i, part, 0.0))
+        self.params.bind_to_uniform_block(0)
+
+    def draw_shadow(self, fbo):
+        fbo.use()
+        fbo.clear(depth=1.0)
+        self.ctx.enable(moderngl.DEPTH_TEST)
+        shadow = 8  # forest_params.glsl: PART_SHADOW
+        self.write(0.0, 0, shadow + 1)
+        self.casters.render(moderngl.TRIANGLES, vertices=self.trunk * 6, instances=self.trees)
+        self.write(0.0, 0, shadow + 2)
+        self.casters.render(moderngl.TRIANGLES, vertices=self.cards * 6, instances=self.trees)
+        self.ctx.disable(moderngl.DEPTH_TEST)
 
     def prepare(self, t):
         pass
 
     def draw(self, t, i):
         ctx = self.ctx
-        jx, jy = jitter(i)
 
         def part(index):
-            self.params.write(struct.pack("<5f2If", self.size[0], self.size[1], jx, jy, t, i, index, 0.0))
-            self.params.bind_to_uniform_block(0)
+            self.write(t, i, index)
 
+        self.shadow.use(location=0)
         self.fbo.use()
         self.fbo.clear(depth=1.0)
         part(0)
@@ -360,6 +389,14 @@ class ForestScene:
         part(2)
         self.pulled.render(moderngl.TRIANGLES, vertices=self.cards * 6, instances=self.trees)
         ctx.disable(moderngl.DEPTH_TEST)
+        # Sunbeams, added onto the colour.
+        self.light_fbo.use()
+        self.distance.use(location=1)
+        ctx.enable(moderngl.BLEND)
+        ctx.blend_func = moderngl.ONE, moderngl.ONE
+        part(0)
+        self.beams.render(moderngl.TRIANGLES)
+        ctx.disable(moderngl.BLEND)
         return read_rgb(self.fbo, self.size)
 
     def layer(self, t):

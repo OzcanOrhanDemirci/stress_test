@@ -133,6 +133,54 @@ float trunkRadius(Tree t, float f) {
     return t.radius * (1.0 + 0.55 * exp(-f * 45.0)) * pow(max(1.0 - 0.93 * f, 0.0), 0.85);
 }
 
+// ---- card outlines -----------------------------------------------------------------------------
+
+// A spruce spray seen flat: a stem, side twigs leaving it forwards in a
+// herringbone, needles thick along each twig; the outline tapers to the tip.
+// uv: along the branch 0..1, across -1..1.
+float needleCover(vec2 p, float seed) {
+    float halfWidth = smoothstep(0.0, 0.14, p.x) * (1.0 - 0.82 * p.x * p.x);
+    float edge = abs(p.y) / max(halfWidth, 1e-3);
+    if (edge > 1.0) return 0.0;
+    float clumps = vnoise(vec2(p.x * 55.0, p.y * 22.0) + seed * 31.0);
+    float twig = abs(fract(p.x * 12.0 + abs(p.y) * 1.7 + seed * 5.0) - 0.5);
+    float cover = smoothstep(0.46, 0.2, twig + 0.28 * clumps) * smoothstep(1.0, 0.75, edge + 0.25 * clumps);
+    return max(cover, step(abs(p.y), 0.03 * (1.0 - p.x)));
+}
+
+// A beech twig: six leaves round a centre, each a pointed ellipse. uv in -1..1.
+float leafCover(vec2 p, float seed) {
+    float cover = 0.0;
+    for (int i = 0; i < 6; ++i) {
+        float a = seed * 6.283 + float(i) * 1.047 + 0.35 * sin(float(i) * 7.1 + seed * 19.0);
+        vec2 dir = vec2(cos(a), sin(a));
+        vec2 q = p - dir * 0.47;
+        vec2 l = vec2(dot(q, dir), dot(q, vec2(-dir.y, dir.x)));
+        float width = 0.17 * (1.0 - smoothstep(0.0, 0.42, l.x) * 0.7);
+        cover = max(cover, step((l.x * l.x) / 0.16 + (l.y * l.y) / (width * width), 1.0));
+    }
+    return cover;
+}
+
+// ---- the sun's shadow map ------------------------------------------------------------------------
+
+// The sun and the trees stand still, so the shadow map is drawn once. It is
+// an orthographic view along the sunlight over the whole forest: wide in the
+// sun's horizontal "right", shorter in its tilted "up" (the ground is seen
+// at a slant), deep enough for every tree top.
+const vec2 SHADOW_HALF = vec2(47.0, 36.0);    // metres either side of the centre
+const float SHADOW_DEPTH = 160.0;             // metres along the light
+const vec3 SHADOW_CENTRE = vec3(0.0, 6.0, 0.0);
+
+// Shadow-map coordinates of a world point: xy in -1..1, z (depth) in 0..1.
+vec3 sunSpace(vec3 p) {
+    vec3 forward = -SUN_DIR;
+    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
+    vec3 up = cross(forward, right);
+    vec3 q = p - SHADOW_CENTRE;
+    return vec3(dot(q, right) / SHADOW_HALF.x, dot(q, up) / SHADOW_HALF.y, dot(q, forward) / SHADOW_DEPTH + 0.5);
+}
+
 // ---- camera -------------------------------------------------------------------------------------
 
 // The shot at a moment (camera.glsl). For now four still views to develop
@@ -170,9 +218,19 @@ vec3 sky(vec3 rd) {
     return c;
 }
 
-// Mist between the camera and a point `dist` away along `rd`.
+// Mist between the camera and a point `dist` away along `rd`: the grey
+// light of the sky it holds. The sunlight it scatters, broken into beams by
+// the canopy, comes from the light pass (forest_light.frag).
 vec3 mist(vec3 colour, float dist, vec3 rd) {
     float f = 1.0 - exp(-dist * FOG_DENSITY);
-    vec3 air = FOG_COLOUR + SUN * 0.07 * pow(max(dot(rd, SUN_DIR), 0.0), 5.0);
-    return mix(colour, air, f);
+    return mix(colour, FOG_COLOUR, f);
+}
+
+// How strongly the mist scatters sunlight towards a viewer looking along
+// `rd`: mostly forwards (Henyey-Greenstein, g = 0.6), a little everywhere.
+float sunPhase(vec3 rd) {
+    const float g = 0.6;
+    float c = dot(rd, SUN_DIR);
+    float hg = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * c, 1.5);
+    return (0.15 + 0.85 * hg) / (4.0 * PI);
 }
