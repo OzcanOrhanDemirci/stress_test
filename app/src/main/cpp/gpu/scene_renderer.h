@@ -138,7 +138,7 @@ private:
     bool createForestShadow();
     void recordForest(VkCommandBuffer cmd, const FrameParams& frame);
     void recordForestShadow(VkCommandBuffer cmd);
-    void clearParticles(VkCommandBuffer cmd);
+    void recordRain(VkCommandBuffer cmd, const FrameParams& frame);
     void clearWater(VkCommandBuffer cmd);
     void recordWater(VkCommandBuffer cmd, float time);
     bool createPipelines(VkRenderPass presentPass);
@@ -172,6 +172,7 @@ private:
     VkFramebuffer shadowFramebuffer_ = VK_NULL_HANDLE;
     VkPipeline forestShadowPipeline_ = VK_NULL_HANDLE;
     VkPipeline forestLightPipeline_ = VK_NULL_HANDLE;
+    VkPipeline forestRainPipeline_ = VK_NULL_HANDLE;  // into the particle layer
     VkFramebuffer lightFramebuffer_ = VK_NULL_HANDLE;
     VkDescriptorSetLayout forestSetLayout_ = VK_NULL_HANDLE;  // 0: shadow map, 1: distances
     VkDescriptorSet forestSurfaceSet_ = VK_NULL_HANDLE;       // the shadow map alone

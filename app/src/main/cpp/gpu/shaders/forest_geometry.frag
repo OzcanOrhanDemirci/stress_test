@@ -49,6 +49,28 @@ float barkHeight(vec2 q, bool spruce) {
     return 0.3 * vnoise(q * vec2(6.0, 3.0));
 }
 
+// Rain on standing water: in every 0.3 m cell a drop lands now and then at
+// a spot of its own and a ring spreads from it, fading. Returns the slope
+// the rings give the surface.
+vec2 rainRings(vec2 xz, float time) {
+    const float CELL = 0.3;
+    vec2 slope = vec2(0.0);
+    vec2 base = floor(xz / CELL);
+    for (int y = 0; y <= 1; ++y) {
+        for (int x = 0; x <= 1; ++x) {
+            vec2 cell = base + vec2(x, y) - 0.5 + step(0.5, fract(xz / CELL)) - 0.5;
+            float h = hash21(cell);
+            float age = fract(time * 0.8 + h) / 0.8;
+            vec2 d = xz - (cell + 0.2 + 0.6 * vec2(h, fract(h * 13.7))) * CELL;
+            float r = length(d) + 1e-4;
+            float front = age * 0.32;
+            float ring = sin((r - front) * 70.0) * exp(-age * 3.5) * smoothstep(front + 0.05, front, r);
+            slope += d / r * ring * 0.25;
+        }
+    }
+    return slope;
+}
+
 void main() {
     vec3 ro, fw, rt, up;
     camera(params.time, ro, fw, rt, up);
@@ -123,6 +145,8 @@ void main() {
             albedo = mix(albedo, vec3(0.012, 0.012, 0.010), hollow);
             gloss = mix(gloss, 1.0, hollow);
             puddle = hollow;
+            vec2 rings = rainRings(uv, params.time);
+            n = normalize(n + vec3(rings.x, 0.0, rings.y) * hollow);
         }
     }
 

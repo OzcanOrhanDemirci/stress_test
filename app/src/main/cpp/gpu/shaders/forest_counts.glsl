@@ -16,3 +16,4 @@ const int FRONDS = 8;         // fronds a fern
 const int FROND_SEGMENTS = 4; // quads along a frond
 const int LOGS = 14;          // fallen trunks
 const int LOG_RINGS = 8;
+const int RAIN_DROPS = 8192;  // falling round the camera

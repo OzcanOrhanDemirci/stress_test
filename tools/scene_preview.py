@@ -340,6 +340,12 @@ class ForestScene:
         caster = ctx.program(vertex_shader=gl_source("forest_geometry.vert"), fragment_shader=gl_source("forest_shadow.frag"))
         sky = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source("forest_sky.frag"))
         light = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source("forest_light.frag"))
+        rain = ctx.program(vertex_shader=gl_source("forest_rain.vert"), fragment_shader=gl_source("forest_rain.frag"))
+        self.drops = shader_int(counts, "RAIN_DROPS")
+        self.rain = ctx.vertex_array(rain, [])
+        self.rain_layer = ctx.texture(size, 4, dtype="f2")
+        self.rain_layer.repeat_x = self.rain_layer.repeat_y = False
+        self.rain_fbo = ctx.framebuffer(color_attachments=[self.rain_layer])
         self.pulled = ctx.vertex_array(geometry, [])
         self.casters = ctx.vertex_array(caster, [])
         self.backdrop = ctx.vertex_array(sky, [(quad, "2f", "position")])
@@ -413,7 +419,19 @@ class ForestScene:
         return read_rgb(self.fbo, self.size)
 
     def layer(self, t):
-        return None
+        """The rain, as the phone draws it into the particle layer."""
+        ctx = self.ctx
+        self.rain_fbo.use()
+        self.rain_fbo.clear(0.0, 0.0, 0.0, 0.0)
+        self.shadow.use(location=0)
+        self.distance.use(location=1)
+        ctx.enable(moderngl.BLEND)
+        ctx.blend_func = moderngl.ONE, moderngl.ONE
+        self.params.write(struct.pack("<5f2If", self.size[0], self.size[1], 0.0, 0.0, t, 0, 0, 0.0))
+        self.params.bind_to_uniform_block(0)
+        self.rain.render(moderngl.TRIANGLES, vertices=6, instances=self.drops)
+        ctx.disable(moderngl.BLEND)
+        return self.rain_layer
 
 
 def main():

@@ -13,6 +13,8 @@
 #include "shaders/forest_geometry_frag.h"
 #include "shaders/forest_geometry_vert.h"
 #include "shaders/forest_light_frag.h"
+#include "shaders/forest_rain_frag.h"
+#include "shaders/forest_rain_vert.h"
 #include "shaders/forest_shadow_frag.h"
 #include "shaders/forest_sky_frag.h"
 #include "shaders/taa_forest_frag.h"
@@ -446,7 +448,7 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
 
     if (kind_ == Kind::Forest) {
         recordForest(cmd, frame);
-        clearParticles(cmd);
+        recordRain(cmd, frame);
     } else {
         recordWater(cmd, time);
         pass(cmd, scenePass_, sceneFramebuffer_, extent_);
@@ -557,6 +559,7 @@ bool SceneRenderer::createForest() {
         sampled[i].descriptorCount = 1;
         sampled[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     }
+    sampled[0].stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;  // the rain asks the shadow map per drop
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = 2;
@@ -603,7 +606,9 @@ bool SceneRenderer::createForest() {
                                        vk::Blend::None, forestShadowPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                                        vk::Depth::TestWrite), "ForestShadow") &&
            named(vk_->graphicsPipeline(addPass_, 1, forestLayout_, kFullscreenVertSpirv, kForestLightFragSpirv,
-                                       vk::Blend::Additive, forestLightPipeline_), "ForestLight");
+                                       vk::Blend::Additive, forestLightPipeline_), "ForestLight") &&
+           named(vk_->graphicsPipeline(particlePass_, 1, forestLayout_, kForestRainVertSpirv, kForestRainFragSpirv,
+                                       vk::Blend::Additive, forestRainPipeline_), "ForestRain");
 }
 
 // The sun's shadow map: 16-bit depth, which every device can draw into and
@@ -735,8 +740,9 @@ void SceneRenderer::recordForest(VkCommandBuffer cmd, const FrameParams& frame) 
     readable(cmd);
 }
 
-// The forest has no particles yet; the passes after it still read their layer.
-void SceneRenderer::clearParticles(VkCommandBuffer cmd) {
+// The forest's particle layer: rain, drawn as streaks in the pool's particle
+// pass (cleared, added to), hidden behind the forest by its distances.
+void SceneRenderer::recordRain(VkCommandBuffer cmd, const FrameParams& frame) {
     VkClearValue clear{};
     VkRenderPassBeginInfo begin{};
     begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -746,6 +752,16 @@ void SceneRenderer::clearParticles(VkCommandBuffer cmd) {
     begin.clearValueCount = 1;
     begin.pClearValues = &clear;
     vkCmdBeginRenderPass(cmd, &begin, VK_SUBPASS_CONTENTS_INLINE);
+    const VkViewport viewport{0.0f, 0.0f, frame.width, frame.height, 0.0f, 1.0f};
+    const VkRect2D scissor{{0, 0}, extent_};
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestRainPipeline_);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestLayout_, 0, 1, &forestLightSet_, 0, nullptr);
+    const ForestParams params{frame.width, frame.height, 0.0f, 0.0f, frame.time, frame.frame, 0, 0.0f};
+    vkCmdPushConstants(cmd, forestLayout_, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params),
+                       &params);
+    vkCmdDraw(cmd, 6, static_cast<uint32_t>(RAIN_DROPS), 0, 0);
     vkCmdEndRenderPass(cmd);
     readable(cmd);
 }
@@ -854,7 +870,7 @@ void SceneRenderer::destroy() {
     VkDevice d = vk_->device;
     for (VkPipeline p : {scenePipeline_, taaPipeline_, downPipeline_, upPipeline_, finalPipeline_, simulatePipeline_,
                          particlePipeline_, waterStepPipeline_, waterSurfacePipeline_, dofPipeline_, forestSkyPipeline_,
-                         forestGeometryPipeline_, forestShadowPipeline_, forestLightPipeline_}) {
+                         forestGeometryPipeline_, forestShadowPipeline_, forestLightPipeline_, forestRainPipeline_}) {
         if (p) vkDestroyPipeline(d, p, nullptr);
     }
     if (forestLayout_) vkDestroyPipelineLayout(d, forestLayout_, nullptr);
