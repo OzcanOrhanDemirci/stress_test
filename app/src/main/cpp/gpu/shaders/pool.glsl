@@ -634,7 +634,9 @@ vec3 hallHaze(vec3 ro, vec3 rd, float t) {
     float dist2 = dot(toLamp, toLamp);
     vec3 l = toLamp * inversesqrt(dist2);
     float cone = smoothstep(0.6, 0.9, dot(-l, normalize(vec3(0.0, 0.3, 0.0) - lamp)));
-    float density = 0.011 * (0.4 + 1.2 * fbm2(p.xz * 0.6 + vec2(gTime * 0.05, p.y * 0.3)));
+    // Haze settles: thick over the deck, thinning towards the roof.
+    float settle = exp(-max(p.y - DECK_Y, 0.0) / 1.6);
+    float density = 0.011 * settle * (0.4 + 1.2 * fbm2(p.xz * 0.6 + vec2(gTime * 0.05, p.y * 0.3)));
     float phase = 0.25 + 0.75 * pow(max(dot(rd, l), 0.0), 6.0);
     vec3 scatter = AMBER * 110.0 * float(LAMPS) * cone / dist2 * airShadow(p, lamp) * phase * density;
     // The pool's blue glow in the air just above it.
@@ -643,12 +645,35 @@ vec3 hallHaze(vec3 ro, vec3 rd, float t) {
     return scatter * span;
 }
 
+// Steam over the warm pool: a thin layer just above the water, curling in
+// wisps, lit from below by the glow. One random station a frame within the
+// part of the ray that crosses the layer.
+vec3 poolMist(vec3 ro, vec3 rd, float t) {
+    const float TOP = 0.9;
+    float enter = 0.0, leave = t;
+    if (abs(rd.y) > 1e-4) {
+        float a = -ro.y / rd.y, b = (TOP - ro.y) / rd.y;
+        enter = max(min(a, b), 0.0);
+        leave = min(max(a, b), t);
+    } else if (ro.y < 0.0 || ro.y > TOP) {
+        return vec3(0.0);
+    }
+    if (leave <= enter) return vec3(0.0);
+    vec3 p = ro + rd * mix(enter, leave, rand());
+    float r = length(p.xz);
+    float over = 1.0 - smoothstep(POOL_R - 0.5, POOL_R + 0.5, r);
+    float wisps = smoothstep(0.55, 0.8, fbm2(p.xz * 1.6 + vec2(gTime * 0.11, -gTime * 0.08) + p.y * 1.5));
+    float density = 0.2 * over * wisps * exp(-p.y / 0.25);
+    vec3 glow = CHERENKOV * pulse() * (1.0 + 2.5 * exp(-r * r / 1.2));
+    return glow * density * (leave - enter);
+}
+
 vec3 radiance(vec3 ro, vec3 rd, out float depth) {
     vec2 air = traceAir(ro, rd, 110, 30.0);
     float tw = hitWater(ro, rd);
     bool water = tw > 0.0 && (air.x < 0.0 || tw < air.y);
     depth = water ? tw : air.y;
-    vec3 color = hallHaze(ro, rd, depth);
+    vec3 color = hallHaze(ro, rd, depth) + poolMist(ro, rd, depth);
 
     if (water) {
         vec3 p = ro + rd * tw;
@@ -721,9 +746,12 @@ void camera(float time, out vec3 position, out vec3 forward, out vec3 right, out
     float t = fract(time / SHOT_SECONDS);   // 0..1 through the shot
     float e = t * t * (3.0 - 2.0 * t);      // eased
     if (shot == 0) {
-        // Establishing: high over the deck, drifting round, looking down into the pool.
-        float a = 0.25 + 0.5 * e;
-        lookAt(vec3(sin(a) * 6.2, 5.6 - 0.4 * e, cos(a) * 6.2), vec3(0.0, -1.0, 0.0), position, forward, right, up);
+        // Establishing, a crane shot: from deck height behind the railing,
+        // across the pool to the hall beyond, rising to look down into the water.
+        float a = 0.2 + 0.9 * e;
+        float r = mix(6.0, 5.0, e);
+        vec3 target = mix(vec3(0.0, 1.4, 0.0), vec3(0.0, -1.2, 0.0), e);
+        lookAt(vec3(sin(a) * r, mix(1.3, 5.2, e), cos(a) * r), target, position, forward, right, up);
     } else if (shot == 1) {
         // Low over the water, inside the pool, gliding under the ring; the surface mirrors everything.
         vec3 from = mix(vec3(0.5, 0.6, 2.15), vec3(-0.1, 0.35, 0.9), e);
