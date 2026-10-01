@@ -240,30 +240,47 @@ vec3 sunSpace(vec3 p) {
 
 // ---- camera -------------------------------------------------------------------------------------
 
-// The shot at a moment (camera.glsl). For now four still views to develop
-// against, ten seconds each: into the light across the clearing, away from
-// it into the trees, low over the ground, up into the crowns.
+// The scripted sequence: shots of SHOT_SECONDS each, over and over. A cut
+// between shots drops TAA's history (camera.glsl).
+const float SHOT_SECONDS = 14.0;
+const int SHOTS = 4;
+
 int shotAt(float time) {
-    return int(mod(floor(time / 10.0), 4.0));
+    return int(mod(floor(time / SHOT_SECONDS), float(SHOTS)));
 }
 
+// Eye height over the ground at a point.
+vec3 standing(vec2 xz, float height) {
+    return vec3(xz.x, terrain(xz) + height, xz.y);
+}
+
+// The shot at a moment (camera.glsl).
 void framing(float time, out vec3 from, out vec3 target, out vec2 lens) {
-    int view = shotAt(time);
-    vec2 stand = CLEARING + vec2(3.0, 5.0);
-    from = vec3(stand.x, terrain(stand) + 1.7, stand.y);
-    if (view == 0) {
-        target = from + vec3(SUN_DIR.x, 0.25, SUN_DIR.z) * 10.0;
-    } else if (view == 1) {
-        target = from + vec3(-SUN_DIR.x, -0.05, -SUN_DIR.z) * 10.0;
-    } else if (view == 2) {
-        from.y -= 1.35;
-        target = from + vec3(SUN_DIR.x + 0.5, -0.12, SUN_DIR.z) * 10.0;
+    int shot = shotAt(time);
+    float t = fract(time / SHOT_SECONDS);
+    float e = t * t * (3.0 - 2.0 * t);
+    vec3 toSun = normalize(vec3(SUN_DIR.x, 0.0, SUN_DIR.z));
+    if (shot == 0) {
+        // Into the light: low through the ferns towards the clearing and its beams.
+        from = standing(CLEARING + mix(vec2(13.0, 15.0), vec2(7.0, 8.5), e), 0.75);
+        target = from + toSun * 10.0 + vec3(0.0, 2.2, 0.0);
+        lens = vec2(9.0, 0.006);
+    } else if (shot == 1) {
+        // Rain from below: at the foot of the trees, looking up into the crowns as it falls.
+        from = standing(CLEARING + vec2(-9.0, 4.0), 1.4);
+        target = from + toSun * mix(6.0, 3.0, e) + vec3(0.0, mix(1.0, 9.0, e), 0.0);
+        lens = vec2(8.0, 0.005);
+    } else if (shot == 2) {
+        // Close among the ferns at the clearing's edge, the forest behind dissolving.
+        from = standing(CLEARING + vec2(4.5, 6.0) + vec2(0.8, -0.5) * e, 0.45);
+        target = standing(CLEARING + vec2(3.8, 5.1) + vec2(0.5, -0.3) * e, 0.3);
+        lens = vec2(length(target - from), 0.02);
     } else {
-        // Up into the crowns, from among the trees.
-        from = vec3(-9.0, terrain(vec2(-9.0, -15.0)) + 1.7, -15.0);
-        target = from + vec3(SUN_DIR.x * 0.5, 1.0, SUN_DIR.z * 0.5) * 10.0;
+        // Rising in the clearing, the beams crossing the mist ahead.
+        from = standing(CLEARING + vec2(4.0, 5.0) + vec2(-1.5, 1.0) * e, mix(1.8, 11.0, e));
+        target = from + toSun * 12.0 + vec3(0.0, mix(1.0, -2.5, e), 0.0);
+        lens = vec2(14.0, 0.004);
     }
-    lens = vec2(length(target - from), 0.004);
 }
 
 // ---- sky and air --------------------------------------------------------------------------------
