@@ -668,7 +668,7 @@ void SceneRenderer::recordForestShadow(VkCommandBuffer cmd) {
     vkCmdDraw(cmd, static_cast<uint32_t>(TRUNK_SIDES * TRUNK_RINGS * 6), static_cast<uint32_t>(trees), 0, 0);
     params.part = 8 + 2;  // PART_SHADOW + PART_CARDS
     vkCmdPushConstants(cmd, forestLayout_, stages, 0, sizeof(params), &params);
-    vkCmdDraw(cmd, static_cast<uint32_t>(WHORLS * PER_WHORL * 2 * 6), static_cast<uint32_t>(trees), 0, 0);
+    vkCmdDraw(cmd, static_cast<uint32_t>(CARDS * 6), static_cast<uint32_t>(trees), 0, 0);
     vkCmdEndRenderPass(cmd);
     VkMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -714,7 +714,7 @@ void SceneRenderer::recordForest(VkCommandBuffer cmd, const FrameParams& frame) 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestLayout_, 0, 1, &forestSurfaceSet_, 0, nullptr);
     draw(0, TERRAIN_N * 6, TERRAIN_N);                     // forest_params.glsl: PART_TERRAIN
     draw(1, TRUNK_SIDES * TRUNK_RINGS * 6, trees);         // PART_TRUNKS
-    draw(2, WHORLS * PER_WHORL * 2 * 6, trees);            // PART_CARDS
+    draw(2, CARDS * 6, trees);            // PART_CARDS
     vkCmdEndRenderPass(cmd);
     readable(cmd);
 

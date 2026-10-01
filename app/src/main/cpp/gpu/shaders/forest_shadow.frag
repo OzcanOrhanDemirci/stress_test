@@ -13,4 +13,5 @@ layout(location = 5) flat in float variant;
 void main() {
     if (material == M_NEEDLES && needleCover(uv, variant) < 0.5) discard;
     if (material == M_LEAVES && leafCover(uv, variant) < 0.5) discard;
+    if (material == M_TWIGS && twigCover(uv, variant) < 0.5) discard;
 }

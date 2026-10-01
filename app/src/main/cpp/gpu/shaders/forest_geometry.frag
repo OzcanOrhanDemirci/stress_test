@@ -39,6 +39,16 @@ float sunlight(vec3 p, vec3 n) {
     return lit / 8.0;
 }
 
+// Bark relief, a height over (round, up) in metres. A spruce's scaly plates
+// split by long furrows; a beech's skin almost smooth.
+float barkHeight(vec2 q, bool spruce) {
+    if (spruce) {
+        float furrow = abs(vnoise(vec2(q.x * 9.0, q.y * 0.7)) * 2.0 - 1.0);
+        return 0.6 * smoothstep(0.0, 0.35, furrow) + 0.4 * vnoise(q * vec2(14.0, 6.0));
+    }
+    return 0.3 * vnoise(q * vec2(6.0, 3.0));
+}
+
 void main() {
     vec3 ro, fw, rt, up;
     camera(params.time, ro, fw, rt, up);
@@ -54,22 +64,33 @@ void main() {
     float sunlit = sunlight(world, n);
     if (material == M_NEEDLES) {
         if (needleCover(uv, variant) < 0.5) discard;
-        albedo = mix(vec3(0.030, 0.050, 0.028), vec3(0.060, 0.085, 0.035), smoothstep(0.55, 1.0, uv.x) + 0.3 * variant);
+        // Dark blue-green, the year's new growth lighter at the spray's tip.
+        albedo = mix(vec3(0.022, 0.042, 0.030), vec3(0.055, 0.080, 0.035), smoothstep(0.6, 1.0, uv.x) * (0.5 + variant));
         translucent = 0.35;
         gloss = 0.3;
+    } else if (material == M_TWIGS) {
+        if (twigCover(uv, variant) < 0.5) discard;
+        albedo = vec3(0.075, 0.068, 0.060) * (0.8 + 0.4 * variant);
     } else if (material == M_LEAVES) {
         if (leafCover(uv, variant) < 0.5) discard;
         albedo = mix(vec3(0.06, 0.09, 0.025), vec3(0.10, 0.12, 0.03), variant);
         translucent = 0.6;
         gloss = 0.4;
-    } else if (material == M_BARK) {
-        // Grey-brown bark in vertical plates; moss climbs the wetter, north side and the foot.
-        float plates = vnoise(vec2(uv.x * 7.0, uv.y * 0.9) + variant * 40.0);
-        albedo = mix(vec3(0.045, 0.040, 0.035), vec3(0.11, 0.10, 0.09), smoothstep(0.3, 0.7, plates));
-        albedo *= 0.55 + 0.45 * smoothstep(0.15, 0.4, plates);
+    } else if (material == M_BARK || material == M_SMOOTH_BARK) {
+        // The normal follows the relief: tilted by its slope round and up the trunk.
+        bool spruce = material == M_BARK;
+        vec2 q = uv + variant * 37.0;
+        const float e = 0.01;
+        float h = barkHeight(q, spruce);
+        vec2 slope = vec2(barkHeight(q + vec2(e, 0.0), spruce) - h, barkHeight(q + vec2(0.0, e), spruce) - h) / e;
+        vec3 round = cross(n, vec3(0.0, 1.0, 0.0));
+        n = normalize(n - (round * slope.x + vec3(0.0, 1.0, 0.0) * slope.y) * (spruce ? 0.012 : 0.003));
+        albedo = spruce ? mix(vec3(0.028, 0.022, 0.018), vec3(0.10, 0.076, 0.060), h)
+                        : mix(vec3(0.10, 0.10, 0.095), vec3(0.18, 0.18, 0.17), smoothstep(0.0, 0.3, h));
+        // Moss climbs the wetter north side and the foot.
         float moss = smoothstep(0.35, 0.75, 0.5 + 0.5 * n.z + 0.4 * fbm(uv * vec2(3.0, 0.6)) - uv.y * 0.04);
-        albedo = mix(albedo, vec3(0.06, 0.10, 0.025), moss);
-        gloss = 0.25;
+        albedo = mix(albedo, vec3(0.05, 0.09, 0.022), moss);
+        gloss = spruce ? 0.15 : 0.3;
     } else {
         // Forest floor: dark soil under brown needle litter, moss in patches.
         float litter = fbm(uv * 1.3);

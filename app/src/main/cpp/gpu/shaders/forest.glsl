@@ -20,10 +20,10 @@ const float PI = 3.14159265359;
 
 const vec3 SUN_DIR = vec3(-0.5197, 0.3969, -0.7559);  // normalised: low, beyond the clearing
 const vec3 SUN = vec3(1.00, 0.86, 0.66) * 3.2;
-const vec3 SKY_ZENITH = vec3(0.26, 0.31, 0.35);
-const vec3 SKY_HORIZON = vec3(0.47, 0.52, 0.53);
-const vec3 FOG_COLOUR = vec3(0.33, 0.39, 0.39);
-const float FOG_DENSITY = 0.022;
+const vec3 SKY_ZENITH = vec3(0.22, 0.27, 0.30);
+const vec3 SKY_HORIZON = vec3(0.40, 0.45, 0.46);
+const vec3 FOG_COLOUR = vec3(0.24, 0.29, 0.29);
+const float FOG_DENSITY = 0.018;
 
 // ---- layout -------------------------------------------------------------------------------------
 
@@ -135,17 +135,35 @@ float trunkRadius(Tree t, float f) {
 
 // ---- card outlines -----------------------------------------------------------------------------
 
-// A spruce spray seen flat: a stem, side twigs leaving it forwards in a
-// herringbone, needles thick along each twig; the outline tapers to the tip.
+// A spruce spray seen flat: side shoots leave the axis forwards, alternating
+// sides, each a bottle-brush of needles; they overlap into a fan, widest a
+// third of the way out, ragged at its edge, with light through the gaps.
 // uv: along the branch 0..1, across -1..1.
 float needleCover(vec2 p, float seed) {
-    float halfWidth = smoothstep(0.0, 0.14, p.x) * (1.0 - 0.82 * p.x * p.x);
-    float edge = abs(p.y) / max(halfWidth, 1e-3);
-    if (edge > 1.0) return 0.0;
-    float clumps = vnoise(vec2(p.x * 55.0, p.y * 22.0) + seed * 31.0);
-    float twig = abs(fract(p.x * 12.0 + abs(p.y) * 1.7 + seed * 5.0) - 0.5);
-    float cover = smoothstep(0.46, 0.2, twig + 0.28 * clumps) * smoothstep(1.0, 0.75, edge + 0.25 * clumps);
-    return max(cover, step(abs(p.y), 0.03 * (1.0 - p.x)));
+    float x = p.x, y = abs(p.y);
+    float side = p.y > 0.0 ? 1.0 : 0.0;
+    float halfWidth = 0.9 * sin(PI * pow(clamp(x, 0.0, 1.0), 0.65)) *
+                      (0.8 + 0.4 * vnoise(vec2(x * 4.0, side * 7.0) + seed * 9.0));
+    float r = y / max(halfWidth, 1e-3);  // 0 on the axis, 1 at the outline
+    if (r > 1.2) return 0.0;
+    float fuzz = vnoise(p * vec2(70.0, 40.0) + seed * 13.0);
+    // Side shoots: leaning forwards, curving, unevenly spaced, a few broken off.
+    float along = (x - 0.6 * y - 0.35 * y * y) * 7.0 + side * 0.5 + seed * 3.7 +
+                  0.5 * vnoise(vec2(x * 3.0, side * 5.0 + seed * 7.0));
+    float broken = step(0.85, hash21(vec2(floor(along), side + seed * 17.0)));
+    float gap = abs(fract(along) - 0.5);  // 0 on a shoot, 0.5 midway between two
+    float onShoot = step(gap, 0.27 + 0.13 * (1.0 - r) + 0.16 * (fuzz - 0.5)) * (1.0 - broken);
+    float inside = step(r + 0.35 * (fuzz - 0.5), 1.0);
+    return max(step(y, 0.022 * (1.2 - x)), onShoot * inside);
+}
+
+// A dead spruce branch: a thinning stem and a few short twigs off it.
+float twigCover(vec2 p, float seed) {
+    float x = p.x, y = abs(p.y);
+    float stem = step(y, 0.05 * (1.0 - 0.8 * x));
+    float along = (x - 0.9 * y) * 5.0 + seed * 2.0 + (p.y > 0.0 ? 0.5 : 0.0);
+    float twigs = step(abs(fract(along) - 0.5), 0.05) * step(y, 0.6 * (1.0 - x)) * step(0.12, x);
+    return max(stem, twigs);
 }
 
 // A beech twig: six leaves round a centre, each a pointed ellipse. uv in -1..1.
@@ -202,7 +220,9 @@ void framing(float time, out vec3 from, out vec3 target, out vec2 lens) {
         from.y -= 1.35;
         target = from + vec3(SUN_DIR.x + 0.5, -0.12, SUN_DIR.z) * 10.0;
     } else {
-        target = from + vec3(SUN_DIR.x * 0.4, 1.0, SUN_DIR.z * 0.4) * 10.0;
+        // Up into the crowns, from among the trees.
+        from = vec3(-9.0, terrain(vec2(-9.0, -15.0)) + 1.7, -15.0);
+        target = from + vec3(SUN_DIR.x * 0.5, 1.0, SUN_DIR.z * 0.5) * 10.0;
     }
     lens = vec2(length(target - from), 0.004);
 }

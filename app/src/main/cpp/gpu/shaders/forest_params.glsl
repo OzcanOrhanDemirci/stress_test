@@ -25,3 +25,5 @@ const uint M_GROUND = 0u;
 const uint M_BARK = 1u;
 const uint M_NEEDLES = 2u;
 const uint M_LEAVES = 3u;
+const uint M_TWIGS = 4u;
+const uint M_SMOOTH_BARK = 5u;  // a beech's

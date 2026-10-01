@@ -328,7 +328,8 @@ class ForestScene:
         counts = "forest_counts.glsl"
         self.terrain = shader_int(counts, "TERRAIN_N")
         self.trunk = shader_int(counts, "TRUNK_SIDES") * shader_int(counts, "TRUNK_RINGS")
-        self.cards = shader_int(counts, "WHORLS") * shader_int(counts, "PER_WHORL") * 2
+        self.cards = (shader_int(counts, "WHORLS") * shader_int(counts, "PER_WHORL") * shader_int(counts, "SPRAYS")
+                      + shader_int(counts, "DEAD_BRANCHES"))
         self.trees = shader_int(counts, "FOREST_GRID") ** 2
         shadow_res = shader_int(counts, "SHADOW_RES")
         geometry = ctx.program(vertex_shader=gl_source("forest_geometry.vert"), fragment_shader=gl_source("forest_geometry.frag"))
