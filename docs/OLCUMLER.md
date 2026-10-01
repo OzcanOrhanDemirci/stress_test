@@ -92,3 +92,65 @@ Kare zamanı iki zaman damgasıyla bölündü: yakıcı + görünen geçiş (sah
   Hangi ölçeğin ve hangi yakıcının en çok watt çektiği gece oturumunda ölçülüyor.
 - İki hata bulundu ve düzeltildi: G3 tek gönderimi ~100 ms'ydi (iterasyon 64 → 8); ayar döngüsü kare başına tek gönderimde
   takılıyordu (tek zaman damgasıyla sabit sahne maliyeti ayrılamıyordu → üç damga, `(hedef − sahne) / gönderim başı`).
+
+## Faz 1-2 · Aktif soğutmalı aday oturumu (pilde)
+
+Oturum `20261001-022223`: 20 yük × 2 tekrar, karışık sıra, her koşu 10 sn boşta + 60 sn yük, başlangıçta CPU ≤ 42 °C,
+performans modu açık. **Aktif soğutma:** telefon metal yüzeyde, önünde vantilatör (Özcan kurdu). Önceki tablolarla
+mutlak watt karşılaştırması bu yüzden kontrollü değil; sıralama kendi içinde geçerli. 40 koşu, hesap hatası 0, şarjda koşu 0,
+sıcak başlangıç 0, yanlış çekirdek %0 (ilk koşu dışında: %27,4). GPU yükleri `@preview`: görünen geçiş sahne değil, 0,5 ms'lik önizleme.
+**Sahne bu oturumda eski reaktör sahnesiydi** (yeni havuz sahnesi oturum başladıktan sonra yazıldı).
+
+| Sıra | Yük | İlk 30 sn | Tekrar farkı | Son 30 sn | Son 30 sn frekans (A510/A715/prime) | En sıcak A715 |
+|---|---|---|---|---|---|---|
+| 1 | **fp32_l2 + gpu_fp32** | **10,09 W** | ±0,42 | 9,33 W | 1092/1846/2129 | 85,6 °C |
+| 2 | fp32_l2 + sahne %35 (yakıcısız) | 8,52 W | ±0,23 | 8,23 W | 1391/2059/2216 | 85,6 °C |
+| 3 | fp32_l2 + gpu_blend | 8,06 W | ±0,18 | 7,79 W | 1275/2077/2331 | 85,6 °C |
+| 4 | **fp32_l2** (C8, 256 KiB) | **7,10 W** | ±0,55 | 7,18 W | 1690/2297/2609 | 85,2 °C |
+| 5 | A510 fp64_gemm, A715 fp32_l2 | 6,99 W | ±0,19 | 6,98 W | 1768/2288/2608 | 85,0 °C |
+| 6 | A510 i8_mmla, A715 fp32_l2 | 6,89 W | ±0,27 | 7,15 W | 1799/2327/2616 | 84,8 °C |
+| 7 | fp32_s512k | 6,82 W | ±0,32 | 7,09 W | tavan | 81,4 °C |
+| 8 | fp32_s128k | 6,62 W | ±0,11 | 7,06 W | tavan | 84,6 °C |
+| 9 | A510 fp32_l2, A715 i8_mmla | 6,21 W | ±0,07 | 6,58 W | tavan | 81,4 °C |
+| 10 | **gpu_fp32** (yalnız GPU) | **5,57 W** | ±0,00 | 5,93 W | | 57,3 °C |
+| 11 | fp32_s2m | 4,88 W | ±0,09 | 5,00 W | tavan | 61,7 °C |
+| 12 | fp32_s1m | 4,81 W | ±0,12 | 5,06 W | tavan | 63,3 °C |
+| 13 | gpu_fp16 | 3,70 W | ±0,10 | 3,90 W | | 49,5 °C |
+| 14 | gpu_blend | 3,09 W | ±1,02 | 2,73 W | | 52,4 °C |
+| 15 | sahne %100 | 3,05 W | ±0,01 | 3,11 W | | 45,1 °C |
+| 16 | gpu_texture | 3,03 W | ±0,02 | 3,53 W | | 48,7 °C |
+| 17 | sahne %50 | 2,86 W | ±0,08 | 2,98 W | | 45,9 °C |
+| 18 | sahne %35 | 2,82 W | ±0,09 | 2,91 W | | 44,5 °C |
+| 19 | sahne %25 | 2,79 W | ±0,01 | 2,93 W | | 45,4 °C |
+| 20 | gpu_bandwidth | 2,73 W | ±0,06 | 2,99 W | | 48,4 °C |
+
+**Okuma:**
+- **Telefonun ölçülen en yüksek gücü: CPU fp32_l2 + GPU fp32 yakıcısı, 10,09 W** (tek koşuda 10,30 W). GPU, CPU'nun 7,10 W'ına
+  ~3 W ekliyor; ortak bütçe yüzünden CPU frekansları düşüyor (1092/1846/2129 MHz), toplam yine de en yüksek.
+- **Sahne ısı kaynağı değil:** eski reaktör sahnesi ölçekten bağımsız 2,8-3,05 W çekiyor, FP32 yakıcısı 5,57 W. CPU ile birlikte
+  sahne 8,52 W, yakıcı 10,09 W. Yakıcı kalmalı; sahne onu yerinden etmemeli (PLAN §13/6, sahneli ≥ yakıcılı × 0,97).
+- Eski sahnenin kare süresi: %25 23 ms (43 fps) · %35 40,6 ms · %50 74 ms · %100 246 ms (4 fps). **%100 çözünürlük watt
+  getirmiyor** (3,05 W, %25'ten 0,26 W fazla), fps'i 10 kata yakın düşürüyor.
+- **C8 tampon boyu:** 128 KiB 6,62 · **256 KiB 7,10** · 512 KiB 6,82 · 1 MiB 4,81 · 2 MiB 4,88 W. L2'ye sığan tampon kazanıyor;
+  L2'yi aşınca çekirdekler belleği bekliyor, ~2,2 W düşüyor.
+- **Küme karışımları** saf fp32_l2'yi geçemedi (en iyisi A510'da fp64_gemm: 6,99 W).
+- GPU yakıcıları tek başına: fp32 5,57 > fp16 3,70 > blend 3,09 (tekrarlar arası ±1,02, gürültülü) > doku 3,03 > bant genişliği 2,73 W.
+- Faz 1'de (vantilatörsüz) fp32_l2 6,39 W idi, burada 7,10 W. Soğutma sürdürülen gücü artırıyor olabilir, ama oturumlar
+  farklı ve tekrar farkı ±0,55; kontrollü bir karşılaştırma değil.
+- Sayaç/akım oranı koşudan koşuya 0,47-1,71 arasında dağılıyor: şarj sayacı ~30 sn'de bir güncellendiği için 60 sn'lik
+  koşuda çapraz kontrol işe yaramıyor. 10 dk'lık kontrol hâlâ açık.
+
+**Tarifler buna göre** (`run/StressMode.kt`): Tam yük `fp32_l2+gpu_fp32`, CPU `fp32_l2`, GPU `gpu_fp32`.
+Tarifler sahneyi gösteriyor. Sahneli hâlleri pilde henüz ölçülmedi, bu ölçüm sıradaki oturumda.
+
+## Sinematik sahne, telefonda ilk koşu (kablo takılı, güç geçersiz)
+
+2026-10-01 03:29, yeni boru hattı: havuz sahnesi, su simülasyonu, parçacıklar, TAA, bloom, alan derinliği.
+
+- **Cihaz testleri 12/12.** İlk koşuda iki GPU testi `SetupFailed` verdi: Adreno 720 sürücüsü, parçacık compute
+  gölgelendiricisini `vkCreateComputePipelines` → `VK_ERROR_UNKNOWN` ile reddetti. Gövde ikiye bölünerek arandı. Sebebi,
+  SSBO'dan bütün yapıyı kopyalamak (`Particle p = particles[i]`): SPIR-V 1.4+ bunu `OpCopyLogical`'a derliyor. Alan alan
+  kopyalayınca (`loadParticle`) düzeldi. Vertex gölgelendiricisindeki tek `OpCopyLogical` yüklemesini sürücü kabul ediyordu,
+  yine de o da alan alana çevrildi.
+- **%45 ölçekte (569×1231) kare 49,0 ms, 20,4 fps**, yakıcısız. Masaüstü tahmini (GL zamanlayıcısı × eski sahnenin telefon/masaüstü
+  oranı) 35-65 ms idi.

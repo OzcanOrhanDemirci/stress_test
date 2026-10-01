@@ -115,6 +115,9 @@ function report(name) {
         .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
     console.log(`oturum ${session}: ${runs.length} koşu\n`);
 
+    // Older results named the workload `assignment`.
+    for (const r of runs) r.workload ??= r.assignment;
+
     for (const r of runs) {
         const warn = [r.pluggedDuringRun && "ŞARJDA", !r.cooledInTime && "sıcak başladı", r.computationErrors > 0 && `HATA ${r.computationErrors}`]
             .filter(Boolean)
@@ -124,18 +127,19 @@ function report(name) {
         const misplaced = r.cpus.reduce((a, c) => a + (c.misplacedBatches ?? 0), 0);
         const unit = r.cpus.find((c) => c.unit)?.unit ?? "";
         console.log(
-            `${String(r.runIndex + 1).padStart(2)}. ${r.assignment.padEnd(26)} ilk30 ${fmt(r.loadFirst30sWatts)} W · ` +
+            `${String(r.runIndex + 1).padStart(2)}. ${r.workload.padEnd(26)} ilk30 ${fmt(r.loadFirst30sWatts)} W · ` +
                 `tüm ${fmt(r.load.meanWatts)} · boşta ${fmt(r.idle.meanWatts)} · ` +
                 `A510 ${si(clusterRate(r, [0, 1, 2, 3]))} A715 ${si(clusterRate(r, [4, 5, 6]))} prime ${si(clusterRate(r, [7]))} ${unit} · ` +
                 `başlangıç ${fmt(start, 1)} °C · sayaç/akım ${fmt(r.load.chargeCounterAmps / r.load.meanDischargeAmps, 3)} · ` +
                 `yanlış çekirdek %${fmt(batches ? (100 * misplaced) / batches : null, 1)}` +
+                (r.gpu ? ` · GPU kare ${fmt(r.gpu.meanFrameMillis, 1)} ms (sahne ${fmt(r.gpu.meanVisibleMillis, 1)}) ${fmt(r.gpu.framesPerSecond, 1)} fps` : "") +
                 (warn ? ` · ${warn}` : ""),
         );
     }
 
-    const loads = [...new Set(runs.map((r) => r.assignment))];
+    const loads = [...new Set(runs.map((r) => r.workload))];
     const table = loads.map((load) => {
-        const rs = runs.filter((r) => r.assignment === load);
+        const rs = runs.filter((r) => r.workload === load);
         const first30 = rs.map((r) => r.loadFirst30sWatts);
         return {
             load,

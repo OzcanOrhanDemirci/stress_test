@@ -42,6 +42,12 @@ VkAttachmentDescription attachment(VkFormat format, VkAttachmentLoadOp load, VkI
     return a;
 }
 
+/** Says which pipeline the driver refused: the VkResult alone does not. */
+bool named(bool created, const char* what) {
+    if (!created) LOGE("SceneRenderer: the %s pipeline was not created", what);
+    return created;
+}
+
 /** The R2 sequence: sub-pixel offsets that cover the pixel evenly over any run of frames. */
 void jitter(uint32_t frame, float& x, float& y) {
     constexpr double g = 1.32471795724474602596;
@@ -338,8 +344,8 @@ bool SceneRenderer::createWater() {
     info.pushConstantRangeCount = 1;
     info.pPushConstantRanges = &push;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &info, nullptr, &waterLayout_));
-    return vk_->computePipeline(waterLayout_, kWaterStepCompSpirv, waterStepPipeline_) &&
-           vk_->computePipeline(waterLayout_, kWaterSurfaceCompSpirv, waterSurfacePipeline_);
+    return named(vk_->computePipeline(waterLayout_, kWaterStepCompSpirv, waterStepPipeline_), "water_step") &&
+           named(vk_->computePipeline(waterLayout_, kWaterSurfaceCompSpirv, waterSurfacePipeline_), "water_surface");
 }
 
 bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
@@ -368,23 +374,23 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     particleInfo.pushConstantRangeCount = 1;
     particleInfo.pPushConstantRanges = &particlePush;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &particleInfo, nullptr, &particleLayout_));
-    if (!vk_->computePipeline(particleLayout_, kParticlesCompSpirv, simulatePipeline_) ||
-        !vk_->graphicsPipeline(particlePass_, 1, particleLayout_, kParticlesVertSpirv, kParticlesFragSpirv, vk::Blend::Additive,
-                               particlePipeline_, VK_PRIMITIVE_TOPOLOGY_POINT_LIST)) {
+    if (!named(vk_->computePipeline(particleLayout_, kParticlesCompSpirv, simulatePipeline_), "particles.comp") ||
+        !named(vk_->graphicsPipeline(particlePass_, 1, particleLayout_, kParticlesVertSpirv, kParticlesFragSpirv, vk::Blend::Additive,
+                               particlePipeline_, VK_PRIMITIVE_TOPOLOGY_POINT_LIST), "Particles")) {
         return false;
     }
 
     const std::span<const uint32_t> vertex = kFullscreenVertSpirv;
-    return vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, kPoolSceneFragSpirv, vk::Blend::None,
-                                 scenePipeline_) &&
-           vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kTaaFragSpirv, vk::Blend::None, taaPipeline_) &&
-           vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kBloomDownFragSpirv, vk::Blend::None,
-                                 downPipeline_) &&
-           vk_->graphicsPipeline(addPass_, 1, samplingLayout_, vertex, kBloomUpFragSpirv, vk::Blend::Additive,
-                                 upPipeline_) &&
-           vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kDofFragSpirv, vk::Blend::None, dofPipeline_) &&
-           vk_->graphicsPipeline(presentPass, 1, samplingLayout_, vertex, kFinalFragSpirv, vk::Blend::None,
-                                 finalPipeline_);
+    return named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, kPoolSceneFragSpirv, vk::Blend::None,
+                                 scenePipeline_), "PoolScene") &&
+           named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kTaaFragSpirv, vk::Blend::None, taaPipeline_), "Taa") &&
+           named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kBloomDownFragSpirv, vk::Blend::None,
+                                 downPipeline_), "BloomDown") &&
+           named(vk_->graphicsPipeline(addPass_, 1, samplingLayout_, vertex, kBloomUpFragSpirv, vk::Blend::Additive,
+                                 upPipeline_), "BloomUp") &&
+           named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kDofFragSpirv, vk::Blend::None, dofPipeline_), "Dof") &&
+           named(vk_->graphicsPipeline(presentPass, 1, samplingLayout_, vertex, kFinalFragSpirv, vk::Blend::None,
+                                 finalPipeline_), "Final");
 }
 
 void SceneRenderer::pass(VkCommandBuffer cmd, VkRenderPass renderPass, VkFramebuffer framebuffer, VkExtent2D extent) {

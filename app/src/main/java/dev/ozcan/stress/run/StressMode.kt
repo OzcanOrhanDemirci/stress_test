@@ -4,20 +4,20 @@ package dev.ozcan.stress.run
  * What the user can run. Each mode is a lab workload in text form, so the
  * recipes are measured with exactly the code the app runs.
  *
- * The recipes are provisional until the candidate sweeps in docs/OLCUMLER.md
- * pick the kernels that draw the most power on this phone.
+ * The recipes are the winners of the candidate sweeps in docs/OLCUMLER.md
+ * (2026-10-01): C8 fp32_l2 on every core, the FP32 burner on the GPU.
  */
 enum class StressMode(val title: String, val detail: String, val recipe: String, val usesGpu: Boolean) {
     Full(
         "Tam yük",
         "CPU, GPU ve bellek aynı anda: telefonun çekebildiği en yüksek güç.",
-        "fp32_gemm+gpu_fp32",
+        "fp32_l2+gpu_fp32",
         usesGpu = true,
     ),
     Cpu(
         "CPU",
         "Sekiz çekirdeğin hepsi, en çok güç çeken çekirdek yüküyle.",
-        "fp32_gemm",
+        "fp32_l2",
         usesGpu = false,
     ),
     Gpu(

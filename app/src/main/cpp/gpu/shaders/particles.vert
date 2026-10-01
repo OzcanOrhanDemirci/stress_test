@@ -10,7 +10,7 @@ layout(location = 1) out float viewDistance;
 layout(location = 2) flat out float kind;
 
 void main() {
-    Particle p = particles[gl_VertexIndex];
+    Particle p = loadParticle(uint(gl_VertexIndex));
     kind = p.velocity.w;
     vec3 world = p.position.xyz;
     // Under a flat surface seen from above, depth looks shorter by the refractive index.
@@ -22,8 +22,14 @@ void main() {
     float z = dot(v, fw);
     viewDistance = length(v);
     vec2 uv = vec2(dot(v, rt), dot(v, up)) / max(z, 1e-3) * FOCAL;
-    // The scene's pixel is (uv * height + size / 2) with y up; Vulkan's clip space has y down.
-    gl_Position = z > 0.1 ? vec4(uv.x * 2.0 * params.resolution.y / params.resolution.x, -uv.y * 2.0, 0.5, 1.0)
+    // The scene's pixel is (uv * height + size / 2) with y up; Vulkan's clip
+    // space has y down, OpenGL's (the desktop preview) up.
+#ifdef VULKAN
+    const float clipUp = -1.0;
+#else
+    const float clipUp = 1.0;
+#endif
+    gl_Position = z > 0.1 ? vec4(uv.x * 2.0 * params.resolution.y / params.resolution.x, clipUp * uv.y * 2.0, 0.5, 1.0)
                           : vec4(2.0, 2.0, 2.0, 1.0);
 
     float worldSize = kind == KIND_BUBBLE ? 0.022 : 0.014;

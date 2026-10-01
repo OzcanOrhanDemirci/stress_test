@@ -15,7 +15,7 @@
     do {                                                              \
         const VkResult result_ = (expr);                              \
         if (result_ != VK_SUCCESS) {                                  \
-            LOGE("%s failed: %d", #expr, static_cast<int>(result_));  \
+            LOGE("%s:%d: %s failed: %d", __FILE__, __LINE__, #expr, static_cast<int>(result_)); \
             return false;                                             \
         }                                                             \
     } while (0)
