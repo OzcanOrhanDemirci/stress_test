@@ -216,3 +216,40 @@ Her fazın ölçümleri `docs/OLCUMLER.md`'ye yazılır. Bir faz ancak ölçüt�
    **iki modu** seçti. Tam yük ve GPU modları hafif önizleme göstergesiyle en yüksek watt'ı verir; **Sinematik** modu CPU tam
    yükte havuz sahnesini gösterir (~9 W, ~20 fps). Deney seçeneği kapanmadı, sonra denenebilir. **İkinci bir sahne**
    Özcan'ın aklında, havuzdan sonra.
+8. **İkinci sahne: orman (Özcan, 2026-10-01 04:10).** "Yoğun ve gerçekçi orman, ışık süzmeleri, kaliteli gölgelendirme,
+   hafif yağmur, kasvetli bir ortam. Telefonun sınırlarını zorlayacak, telefonda görülebilecek en iyi kalitede." Yol olarak
+   **GPU'da üretilen geometri** seçildi (ışın yürütülen orman yerine): yaprak tek tek, gölge haritası, gerçek ışık huzmesi.
+
+## 14 · Orman sahnesi
+
+**Görünüş.** Ilıman yağmur ormanı: yosunlu gövdeli ladin ve köknarlar, arada kayın; zeminde eğrelti, yosun, yaprak döküntüsü,
+devrik kütük, su birikintisi. Kapalı, kurşuni gök; bulut aralığından alçak bir güneş tepeyi delip sisin içinde huzmeler
+çizer. Hafif yağmur: düşen çizgiler, yapraklarda ıslak parlaklık, birikintide halkalar. Renk: soğuk yeşil-gri, huzmelerde
+soluk sıcak ışık.
+
+**Mimari: köşe çekme (vertex pulling).** Ağaç, dal, yaprak kartı, eğrelti, çimen, zemin: hiçbiri bellekte ağ olarak durmaz.
+Köşe gölgelendiricisi kendi konumunu dizin numaralarından tohumlu hash ve gürültüyle hesaplar (`forest.glsl`, saf
+fonksiyonlar). Telefonla masaüstü önizlemesi aynı kodu çalıştırır, bellek trafiği yalnız çizimin kendisidir.
+
+**Kare:**
+1. Gölge geçişi: güneşten derinlik (yapraklarda alfa sınaması).
+2. Derinlik ön geçişi: sahne çözünürlüğünde yalnız derinlik, alfa sınaması. Yaprak kartlarının üst üste binmesi pahalı
+   gölgelendirmeyi çoğaltmasın diye: asıl geçiş derinlik EŞİT ile her pikseli bir kez gölgelendirir.
+3. Asıl geçiş: HDR renk + ışın boyu mesafe (havuz sahnesiyle aynı çıktı: TAA, alan derinliği, parçacıklar aynen çalışır).
+   Güneş + gökyüzü ışığı, gölge haritası (döndürülen PCF, kareden kareye birikir), yaprakta ışık geçirme, ıslak GGX.
+4. Hacimsel ışık: sis içinde gölge haritası örneklenerek huzmeler (kare başına birkaç örnek, TAA biriktirir).
+5. Yağmur: GPU parçacıkları, hız yönünde çizgi.
+6. Ortak: TAA → bloom → alan derinliği → final.
+
+**Fazlar** (her faz önce masaüstü önizlemede, sonra telefonda ölçülür):
+
+| Faz | İçerik | Kapı |
+|---|---|---|
+| O1 · Geometri | zemin, gövde, dal, yaprak kartı; güneş + gök ışığı + sis | telefonda yaprak sayısı ↔ kare süresi ölçülür, bütçe çıkar |
+| O2 · Işık | gölge haritası, yaprakta ışık geçirme, ortam örtmesi, hacimsel huzmeler | huzmeler önizlemede ve telefonda görünür |
+| O3 · Zemin hayatı | eğrelti, çimen, yosun, kaya, kütük, birikinti | kare süresi bütçede |
+| O4 · Yağmur ve hava | yağmur çizgileri, ıslaklık, damla, renk ayarı, çekim senaryosu, lensler | önizleme = telefon |
+| O5 · Bütünleşme | Sinematik modda sahne seçimi (Havuz / Orman), cihaz testleri, pilde güç ölçümü | testler yeşil, ölçüm OLCUMLER'de |
+
+**Bütçe:** havuzla aynı, %45 iç çözünürlükte kare ~50 ms (~20 fps). En büyük risk yaprak kartlarının üst üste çizimi;
+derinlik ön geçişi ve uzaklığa göre seyrelen kartlar (LOD) bunun için.
