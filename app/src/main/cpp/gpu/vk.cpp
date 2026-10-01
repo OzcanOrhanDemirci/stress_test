@@ -101,7 +101,8 @@ bool Context::createView(VkImage image, VkFormat format, VkImageView& out) const
     info.image = image;
     info.viewType = VK_IMAGE_VIEW_TYPE_2D;
     info.format = format;
-    info.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    const VkImageAspectFlags aspect = format == kDepthFormat ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    info.subresourceRange = {aspect, 0, 1, 0, 1};
     VK_TRY(vkCreateImageView(device, &info, nullptr, &out));
     return true;
 }
@@ -129,25 +130,36 @@ void Context::destroy(Image& i) const {
     i = Image{};
 }
 
-bool Context::renderPass(std::span<const VkAttachmentDescription> colors, bool readBefore, VkRenderPass& out) const {
+bool Context::renderPass(std::span<const VkAttachmentDescription> colors, bool readBefore, VkRenderPass& out,
+                         const VkAttachmentDescription* depth) const {
     std::vector<VkAttachmentReference> references;
     for (uint32_t i = 0; i < colors.size(); ++i) references.push_back({i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+    const VkAttachmentReference depthReference{static_cast<uint32_t>(colors.size()),
+                                               VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+    std::vector<VkAttachmentDescription> attachments(colors.begin(), colors.end());
+    if (depth) attachments.push_back(*depth);
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = static_cast<uint32_t>(references.size());
     subpass.pColorAttachments = references.data();
+    subpass.pDepthStencilAttachment = depth ? &depthReference : nullptr;
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
+    const VkPipelineStageFlags tests =
+        depth ? VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT : 0;
     dependency.srcStageMask =
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | (readBefore ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : 0);
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | tests | (readBefore ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : 0);
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | tests;
+    dependency.srcAccessMask =
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | (depth ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT : 0);
+    dependency.dstAccessMask =
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+        (depth ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT : 0);
     VkRenderPassCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    info.attachmentCount = static_cast<uint32_t>(colors.size());
-    info.pAttachments = colors.data();
+    info.attachmentCount = static_cast<uint32_t>(attachments.size());
+    info.pAttachments = attachments.data();
     info.subpassCount = 1;
     info.pSubpasses = &subpass;
     info.dependencyCount = 1;
@@ -172,7 +184,7 @@ bool Context::framebuffer(VkRenderPass pass, std::span<const VkImageView> views,
 
 bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipelineLayout layout,
                                std::span<const uint32_t> vertex, std::span<const uint32_t> fragment, Blend blend,
-                               VkPipeline& out, VkPrimitiveTopology topology) const {
+                               VkPipeline& out, VkPrimitiveTopology topology, Depth depth) const {
     VkShaderModule vert, frag;
     if (!shaderModule(vertex, vert)) return false;
     if (!shaderModule(fragment, frag)) {
@@ -207,6 +219,12 @@ bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipe
     VkPipelineMultisampleStateCreateInfo multisample{};
     multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    // Read only when the render pass has a depth attachment.
+    VkPipelineDepthStencilStateCreateInfo depthState{};
+    depthState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthState.depthTestEnable = depth != Depth::None ? VK_TRUE : VK_FALSE;
+    depthState.depthWriteEnable = depth == Depth::TestWrite ? VK_TRUE : VK_FALSE;
+    depthState.depthCompareOp = depth == Depth::TestEqual ? VK_COMPARE_OP_EQUAL : VK_COMPARE_OP_LESS_OR_EQUAL;
 
     std::vector<VkPipelineColorBlendAttachmentState> blends(subpassColors);
     for (auto& b : blends) {
@@ -241,6 +259,7 @@ bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipe
     info.pViewportState = &viewport;
     info.pRasterizationState = &raster;
     info.pMultisampleState = &multisample;
+    info.pDepthStencilState = &depthState;
     info.pColorBlendState = &blendState;
     info.pDynamicState = &dynamic;
     info.layout = layout;

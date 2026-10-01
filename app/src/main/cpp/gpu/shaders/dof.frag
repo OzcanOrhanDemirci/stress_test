@@ -20,7 +20,7 @@ layout(push_constant) uniform Dof {
 layout(set = 0, binding = 0) uniform sampler2D history;
 layout(set = 0, binding = 1) uniform sampler2D distances;  // R32F: fetched, never filtered
 
-#include "pool.glsl"
+#include "scene.glsl"
 
 layout(location = 0) flat in int layer;
 layout(location = 0) out vec4 color;

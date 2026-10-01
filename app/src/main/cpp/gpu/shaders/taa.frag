@@ -6,7 +6,7 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include "frame_params.glsl"
-#include "pool.glsl"
+#include "scene.glsl"
 
 layout(set = 0, binding = 0) uniform sampler2D current;
 layout(set = 0, binding = 1) uniform sampler2D currentDistance;

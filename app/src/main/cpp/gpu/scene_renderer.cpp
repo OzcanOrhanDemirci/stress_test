@@ -8,6 +8,12 @@
 #include "shaders/bloom_up_frag.h"
 #include "shaders/dof_frag.h"
 #include "shaders/final_frag.h"
+#include "shaders/final_forest_frag.h"
+#include "shaders/dof_forest_frag.h"
+#include "shaders/forest_geometry_frag.h"
+#include "shaders/forest_geometry_vert.h"
+#include "shaders/forest_sky_frag.h"
+#include "shaders/taa_forest_frag.h"
 #include "shaders/particles_comp.h"
 #include "shaders/particles_frag.h"
 #include "shaders/particles_vert.h"
@@ -19,6 +25,9 @@
 
 namespace stress {
 namespace {
+
+// The forest's draw sizes: the same file the shaders include.
+#include "gpu/shaders/forest_counts.glsl"
 
 constexpr VkFormat kHdr = VK_FORMAT_R16G16B16A16_SFLOAT;
 constexpr VkFormat kDistance = VK_FORMAT_R32_SFLOAT;
@@ -58,12 +67,13 @@ void jitter(uint32_t frame, float& x, float& y) {
 
 }  // namespace
 
-bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass) {
+bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind) {
     vk_ = &vk;
+    kind_ = kind;
     extent_ = {std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.width) * scale)),
                std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.height) * scale))};
     if (!createTargets() || !createPasses() || !createDescriptors() || !createWater() ||
-        !createPipelines(presentPass)) {
+        !createPipelines(presentPass) || (kind_ == Kind::Forest && !createForest())) {
         return false;
     }
     // The first frame samples the history before anything wrote it: give it a readable layout.
@@ -381,15 +391,20 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     }
 
     const std::span<const uint32_t> vertex = kFullscreenVertSpirv;
+    // The passes that follow the camera are built for the scene drawn (scene.glsl).
+    const bool forest = kind_ == Kind::Forest;
+    const std::span<const uint32_t> taa = forest ? std::span<const uint32_t>(kTaaForestFragSpirv) : kTaaFragSpirv;
+    const std::span<const uint32_t> dof = forest ? std::span<const uint32_t>(kDofForestFragSpirv) : kDofFragSpirv;
+    const std::span<const uint32_t> final = forest ? std::span<const uint32_t>(kFinalForestFragSpirv) : kFinalFragSpirv;
     return named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, kPoolSceneFragSpirv, vk::Blend::None,
                                  scenePipeline_), "PoolScene") &&
-           named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kTaaFragSpirv, vk::Blend::None, taaPipeline_), "Taa") &&
+           named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, taa, vk::Blend::None, taaPipeline_), "Taa") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kBloomDownFragSpirv, vk::Blend::None,
                                  downPipeline_), "BloomDown") &&
            named(vk_->graphicsPipeline(addPass_, 1, samplingLayout_, vertex, kBloomUpFragSpirv, vk::Blend::Additive,
                                  upPipeline_), "BloomUp") &&
-           named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kDofFragSpirv, vk::Blend::None, dofPipeline_), "Dof") &&
-           named(vk_->graphicsPipeline(presentPass, 1, samplingLayout_, vertex, kFinalFragSpirv, vk::Blend::None,
+           named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, dof, vk::Blend::None, dofPipeline_), "Dof") &&
+           named(vk_->graphicsPipeline(presentPass, 1, samplingLayout_, vertex, final, vk::Blend::None,
                                  finalPipeline_), "Final");
 }
 
@@ -427,15 +442,20 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
     frame.frame = frame_;
     frame.blend = kHistoryBlend;
 
-    recordWater(cmd, time);
-    pass(cmd, scenePass_, sceneFramebuffer_, extent_);
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scenePipeline_);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, sceneLayout_, 0, 1, &sceneSet_, 0, nullptr);
-    vkCmdPushConstants(cmd, sceneLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(frame), &frame);
-    vkCmdDraw(cmd, 3, 1, 0, 0);
-    vkCmdEndRenderPass(cmd);
-    readable(cmd);
-    recordParticles(cmd, time);
+    if (kind_ == Kind::Forest) {
+        recordForest(cmd, frame);
+        clearParticles(cmd);
+    } else {
+        recordWater(cmd, time);
+        pass(cmd, scenePass_, sceneFramebuffer_, extent_);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scenePipeline_);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, sceneLayout_, 0, 1, &sceneSet_, 0, nullptr);
+        vkCmdPushConstants(cmd, sceneLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(frame), &frame);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+        vkCmdEndRenderPass(cmd);
+        readable(cmd);
+        recordParticles(cmd, time);
+    }
 
     pass(cmd, writePass_, historyFramebuffers_[w], extent_);
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, taaPipeline_);
@@ -502,6 +522,91 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
     written_ = w;
     previousTime_ = time;
     ++frame_;
+}
+
+bool SceneRenderer::createForest() {
+    if (!vk_->createImage(extent_, vk::kDepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_)) return false;
+    // Colour and distance as the pool's pass leaves them; the sky covers every pixel first.
+    const std::array<VkAttachmentDescription, 2> colours{
+        attachment(kHdr, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
+        attachment(kDistance, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
+    };
+    VkAttachmentDescription depth{};
+    depth.format = vk::kDepthFormat;
+    depth.samples = VK_SAMPLE_COUNT_1_BIT;
+    depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depth.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    if (!vk_->renderPass(colours, true, forestPass_, &depth)) return false;
+    const std::array<VkImageView, 3> views{color_.view, distance_.view, depth_.view};
+    if (!vk_->framebuffer(forestPass_, views, extent_, forestFramebuffer_)) return false;
+
+    VkPushConstantRange push{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ForestParams)};
+    static_assert(sizeof(ForestParams) == 32, "push constant block must match forest_params.glsl");
+    VkPipelineLayoutCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.pushConstantRangeCount = 1;
+    info.pPushConstantRanges = &push;
+    VK_TRY(vkCreatePipelineLayout(vk_->device, &info, nullptr, &forestLayout_));
+    return named(vk_->graphicsPipeline(forestPass_, 2, forestLayout_, kFullscreenVertSpirv, kForestSkyFragSpirv,
+                                       vk::Blend::None, forestSkyPipeline_), "ForestSky") &&
+           named(vk_->graphicsPipeline(forestPass_, 2, forestLayout_, kForestGeometryVertSpirv, kForestGeometryFragSpirv,
+                                       vk::Blend::None, forestGeometryPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                                       vk::Depth::TestWrite), "ForestGeometry");
+}
+
+// The forest: the sky behind everything, then the ground, the trunks and the
+// leaf cards, each a draw whose vertex shader makes its own geometry.
+void SceneRenderer::recordForest(VkCommandBuffer cmd, const FrameParams& frame) {
+    std::array<VkClearValue, 3> clears{};
+    clears[2].depthStencil = {1.0f, 0};
+    VkRenderPassBeginInfo begin{};
+    begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin.renderPass = forestPass_;
+    begin.framebuffer = forestFramebuffer_;
+    begin.renderArea = {{0, 0}, extent_};
+    begin.clearValueCount = static_cast<uint32_t>(clears.size());
+    begin.pClearValues = clears.data();
+    vkCmdBeginRenderPass(cmd, &begin, VK_SUBPASS_CONTENTS_INLINE);
+    const VkViewport viewport{0.0f, 0.0f, frame.width, frame.height, 0.0f, 1.0f};
+    const VkRect2D scissor{{0, 0}, extent_};
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    ForestParams params{frame.width, frame.height, frame.jitterX, frame.jitterY, frame.time, frame.frame, 0, 0.0f};
+    const VkShaderStageFlags stages = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    auto draw = [&](uint32_t part, int vertices, int instances) {
+        params.part = part;
+        vkCmdPushConstants(cmd, forestLayout_, stages, 0, sizeof(params), &params);
+        vkCmdDraw(cmd, static_cast<uint32_t>(vertices), static_cast<uint32_t>(instances), 0, 0);
+    };
+    const int trees = FOREST_GRID * FOREST_GRID;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestSkyPipeline_);
+    draw(0, 3, 1);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestGeometryPipeline_);
+    draw(0, TERRAIN_N * 6, TERRAIN_N);                     // forest_params.glsl: PART_TERRAIN
+    draw(1, TRUNK_SIDES * TRUNK_RINGS * 6, trees);         // PART_TRUNKS
+    draw(2, WHORLS * PER_WHORL * 2 * 6, trees);            // PART_CARDS
+    vkCmdEndRenderPass(cmd);
+    readable(cmd);
+}
+
+// The forest has no particles yet; the passes after it still read their layer.
+void SceneRenderer::clearParticles(VkCommandBuffer cmd) {
+    VkClearValue clear{};
+    VkRenderPassBeginInfo begin{};
+    begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin.renderPass = particlePass_;
+    begin.framebuffer = particleFramebuffer_;
+    begin.renderArea = {{0, 0}, extent_};
+    begin.clearValueCount = 1;
+    begin.pClearValues = &clear;
+    vkCmdBeginRenderPass(cmd, &begin, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdEndRenderPass(cmd);
+    readable(cmd);
 }
 
 void SceneRenderer::recordWater(VkCommandBuffer cmd, float time) {
@@ -607,9 +712,14 @@ void SceneRenderer::destroy() {
     if (vk_ == nullptr) return;
     VkDevice d = vk_->device;
     for (VkPipeline p : {scenePipeline_, taaPipeline_, downPipeline_, upPipeline_, finalPipeline_, simulatePipeline_,
-                         particlePipeline_, waterStepPipeline_, waterSurfacePipeline_, dofPipeline_}) {
+                         particlePipeline_, waterStepPipeline_, waterSurfacePipeline_, dofPipeline_, forestSkyPipeline_,
+                         forestGeometryPipeline_}) {
         if (p) vkDestroyPipeline(d, p, nullptr);
     }
+    if (forestLayout_) vkDestroyPipelineLayout(d, forestLayout_, nullptr);
+    if (forestFramebuffer_) vkDestroyFramebuffer(d, forestFramebuffer_, nullptr);
+    if (forestPass_) vkDestroyRenderPass(d, forestPass_, nullptr);
+    vk_->destroy(depth_);
     if (waterLayout_) vkDestroyPipelineLayout(d, waterLayout_, nullptr);
     if (waterSetLayout_) vkDestroyDescriptorSetLayout(d, waterSetLayout_, nullptr);
     if (sceneSetLayout_) vkDestroyDescriptorSetLayout(d, sceneSetLayout_, nullptr);

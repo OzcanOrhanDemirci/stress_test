@@ -4,17 +4,18 @@ The scenes (app/src/main/cpp/gpu/shaders/*.glsl) are plain GLSL shared with
 the phone's renderer; this runs them on desktop OpenGL so they can be looked
 at, frame by frame, without a phone:
 
-    python tools/scene_preview.py [--scene pool] [--times 0,4,8]
+    python tools/scene_preview.py [--scene pool|forest] [--times 0,4,8]
                                   [--width 632] [--height 1368] [--frames 16]
 
-`pool` is written for temporal accumulation, so each image averages
+The scenes are written for temporal accumulation, so each image averages
 `--frames` jittered, reseeded frames of the same moment: what the phone's
 history holds once it has settled. Everything else is the phone's own
-shaders: the water surface and the particles are simulated from time 0
+shaders. The pool's water surface and particles are simulated from time 0
 (water_*.comp, particles.comp) and the particles drawn as points
-(particles.vert/frag); the average goes through the bloom chain, the depth of
-field and the final pass (bloom_*.frag, dof.frag, final.frag) at the phone's
-screen size, twice the scene's. Frames land in
+(particles.vert/frag); the forest is drawn as triangles with a depth buffer
+(forest_*.vert/frag). The average goes through the bloom chain, the depth of
+field and the final pass (bloom_*.frag, dof.frag, final.frag, built for the
+scene's camera) at the phone's screen size, twice the scene's. Frames land in
 tools/out/preview/, with a side-by-side sheet when there are several.
 Needs `pip install moderngl pillow numpy`.
 """
@@ -52,19 +53,18 @@ layout(location = 0) out vec4 fragColor;
 layout(location = 1) out float fragDistance;
 """
 
-TAILS = {
-    "pool": "void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
-            " fragDistance = d; }",
-}
+POOL_TAIL = ("void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
+             " fragDistance = d; }")
 
 
-def gl_source(name):
+def gl_source(name, defines=()):
     """One of the phone's shaders, for desktop OpenGL: includes inlined,
     descriptor sets dropped, push constants as uniform block 0."""
     lines = []
     for line in (SHADERS / name).read_text().splitlines():
         if line.startswith("#version"):
             lines.append("#version 430")
+            lines.extend(f"#define {d}" for d in defines)
         elif line.startswith("#extension GL_GOOGLE_include_directive"):
             continue
         elif line.startswith("#include"):
@@ -86,6 +86,11 @@ def renderer_constant(name):
 def renderer_count(name):
     """An integer constant of SceneRenderer's header."""
     return int(re.search(rf"{name} = (\d+);", RENDERER_HEADER.read_text()).group(1))
+
+
+def shader_int(name, constant):
+    """An integer constant of one of the shaders: the draw sizes live there."""
+    return int(re.search(rf"const int {constant} = (\d+);", (SHADERS / name).read_text()).group(1))
 
 
 class Water:
@@ -175,11 +180,11 @@ class Post:
 
     LEVELS = 5  # SceneRenderer::kBloomLevels
 
-    def __init__(self, ctx, quad, scene, screen):
+    def __init__(self, ctx, quad, scene, screen, defines=()):
         self.ctx = ctx
 
         def program(name):
-            p = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source(name))
+            p = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source(name, defines))
             return ctx.vertex_array(p, [(quad, "2f", "position")])
 
         self.down = program("bloom_down.frag")
@@ -261,9 +266,109 @@ def jitter(i):
     return ((0.5 + i / g) % 1.0) - 0.5, ((0.5 + i / (g * g)) % 1.0) - 0.5
 
 
+def read_rgb(fbo, size):
+    width, height = size
+    data = np.frombuffer(fbo.read(components=4, dtype="f4", attachment=0), dtype=np.float32)
+    return data.reshape(height, width, 4)[..., :3]
+
+
+class PoolScene:
+    """The pool: one full-screen shader (pool.glsl), its water and particles."""
+
+    defines = ()
+
+    def __init__(self, ctx, quad, size, particles):
+        self.ctx = ctx
+        self.size = size
+        self.program = ctx.program(vertex_shader=VERTEX, fragment_shader=HEAD + gl_source("pool.glsl") + POOL_TAIL)
+        self.vao = ctx.vertex_array(self.program, [(quad, "2f", "position")])
+        self.distance = ctx.texture(size, 1, dtype="f4")
+        self.fbo = ctx.framebuffer(color_attachments=[ctx.texture(size, 4, dtype="f4"), self.distance])
+        self.program["resolution"].value = size
+        self.with_particles = particles
+        self.water = Water(ctx)
+        self.particles = Particles(ctx, size) if particles else None
+
+    def prepare(self, t):
+        if t * Water.HZ < self.water.steps:
+            self.water = Water(self.ctx)  # the simulations only run forward
+            self.particles = Particles(self.ctx, self.size) if self.with_particles else None
+        self.water.advance(t)
+        if self.particles:
+            self.particles.advance(t)
+        self.program["time"].value = t
+
+    def draw(self, t, i):
+        self.water.surface.use(location=0)
+        if "water" in self.program:
+            self.program["water"].value = 0
+        if "frame" in self.program:
+            self.program["frame"].value = i
+        if "jitter" in self.program:
+            self.program["jitter"].value = jitter(i)
+        self.fbo.use()
+        self.vao.render(moderngl.TRIANGLES)
+        return read_rgb(self.fbo, self.size)
+
+    def layer(self, t):
+        return self.particles.draw(t, self.distance) if self.particles else None
+
+
+class ForestScene:
+    """The forest: the sky, then the ground, trunks and leaf cards as triangles with a
+    depth buffer, every vertex made in its shader (forest_geometry.vert)."""
+
+    defines = ("SCENE_FOREST",)
+
+    def __init__(self, ctx, quad, size):
+        self.ctx = ctx
+        self.size = size
+        counts = "forest_counts.glsl"
+        self.terrain = shader_int(counts, "TERRAIN_N")
+        self.trunk = shader_int(counts, "TRUNK_SIDES") * shader_int(counts, "TRUNK_RINGS")
+        self.cards = shader_int(counts, "WHORLS") * shader_int(counts, "PER_WHORL") * 2
+        self.trees = shader_int(counts, "FOREST_GRID") ** 2
+        geometry = ctx.program(vertex_shader=gl_source("forest_geometry.vert"), fragment_shader=gl_source("forest_geometry.frag"))
+        sky = ctx.program(vertex_shader=VERTEX, fragment_shader=gl_source("forest_sky.frag"))
+        self.pulled = ctx.vertex_array(geometry, [])
+        self.backdrop = ctx.vertex_array(sky, [(quad, "2f", "position")])
+        self.distance = ctx.texture(size, 1, dtype="f4")
+        self.fbo = ctx.framebuffer(color_attachments=[ctx.texture(size, 4, dtype="f4"), self.distance],
+                                   depth_attachment=ctx.depth_renderbuffer(size))
+        self.params = ctx.buffer(reserve=32)
+
+    def prepare(self, t):
+        pass
+
+    def draw(self, t, i):
+        ctx = self.ctx
+        jx, jy = jitter(i)
+
+        def part(index):
+            self.params.write(struct.pack("<5f2If", self.size[0], self.size[1], jx, jy, t, i, index, 0.0))
+            self.params.bind_to_uniform_block(0)
+
+        self.fbo.use()
+        self.fbo.clear(depth=1.0)
+        part(0)
+        self.backdrop.render(moderngl.TRIANGLES)
+        ctx.enable(moderngl.DEPTH_TEST)
+        part(0)
+        self.pulled.render(moderngl.TRIANGLES, vertices=self.terrain * 6, instances=self.terrain)
+        part(1)
+        self.pulled.render(moderngl.TRIANGLES, vertices=self.trunk * 6, instances=self.trees)
+        part(2)
+        self.pulled.render(moderngl.TRIANGLES, vertices=self.cards * 6, instances=self.trees)
+        ctx.disable(moderngl.DEPTH_TEST)
+        return read_rgb(self.fbo, self.size)
+
+    def layer(self, t):
+        return None
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scene", default="pool", choices=sorted(TAILS))
+    parser.add_argument("--scene", default="pool", choices=["pool", "forest"])
     parser.add_argument("--times", default="0,6,12,18")
     parser.add_argument("--width", type=int, default=632)
     parser.add_argument("--height", type=int, default=1368)
@@ -272,44 +377,24 @@ def main():
     args = parser.parse_args()
 
     ctx = moderngl.create_standalone_context(require=430)
-    source = (SHADERS / f"{args.scene}.glsl").read_text()
-    program = ctx.program(vertex_shader=VERTEX, fragment_shader=HEAD + source + TAILS[args.scene])
     quad = ctx.buffer(np.array([-1, -1, 3, -1, -1, 3], dtype="f4").tobytes())
-    vao = ctx.vertex_array(program, [(quad, "2f", "position")])
-    scene = (args.width, args.height)
-    target = ctx.texture(scene, 4, dtype="f4")
-    distance = ctx.texture(scene, 1, dtype="f4")
-    fbo = ctx.framebuffer(color_attachments=[target, distance])
-    program["resolution"].value = scene
-    post = Post(ctx, quad, scene, (args.width * 2, args.height * 2))
+    size = (args.width, args.height)
+    if args.scene == "forest":
+        scene = ForestScene(ctx, quad, size)
+    else:
+        scene = PoolScene(ctx, quad, size, particles=not args.no_particles)
+    post = Post(ctx, quad, size, (args.width * 2, args.height * 2), scene.defines)
     OUT.mkdir(parents=True, exist_ok=True)
-    water = Water(ctx)
-    particles = None if args.no_particles else Particles(ctx, scene)
 
     frames = args.frames
     images = []
     for t in [float(x) for x in args.times.split(",")]:
-        if t * Water.HZ < water.steps:
-            water = Water(ctx)  # the simulations only run forward
-            particles = particles and Particles(ctx, scene)
-        water.advance(t)
-        if particles:
-            particles.advance(t)
-        water.surface.use(location=0)
-        if "water" in program:
-            program["water"].value = 0
-        program["time"].value = t
-        fbo.use()
-        total = np.zeros((args.height, args.width, 4), dtype=np.float64)
+        scene.prepare(t)
+        total = np.zeros((args.height, args.width, 3), dtype=np.float64)
         ctx.finish()
         start = time.perf_counter()
         for i in range(frames):
-            if "frame" in program:
-                program["frame"].value = i
-            if "jitter" in program:
-                program["jitter"].value = jitter(i)
-            vao.render(moderngl.TRIANGLES)
-            total += np.frombuffer(fbo.read(components=4, dtype="f4"), dtype=np.float32).reshape(args.height, args.width, 4)
+            total += scene.draw(t, i)
         ms = (time.perf_counter() - start) * 1000 / frames
         hdr = (total / frames).astype(np.float32)
         broken = int((~np.isfinite(hdr)).any(axis=2).sum())
@@ -318,13 +403,12 @@ def main():
             print(f"  WARNING: {broken} non-finite pixels")
             hdr = np.nan_to_num(hdr, nan=0.0, posinf=0.0, neginf=0.0)
         # The phone keeps one frame's distances, not an average: the last one here.
-        history = post.target(scene, hdr.astype("f2"))
-        layer = particles.draw(t, distance) if particles else None
-        image = post.run(history, distance, layer, t)
+        history = post.target(size, np.concatenate([hdr, np.ones_like(hdr[..., :1])], axis=2).astype("f2"))
+        image = post.run(history, scene.distance, scene.layer(t), t)
         history.release()
         path = OUT / f"{args.scene}_t{t:05.1f}.png"
         Image.fromarray(image).save(path)
-        images.append(Image.fromarray(image).resize((args.width, args.height), Image.LANCZOS))
+        images.append(Image.fromarray(image).resize(size, Image.LANCZOS))
         print(f"{path.name}  {ms:.1f} ms/frame (with readback)")
     if len(images) > 1:
         sheet = np.concatenate([np.asarray(i) for i in images], axis=1)

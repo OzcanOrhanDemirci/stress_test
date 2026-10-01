@@ -38,6 +38,12 @@ struct Image {
 
 enum class Blend { None, Additive };
 
+/** Whether a pipeline tests and writes the render pass's depth attachment. */
+enum class Depth { None, TestWrite, TestEqual };
+
+/** The one depth format: 32-bit float, for a forest's long view and thin cards. */
+constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT;
+
 /** Records one image layout transition. */
 void transition(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageLayout to, VkAccessFlags srcAccess,
                 VkAccessFlags dstAccess, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage);
@@ -61,11 +67,12 @@ struct Context {
     void destroy(Image& image) const;
 
     /**
-     * A single-subpass render pass over [colors]. `readBefore` makes it wait
-     * for earlier fragment-shader reads of its targets (a target sampled by
-     * the previous frame and drawn again now).
+     * A single-subpass render pass over [colors], and [depth] after them when
+     * given. `readBefore` makes it wait for earlier fragment-shader reads of
+     * its targets (a target sampled by the previous frame and drawn again now).
      */
-    bool renderPass(std::span<const VkAttachmentDescription> colors, bool readBefore, VkRenderPass& out) const;
+    bool renderPass(std::span<const VkAttachmentDescription> colors, bool readBefore, VkRenderPass& out,
+                    const VkAttachmentDescription* depth = nullptr) const;
 
     bool framebuffer(VkRenderPass pass, std::span<const VkImageView> views, VkExtent2D extent, VkFramebuffer& out) const;
 
@@ -76,7 +83,8 @@ struct Context {
      */
     bool graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipelineLayout layout, std::span<const uint32_t> vertex,
                           std::span<const uint32_t> fragment, Blend blend, VkPipeline& out,
-                          VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST) const;
+                          VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                          Depth depth = Depth::None) const;
 
     bool computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const;
 

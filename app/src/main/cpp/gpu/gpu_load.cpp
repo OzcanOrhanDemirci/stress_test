@@ -105,7 +105,8 @@ struct GpuLoad::Renderer {
     ANativeWindow* window = nullptr;
     int burner = -1;
     int64_t targetFrameNanos = 0;
-    bool scene = true;        // draw the pool reactor; otherwise the cheap preview ring
+    bool scene = true;        // draw a scene; otherwise the cheap preview ring
+    SceneRenderer::Kind sceneKind = SceneRenderer::Kind::Pool;
     float sceneScale = 0.5f;  // scene resolution relative to the screen
 
     VkInstance instance = VK_NULL_HANDLE;
@@ -632,7 +633,7 @@ struct GpuLoad::Renderer {
             return vk.graphicsPipeline(presentPass, 1, graphicsLayout, kFullscreenVertSpirv, kPreviewFragSpirv, vk::Blend::None,
                                        previewPipeline);
         }
-        return sceneRenderer.init(vk, extent, sceneScale, presentPass);
+        return sceneRenderer.init(vk, extent, sceneScale, presentPass, sceneKind);
     }
 
     void writeDescriptors() {
@@ -933,7 +934,7 @@ GpuLoad::GpuLoad() = default;
 GpuLoad::~GpuLoad() { stop(); }
 
 GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene,
-                                    int sceneScalePercent) {
+                                    int sceneScalePercent, int sceneKind) {
     std::lock_guard lock(control_);
     if (renderer_) {
         ANativeWindow_release(window);
@@ -949,6 +950,7 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->targetFrameNanos = int64_t{std::clamp(targetFrameMillis, 5, 200)} * 1'000'000;
     renderer->scene = scene;
     renderer->sceneScale = static_cast<float>(std::clamp(sceneScalePercent, 10, 100)) / 100.0f;
+    renderer->sceneKind = sceneKind == 1 ? SceneRenderer::Kind::Forest : SceneRenderer::Kind::Pool;
     if (pthread_create(&renderer->thread, nullptr, &Renderer::threadMain, renderer.get()) != 0) {
         renderer->destroy();
         return kSetupFailed;

@@ -17,7 +17,7 @@ layout(push_constant) uniform Final {
     float bloomStrength;
 } params;
 
-#include "pool.glsl"
+#include "scene.glsl"
 
 layout(location = 0) flat in int layer;
 layout(location = 0) out vec4 color;

@@ -40,7 +40,8 @@ internal object NativeBridge {
 
     /**
      * Blocks while Vulkan is set up; returns a native `GpuLoad::StartResult` code. [burner] -1 draws the
-     * visible pass alone: the reactor [scene] at [sceneScalePercent] of the screen, or the preview ring.
+     * visible pass alone: a [scene] ([sceneKind], [SceneKind.code]) at [sceneScalePercent] of the screen,
+     * or the preview ring.
      */
     @JvmStatic external fun gpuStart(
         surface: Surface,
@@ -48,6 +49,7 @@ internal object NativeBridge {
         targetFrameMillis: Int,
         scene: Boolean,
         sceneScalePercent: Int,
+        sceneKind: Int,
     ): Int
 
     @JvmStatic external fun gpuStop()

@@ -11,6 +11,12 @@ namespace stress {
  * The cinematic scene: drawn at a reduced resolution, accumulated over time,
  * bloomed, and finished onto the screen.
  *
+ * Two scenes share everything after their own pass:
+ *   pool    the reactor pool, one full-screen ray-marching shader, with the
+ *           water and particles below
+ *   forest  triangles made in the vertex shader (sky, ground, trunks, leaf
+ *           cards) with a depth buffer
+ *
  *   water   wave-equation steps on the pool's surface (compute, fixed 60 Hz),
  *           then its slope and curvature for the scene to sample
  *   scene   pool reactor -> HDR colour + ray distance       (scene resolution)
@@ -25,6 +31,20 @@ namespace stress {
  */
 class SceneRenderer {
 public:
+    /** Which scene is drawn; the passes that follow the camera are built for it. */
+    enum class Kind { Pool = 0, Forest = 1 };
+
+    struct ForestParams {
+        float width;
+        float height;
+        float jitterX;
+        float jitterY;
+        float time;
+        uint32_t frame;
+        uint32_t part;
+        float spare;
+    };
+
     struct FrameParams {
         float width;
         float height;
@@ -95,7 +115,7 @@ public:
     static constexpr uint32_t kBloomLevels = 5;
 
     /** `presentPass` is the render pass the final picture is drawn in; `screen` its size. */
-    bool init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass);
+    bool init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind);
 
     /** Records scene, TAA and bloom for one frame; call before the present pass begins. */
     void record(VkCommandBuffer cmd, float time);
@@ -113,6 +133,9 @@ private:
     bool createDescriptors();
     bool createParticleDescriptors();
     bool createWater();
+    bool createForest();
+    void recordForest(VkCommandBuffer cmd, const FrameParams& frame);
+    void clearParticles(VkCommandBuffer cmd);
     void clearWater(VkCommandBuffer cmd);
     void recordWater(VkCommandBuffer cmd, float time);
     bool createPipelines(VkRenderPass presentPass);
@@ -130,6 +153,15 @@ private:
     std::array<vk::Image, 2> history_{};
     std::array<vk::Image, kBloomLevels> bloom_{};
     vk::Image dof_;  // half the scene, like bloom_[0]
+    Kind kind_ = Kind::Pool;
+
+    // The forest's own pass: colour and distance as the pool's, plus depth.
+    vk::Image depth_;
+    VkRenderPass forestPass_ = VK_NULL_HANDLE;
+    VkFramebuffer forestFramebuffer_ = VK_NULL_HANDLE;
+    VkPipelineLayout forestLayout_ = VK_NULL_HANDLE;
+    VkPipeline forestSkyPipeline_ = VK_NULL_HANDLE;
+    VkPipeline forestGeometryPipeline_ = VK_NULL_HANDLE;
     VkSampler sampler_ = VK_NULL_HANDLE;
 
     VkRenderPass scenePass_ = VK_NULL_HANDLE;

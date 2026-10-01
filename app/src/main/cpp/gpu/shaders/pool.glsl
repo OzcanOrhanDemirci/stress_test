@@ -14,6 +14,8 @@
 // Heavy work stays in arithmetic, not memory: the phone's GPU has ~1 TFLOPS
 // but ~16 GB/s.
 
+#include "camera.glsl"
+
 const float PI = 3.14159265359;
 
 // Palette: cold Cherenkov blue against warm sodium amber.
@@ -748,13 +750,6 @@ int shotAt(float time) {
     return int(mod(floor(time / SHOT_SECONDS), float(SHOTS)));
 }
 
-void lookAt(vec3 from, vec3 target, out vec3 position, out vec3 forward, out vec3 right, out vec3 up) {
-    position = from;
-    forward = normalize(target - from);
-    right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
-    up = cross(forward, right);
-}
-
 // Distance along a ray from `from` towards `target` to the water's surface:
 // where a shot looking into the pool is focused, since the distance the
 // renderer keeps for a pixel ends at the surface.
@@ -762,9 +757,7 @@ float toSurface(vec3 from, vec3 target) {
     return from.y / max(-normalize(target - from).y, 0.05);
 }
 
-// The shot at a moment: where the camera stands, what it looks at, and its
-// lens, (focus distance, aperture). The aperture is how far a point at
-// infinity blurs, as a fraction of the image height.
+// The shot at a moment (camera.glsl).
 void framing(float time, out vec3 from, out vec3 target, out vec2 lens) {
     int shot = shotAt(time);
     float t = fract(time / SHOT_SECONDS);   // 0..1 through the shot
@@ -798,30 +791,6 @@ void framing(float time, out vec3 from, out vec3 target, out vec2 lens) {
     }
 }
 
-void camera(float time, out vec3 position, out vec3 forward, out vec3 right, out vec3 up) {
-    vec3 from, target;
-    vec2 lens;
-    framing(time, from, target, lens);
-    lookAt(from, target, position, forward, right, up);
-}
-
-// Depth of field (dof.frag, final.frag): the lens at a moment, and how far a
-// point `dist` along its ray blurs through it, in pixels of an image
-// `height` tall.
-const float MAX_BLUR = 0.02;
-
-vec2 lensAt(float time) {
-    vec3 from, target;
-    vec2 lens;
-    framing(time, from, target, lens);
-    return lens;
-}
-
-float blurRadius(vec2 lens, float dist, float height) {
-    return min(lens.y * abs(1.0 - lens.x / max(dist, 1e-3)), MAX_BLUR) * height;
-}
-
-const float FOCAL = 1.3;
 
 // Linear HDR colour of one pixel. `jitter` moves the sample inside the pixel
 // and `frame` reseeds the random samples; `depth` is the distance along the ray.

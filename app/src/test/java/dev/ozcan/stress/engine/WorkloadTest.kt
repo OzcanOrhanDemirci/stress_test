@@ -14,7 +14,7 @@ class WorkloadTest {
     fun `cpu only, gpu only and both`() {
         assertNull(parse("fp32_gemm").gpu)
         assertNull(parse("gpu_fp32").cpu)
-        assertEquals(GpuPart(null), parse("scene").gpu)
+        assertEquals(GpuPart(null, scene = true), parse("scene").gpu)
         val both = parse("0-3:dry,4-7:fp32_gemm+gpu_blend")
         assertEquals(TestSamples.gpuBlend, both.gpu!!.burner)
         assertEquals("0-3:dry,4-7:fp32_gemm", both.cpu!!.describe())
@@ -33,6 +33,14 @@ class WorkloadTest {
         assertEquals(GpuPart(TestSamples.gpuFp32, scene = false), parse("gpu_fp32@preview").gpu)
         assertEquals(GpuPart(null, scene = true, sceneScalePercent = 35), parse("scene@35").gpu)
         for (text in listOf("gpu_fp32@preview", "scene@35", "dry+gpu_blend@50")) assertEquals(text, parse(text).describe())
+    }
+
+    @Test
+    fun `the forest is a scene of its own`() {
+        assertEquals(GpuPart(null, scene = true, kind = SceneKind.Forest), parse("forest").gpu)
+        assertEquals(GpuPart(null, scene = true, sceneScalePercent = 45, kind = SceneKind.Forest), parse("forest@45").gpu)
+        for (text in listOf("forest", "forest@45", "dry+forest")) assertEquals(text, parse(text).describe())
+        assertThrows(IllegalArgumentException::class.java) { parse("forest@preview") }
     }
 
     @Test

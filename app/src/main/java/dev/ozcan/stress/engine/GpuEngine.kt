@@ -40,7 +40,7 @@ enum class GpuStartResult(val code: Int) {
 
 /**
  * What the GPU should do: a burner (null: the visible pass alone), the GPU time
- * to fill per frame, and the visible pass: the reactor [scene] rendered at
+ * to fill per frame, and the visible pass: a [scene] ([sceneKind]) rendered at
  * [sceneScalePercent] of the screen's resolution, or a cheap preview ring.
  */
 data class GpuRequest(
@@ -48,6 +48,7 @@ data class GpuRequest(
     val targetFrameMillis: Int = DEFAULT_TARGET_FRAME_MILLIS,
     val scene: Boolean = true,
     val sceneScalePercent: Int = DEFAULT_SCENE_SCALE_PERCENT,
+    val sceneKind: SceneKind = SceneKind.Pool,
 ) {
     companion object {
         /**
@@ -163,6 +164,7 @@ class GpuEngine {
                 wanted.targetFrameMillis,
                 wanted.scene,
                 wanted.sceneScalePercent,
+                wanted.sceneKind.code,
             )
             val result = GpuStartResult.fromCode(code)
             lastStart = result

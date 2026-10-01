@@ -179,10 +179,11 @@ Java_dev_ozcan_stress_engine_NativeBridge_gpuBurnerTable(JNIEnv* env, jclass) {
 // Blocks until Vulkan is set up on the render thread (a few hundred milliseconds).
 JNIEXPORT jint JNICALL
 Java_dev_ozcan_stress_engine_NativeBridge_gpuStart(JNIEnv* env, jclass, jobject surface, jint burner,
-                                                   jint targetFrameMillis, jboolean scene, jint sceneScalePercent) {
+                                                   jint targetFrameMillis, jboolean scene, jint sceneScalePercent,
+                                                   jint sceneKind) {
     ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
     if (window == nullptr) return stress::GpuLoad::kSetupFailed;
-    return gGpuLoad.start(window, burner, targetFrameMillis, scene == JNI_TRUE, sceneScalePercent);
+    return gGpuLoad.start(window, burner, targetFrameMillis, scene == JNI_TRUE, sceneScalePercent, sceneKind);
 }
 
 JNIEXPORT void JNICALL

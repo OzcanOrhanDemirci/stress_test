@@ -32,6 +32,7 @@ class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) {
                 part.burner,
                 scene = part.scene ?: settings.scene,
                 sceneScalePercent = part.sceneScalePercent ?: settings.sceneScalePercent,
+                sceneKind = part.kind,
             )
             withContext(Dispatchers.Default) { gpu.request(request) }
             val started = gpu.lastStart
