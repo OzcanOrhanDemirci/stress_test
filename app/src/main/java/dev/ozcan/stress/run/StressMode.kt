@@ -5,13 +5,22 @@ package dev.ozcan.stress.run
  * recipes are measured with exactly the code the app runs.
  *
  * The recipes are the winners of the candidate sweeps in docs/OLCUMLER.md
- * (2026-10-01): C8 fp32_l2 on every core, the FP32 burner on the GPU.
+ * (2026-10-01): C8 fp32_l2 on every core, the FP32 burner on the GPU. The
+ * cinematic scene keeps the GPU just as busy but draws about half the
+ * burner's power, so the power modes show the light preview and the scene
+ * has a mode of its own.
  */
 enum class StressMode(val title: String, val detail: String, val recipe: String, val usesGpu: Boolean) {
     Full(
         "Tam yük",
-        "CPU, GPU ve bellek aynı anda: telefonun çekebildiği en yüksek güç.",
-        "fp32_l2+gpu_fp32",
+        "CPU, GPU ve bellek aynı anda: telefonun çekebildiği en yüksek güç. Ekranda hafif bir gösterge.",
+        "fp32_l2+gpu_fp32@preview",
+        usesGpu = true,
+    ),
+    Cinematic(
+        "Sinematik",
+        "Havuz reaktörü sahnesi, CPU tam yükte. Göz için: en yüksek güçten biraz düşük.",
+        "fp32_l2+scene",
         usesGpu = true,
     ),
     Cpu(
@@ -22,8 +31,8 @@ enum class StressMode(val title: String, val detail: String, val recipe: String,
     ),
     Gpu(
         "GPU",
-        "Reaktör sahnesi ve altında GPU yakıcısı.",
-        "gpu_fp32",
+        "Yalnız GPU, en çok güç çeken yakıcıyla.",
+        "gpu_fp32@preview",
         usesGpu = true,
     ),
     Dry(

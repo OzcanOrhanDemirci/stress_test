@@ -210,3 +210,9 @@ Her fazın ölçümleri `docs/OLCUMLER.md`'ye yazılır. Bir faz ancak ölçüt�
    alan derinliği, senaryolu kamera). Tasarım kuralı ölçümden: GPU ~1 TFLOPS ama bant genişliği ~16 GB/s, efektler
    hesap ağır / bellek hafif seçilir. **Max watt ilk hedef olarak kalır:** sahneli mod ≥ en iyi yakıcı-yalnız × 0,97;
    karede boşluk kalırsa yakıcı doldurur.
+7. **Sahne ayrı mod (Özcan, 2026-10-01 04:00).** Ölçüm (OLCUMLER, "Sinematik sahnenin gücü"): havuz sahnesi GPU'yu %100
+   meşgul ediyor ama 2,95 W çekiyor, FP32 yakıcısı 5,45 W; sahneli Tam yük 8,97 W, sahnesiz 10,13 W (0,885, 6. maddedeki
+   kural tutmadı). Seçenekler sunuldu (iki mod · önce sahneyi watt yakar hâle getirme deneyi · sahne her modda); Özcan
+   **iki modu** seçti. Tam yük ve GPU modları hafif önizleme göstergesiyle en yüksek watt'ı verir; **Sinematik** modu CPU tam
+   yükte havuz sahnesini gösterir (~9 W, ~20 fps). Deney seçeneği kapanmadı, sonra denenebilir. **İkinci bir sahne**
+   Özcan'ın aklında, havuzdan sonra.
