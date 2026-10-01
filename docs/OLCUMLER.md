@@ -192,3 +192,16 @@ Havuz sahnesi %45 ölçekte (yeni boru hattı, parçacık düzeltmesinden sonra,
   yakıcılı bir koşuda (yakıcının aldığı pay) ya da 120 Hz'de daha net görülür.
 - Havuz sahnesi aynı ölçekte 48 ms; orman daha ucuz ama daha çok bellek trafiği çiziyor (üçgen + derinlik). **Pilde gücü
   henüz ölçülmedi** (sinematik modlar arası ve yakıcıya göre).
+
+## Beyaz dünya, telefonda (kablo takılı, güç geçersiz)
+
+| Ölçek | Kare | Not |
+|---|---|---|
+| white@45 (ilk hâl) | 41,2 ms | iz 400 m, yansıma 120 m |
+| white@60 | 67,6 ms | aynı, ölçek seçimi için |
+| **white@45** | **32,9-33,2 ms (30 fps)** | iz 220 m, yansıma 90 m, tolerans uzaklıkla büyür, gölge 20 adım |
+
+- Uygulamanın Çalıştır ekranından **Sinematik · Beyaz** (CPU fp32_l2 tam yükte): 21-31 fps (küp odası en pahalı bölge),
+  CPU 165-178 GFLOPS, hesap hatası 0. Uygulamanın kendi akışıyla sinematik modun ilk uçtan uca koşusu.
+- %60 ölçek netliği artırırdı ama 15 fps'e düşüyor; %45 kaldı.
+- Sinematik modların hiçbirinin pilde gücü henüz ölçülmedi (sıradaki lab oturumu).

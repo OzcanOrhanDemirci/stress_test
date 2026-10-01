@@ -253,3 +253,26 @@ fonksiyonlar). Telefonla masaüstü önizlemesi aynı kodu çalıştırır, bell
 
 **Bütçe:** havuzla aynı, %45 iç çözünürlükte kare ~50 ms (~20 fps). En büyük risk yaprak kartlarının üst üste çizimi;
 derinlik ön geçişi ve uzaklığa göre seyrelen kartlar (LOD) bunun için.
+9. **Üçüncü sahne: beyaz dünya; üç sahne arasında seçim; benchmark kimliği (Özcan, 2026-10-01 05:00).** "Netlik ve
+   sadelik: bembeyaz, yansıyan yüzeyler, hafif transparan ama çok net geniş alanlar; kamera koridorlara ve tünellere
+   giriyor, tüneller transparan, arkasında devasa bomboş beyaz dünya. Liminal space, Smash Hit mekânları. Bol yansıma,
+   ışık; bloom ve bulanıklık yok ya da en az." İlham: masaüstündeki iki görsel (beyaz oda + asılı küp, üst üste beyaz
+   küplerden duvarlar). Ayrıca: "logo ve görüntü radyasyon olmasın, stres testi / benchmark hissettirsin; arayüz ve tema
+   da." Özcan uyurken otonom yapıldı (§15).
+
+## 15 · Beyaz dünya ve benchmark kimliği
+
+**Sahne** (`white.glsl`, tam ekran ışın yürütme, havuz gibi). Kesintisiz uçuş, 3,6 m/s; dört bölge 48 m'de bir döner:
+asılı küplerin boşluğu · cam koridor (beyaz çerçeveler, tavan kenarında ışık şeritleri) · kaburgalı cam tünel (her
+dördüncü halka ışıklı) · üst üste küp duvarlı oda ve ortasında asılı büyük küp. Bölge kapıları ışıklı çerçeve, uzakta
+dev beyaz bloklar. Her bölgenin ışık rengi (camgöbeği, kehribar, mor) şeritlerde, halkalarda ve zemine gömülü iki
+çizgide. Zemin cilalı: dünyayı tek sekmeyle yansıtır. Cam iki yanlı ince katman: Fresnel yansıması, geçen ışık soluk
+camgöbeği, eğik bakışta koyulaşır; arkası görünür (3 katmana kadar). Uzaklık beyaza erir.
+
+**Netlik:** alan derinliği yok, renk saçılması ve gren yok, vinyet hafif, bloom gücü 0,04 (havuz ve orman 0,12),
+Catmull-Rom büyütmenin üstüne hafif keskinleştirme. Zamansal birikim kenarları yumuşatır, bulanıklaştırmaz.
+
+**Seçim:** "Sinematik" tek kart, Havuz / Orman / Beyaz çipleri (`StressMode.scene`); lab dilinde `scene`, `forest`, `white`.
+
+**Kimlik:** radyasyon yoncası yerine **kadran** (240 derecelik ölçek, ibre) logo, başlatıcı simgesi ve koşu ekranında;
+tema Çerenkov mavisi yerine grafit + turuncu (güç ve ısı) + camgöbeği (ikinci seri). Güç modlarının ekranı yük kadranı.
