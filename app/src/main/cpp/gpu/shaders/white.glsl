@@ -123,15 +123,17 @@ float monoliths(vec3 p) {
     return min(d, max(min(edge.x, edge.y), 0.0) + 20.0);
 }
 
-// A lit frame at every zone's door, round the path.
+// A lit gate at every zone's door, round the path: two posts and a lintel,
+// open at the floor, so nothing stands across the path.
 vec2 portal(vec3 p) {
     float z = mod(p.z + 0.5 * ZONE, ZONE) - 0.5 * ZONE;
     vec3 q = vec3(p.x, p.y - 3.1, z);
+    vec3 opening = vec3(p.x, p.y - 2.6, z);  // runs on below the floor
     float outer = sdBox(q, vec3(3.6, 3.1, 0.45));
-    float inner = sdBox(q, vec3(2.75, 2.55, 0.6));
+    float inner = sdBox(opening, vec3(2.75, 3.05, 0.6));
     float frame = max(outer, -inner);
-    // A light line round the opening.
-    float glow = max(sdBox(q, vec3(2.8, 2.6, 0.06)), -sdBox(q, vec3(2.75, 2.55, 0.2)));
+    // A light line round the opening: up one post, along the lintel, down the other.
+    float glow = max(sdBox(opening, vec3(2.8, 3.1, 0.06)), -sdBox(opening, vec3(2.75, 3.05, 0.2)));
     return glow < frame ? vec2(glow, M_LIGHT) : vec2(frame, M_FRAME);
 }
 
