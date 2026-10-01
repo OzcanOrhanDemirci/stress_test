@@ -33,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -134,7 +133,7 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (RunRecord
             .fillMaxSize()
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { overlay = !overlay },
     ) {
-        if (mode.usesGpu) GpuSurface(graph.gpu, Modifier.fillMaxSize()) else PulsingCore(Modifier.align(Alignment.Center))
+        if (mode.usesGpu) GpuSurface(graph.gpu, Modifier.fillMaxSize()) else SwingingGauge(Modifier.align(Alignment.Center))
 
         Column(
             modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp),
@@ -175,7 +174,7 @@ private fun Baseline(state: RunState.Baseline?) {
             remaining?.let { Format.number(kotlin.math.ceil(it), 0) } ?: "…",
             style = MaterialTheme.typography.displayLarge,
             fontFamily = FontFamily.Monospace,
-            color = StressColors.Cherenkov,
+            color = StressColors.Accent,
         )
         Text("Telefona dokunma: önce dinlenirken çektiği güç ölçülüyor.", style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
     }
@@ -207,7 +206,7 @@ private fun TopHud(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Trefoil(StressColors.Warn, Modifier.size(14.dp))
+                GaugeMark(StressColors.Accent, Modifier.size(14.dp))
                 Text(mode.title.uppercase(), style = MaterialTheme.typography.labelMedium, letterSpacing = 2.sp)
             }
             val planned = duration.seconds?.let { " / ${Durations.clock(it.toDouble())}" } ?: ""
@@ -224,7 +223,7 @@ private fun TopHud(
                 style = MaterialTheme.typography.headlineLarge,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
-                color = StressColors.Cherenkov,
+                color = StressColors.Accent,
             )
             val above = if (live?.watts != null && idle != null) live.watts - idle else null
             val plugged = live?.plugged == true
@@ -236,7 +235,7 @@ private fun TopHud(
                 fontFamily = FontFamily.Monospace,
             )
         }
-        Sparkline(history, StressColors.Cherenkov, Modifier.fillMaxWidth().height(26.dp))
+        Sparkline(history, StressColors.Accent, Modifier.fillMaxWidth().height(26.dp))
     }
 }
 
@@ -290,14 +289,14 @@ private fun BottomHud(live: LiveView?) {
     }
 }
 
-/** What CPU-only runs show instead of the scene: a slowly pulsing trefoil. */
+/** What CPU-only runs show instead of a scene: the gauge, its needle swinging near the top. */
 @Composable
-private fun PulsingCore(modifier: Modifier) {
-    val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
+private fun SwingingGauge(modifier: Modifier) {
+    val reading by rememberInfiniteTransition(label = "gauge").animateFloat(
+        initialValue = 0.78f,
+        targetValue = 0.97f,
         animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
-        label = "pulse",
+        label = "gauge",
     )
-    Trefoil(StressColors.Cherenkov, modifier.size(160.dp).alpha(pulse))
+    GaugeMark(StressColors.Accent, modifier.size(180.dp), reading)
 }

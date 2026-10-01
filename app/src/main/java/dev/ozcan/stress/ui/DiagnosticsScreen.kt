@@ -160,7 +160,7 @@ private fun PowerPanel(live: LiveView?) {
             Format.watts(live?.watts),
             style = MaterialTheme.typography.displaySmall,
             fontFamily = FontFamily.Monospace,
-            color = StressColors.Cherenkov,
+            color = StressColors.Accent,
         )
         if (live?.plugged == true) {
             Text(
@@ -245,7 +245,7 @@ private fun GpuPanel(model: DiagnosticsViewModel, live: LiveView?) {
 private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .background(if (selected) StressColors.CherenkovDim else StressColors.SurfaceHigh, RoundedCornerShape(8.dp))
+            .background(if (selected) StressColors.AccentDim else StressColors.SurfaceHigh, RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
@@ -262,7 +262,7 @@ private fun ClockPanel(live: LiveView?) {
             LinearProgressIndicator(
                 progress = { fraction.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().height(4.dp),
-                color = StressColors.Cherenkov,
+                color = StressColors.Accent,
                 trackColor = StressColors.SurfaceHigh,
                 gapSize = 0.dp,
                 drawStopIndicator = {},

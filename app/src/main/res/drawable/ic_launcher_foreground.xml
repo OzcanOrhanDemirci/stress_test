@@ -1,20 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Radiation trefoil: a centre disc and three blades. -->
+<!-- A gauge: a 240-degree scale from lower left to lower right, filled and
+     pointed at near its top, a hub in the middle. Inside the adaptive icon's
+     safe circle (radius 33 round 54,54). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="@color/icon_foreground"
-        android:pathData="M54,48a6,6 0 1,1 0,12a6,6 0 1,1 0,-12z" />
+        android:fillColor="#00000000"
+        android:pathData="M33.22,68 A24,24 0 1,1 74.78,68"
+        android:strokeAlpha="0.3"
+        android:strokeColor="@color/icon_foreground"
+        android:strokeLineCap="round"
+        android:strokeWidth="7" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M33.22,68 A24,24 0 1,1 77.95,54.49"
+        android:strokeColor="@color/icon_foreground"
+        android:strokeLineCap="round"
+        android:strokeWidth="7" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,56 L68.37,55.1"
+        android:strokeColor="@color/icon_foreground"
+        android:strokeLineCap="round"
+        android:strokeWidth="4.2" />
     <path
         android:fillColor="@color/icon_foreground"
-        android:pathData="M47,41.9 A14,14 0 0,1 61,41.9 L69,28 A30,30 0 0,0 39,28 Z" />
-    <path
-        android:fillColor="@color/icon_foreground"
-        android:pathData="M68,54 A14,14 0 0,1 61,66.1 L69,80 A30,30 0 0,0 84,54 Z" />
-    <path
-        android:fillColor="@color/icon_foreground"
-        android:pathData="M47,66.1 A14,14 0 0,1 40,54 L24,54 A30,30 0 0,0 39,80 Z" />
+        android:pathData="M54,50.4a5.6,5.6 0 1,1 0,11.2a5.6,5.6 0 1,1 0,-11.2z" />
 </vector>

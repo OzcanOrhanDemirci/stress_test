@@ -84,7 +84,7 @@ fun LabScreen(spec: Result<LabSpec>) {
                 val phase = if (s.phase == LabState.Phase.Idle) "boşta ölçüm" else "yük"
                 LabText("${s.run + 1}/${s.runs} · ${s.workload}", StressColors.Text)
                 LabText("$phase · ${Format.number(remaining, 0)} sn", StressColors.Text)
-                LabText(Format.watts(live?.watts), StressColors.CherenkovDim)
+                LabText(Format.watts(live?.watts), StressColors.AccentDim)
             }
             is LabState.Finished -> {
                 LabText("bitti · ${s.results.size} koşu", StressColors.Good)

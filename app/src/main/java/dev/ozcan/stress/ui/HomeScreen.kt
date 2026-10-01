@@ -68,10 +68,14 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Trefoil(StressColors.Cherenkov, Modifier.size(44.dp))
+            GaugeMark(StressColors.Accent, Modifier.size(44.dp))
             Column {
                 Text("STRES", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, letterSpacing = 6.sp)
-                Text("Honor 400 · Snapdragon 7 Gen 3", style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+                Text(
+                    "Stres testi · benchmark · Honor 400 · Snapdragon 7 Gen 3",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = StressColors.TextDim,
+                )
             }
         }
 
@@ -93,8 +97,18 @@ fun HomeScreen(
             }
         }
 
+        // The cinematic modes share one card, a chip for each scene, in the
+        // place of the first of them.
+        var scene by rememberSaveable { mutableStateOf(StressMode.Cinematic) }
+        val cinematic = StressMode.entries.filter { it.scene != null }
         StressMode.entries.forEach { m ->
-            ModeCard(m, selected = m == mode) { mode = m }
+            when {
+                m.scene == null -> ModeCard(m, selected = m == mode) { mode = m }
+                m == cinematic.first() -> CinematicCard(cinematic, selected = mode.scene != null, current = scene) { picked ->
+                    scene = picked
+                    mode = picked
+                }
+            }
         }
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -103,7 +117,7 @@ fun HomeScreen(
                 Text(
                     d.title,
                     modifier = Modifier
-                        .background(if (selected) StressColors.CherenkovDim else StressColors.SurfaceHigh, RoundedCornerShape(20.dp))
+                        .background(if (selected) StressColors.AccentDim else StressColors.SurfaceHigh, RoundedCornerShape(20.dp))
                         .clickable { duration = d }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
@@ -114,7 +128,7 @@ fun HomeScreen(
         Button(
             onClick = { onStart(mode, duration) },
             modifier = Modifier.fillMaxWidth().height(58.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = StressColors.Cherenkov, contentColor = StressColors.Background),
+            colors = ButtonDefaults.buttonColors(containerColor = StressColors.Accent, contentColor = StressColors.Background),
             shape = RoundedCornerShape(16.dp),
         ) {
             Text("BAŞLAT", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
@@ -136,6 +150,46 @@ fun HomeScreen(
     }
 }
 
+/** The cinematic modes as one card: what they share, and a chip for each scene. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CinematicCard(modes: List<StressMode>, selected: Boolean, current: StressMode, onPick: (StressMode) -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (selected) StressColors.SurfaceHigh else StressColors.Surface, shape)
+            .border(if (selected) 2.dp else 1.dp, if (selected) StressColors.Accent else StressColors.Outline, shape)
+            .clickable { onPick(current) }
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Sinematik", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            "Ekranda bir sahne, CPU tam yükte. Göz için: en yüksek güçten biraz düşük.",
+            style = MaterialTheme.typography.bodySmall,
+            color = StressColors.TextDim,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            modes.forEach { m ->
+                val on = selected && m == current
+                Text(
+                    m.scene.orEmpty(),
+                    modifier = Modifier
+                        .background(if (on) StressColors.Accent else StressColors.Surface, RoundedCornerShape(20.dp))
+                        .border(1.dp, if (on) StressColors.Accent else StressColors.Outline, RoundedCornerShape(20.dp))
+                        .clickable { onPick(m) }
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (on) StressColors.Background else StressColors.Text,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        }
+        Text(current.detail, style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+    }
+}
+
 @Composable
 private fun ModeCard(mode: StressMode, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
@@ -143,7 +197,7 @@ private fun ModeCard(mode: StressMode, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(if (selected) StressColors.SurfaceHigh else StressColors.Surface, shape)
-            .border(if (selected) 2.dp else 1.dp, if (selected) StressColors.Cherenkov else StressColors.Outline, shape)
+            .border(if (selected) 2.dp else 1.dp, if (selected) StressColors.Accent else StressColors.Outline, shape)
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),

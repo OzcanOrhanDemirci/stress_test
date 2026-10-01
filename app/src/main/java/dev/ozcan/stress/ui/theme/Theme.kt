@@ -8,25 +8,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
-/** Reactor palette: near-black steel, Cherenkov blue, a warning amber. */
+/**
+ * Benchmark palette: graphite, a hot orange for power and heat (the number
+ * the app is about), a cool cyan for a second series.
+ */
 object StressColors {
-    val Background = Color(0xFF05080A)
-    val Surface = Color(0xFF0D1417)
-    val SurfaceHigh = Color(0xFF142026)
-    val Outline = Color(0xFF22323A)
-    val Cherenkov = Color(0xFF3FD0FF)
-    val CherenkovDim = Color(0xFF1C6F8C)
-    val Text = Color(0xFFE3EEF2)
-    val TextDim = Color(0xFF8AA0A9)
+    val Background = Color(0xFF0A0B0D)
+    val Surface = Color(0xFF131519)
+    val SurfaceHigh = Color(0xFF1B1E24)
+    val Outline = Color(0xFF2A2E36)
+    val Accent = Color(0xFFFF6A21)
+    val AccentDim = Color(0xFF6E3015)
+    val Cool = Color(0xFF4CC9F0)
+    val Text = Color(0xFFECEEF1)
+    val TextDim = Color(0xFF8C939E)
     val Good = Color(0xFF7CFFB2)
-    val Warn = Color(0xFFFFB547)
+    val Warn = Color(0xFFFFD84D)
     val Bad = Color(0xFFFF5C5C)
 }
 
 private val scheme = darkColorScheme(
-    primary = StressColors.Cherenkov,
+    primary = StressColors.Accent,
     onPrimary = StressColors.Background,
-    secondary = StressColors.CherenkovDim,
+    secondary = StressColors.AccentDim,
     background = StressColors.Background,
     onBackground = StressColors.Text,
     surface = StressColors.Surface,

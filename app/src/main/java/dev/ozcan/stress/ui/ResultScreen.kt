@@ -27,9 +27,9 @@ import java.util.Locale
 
 /** Line colours, the same meaning on every chart. */
 object SeriesColors {
-    val BigCores = StressColors.Cherenkov
+    val BigCores = StressColors.Accent
     val LittleCores = Color(0xFF7CFFB2)
-    val Gpu = Color(0xFFFFB547)
+    val Gpu = StressColors.Cool
     val Memory = Color(0xFFC792EA)
     val Battery = Color(0xFFFF6B6B)
     val Prime = Color(0xFFE3EEF2)
@@ -73,7 +73,7 @@ fun ResultScreen(record: RunRecord, onBack: () -> Unit) {
         StatRow(
             "Tepe güç" to Format.watts(s.peakWatts),
             "Sürekli güç" to Format.watts(s.sustainedWatts),
-            accent = StressColors.Cherenkov,
+            accent = StressColors.Accent,
         )
         StatRow("Ortalama" to Format.watts(s.meanWatts), "Boşta" to Format.watts(s.idleWatts))
         StatRow(
@@ -103,7 +103,7 @@ fun ResultScreen(record: RunRecord, onBack: () -> Unit) {
         }
 
         Panel("Güç") {
-            LineChart(series.seconds, listOf(ChartSeries("Güç", StressColors.Cherenkov, series.watts)), "W", yMin = 0.0)
+            LineChart(series.seconds, listOf(ChartSeries("Güç", StressColors.Accent, series.watts)), "W", yMin = 0.0)
         }
         Panel("Sıcaklık") {
             LineChart(
@@ -123,7 +123,7 @@ fun ResultScreen(record: RunRecord, onBack: () -> Unit) {
         }
         Panel("Performans (en iyi saniyeye göre)") {
             val lines = buildList {
-                add(ChartSeries("CPU", StressColors.Cherenkov, series.cpuRelative.map { it?.times(100) }))
+                add(ChartSeries("CPU", StressColors.Accent, series.cpuRelative.map { it?.times(100) }))
                 if (series.gpuRelative.any { it != null }) {
                     add(ChartSeries("GPU", SeriesColors.Gpu, series.gpuRelative.map { it?.times(100) }))
                 }

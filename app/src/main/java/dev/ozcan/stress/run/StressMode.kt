@@ -6,11 +6,17 @@ package dev.ozcan.stress.run
  *
  * The recipes are the winners of the candidate sweeps in docs/OLCUMLER.md
  * (2026-10-01): C8 fp32_l2 on every core, the FP32 burner on the GPU. The
- * cinematic scene keeps the GPU just as busy but draws about half the
- * burner's power, so the power modes show the light preview and the scene
- * has a mode of its own.
+ * cinematic scenes keep the GPU just as busy but draw about half the
+ * burner's power, so the power modes show a light gauge and the scenes have
+ * modes of their own: one for each, grouped on the home screen by [scene].
  */
-enum class StressMode(val title: String, val detail: String, val recipe: String, val usesGpu: Boolean) {
+enum class StressMode(
+    val title: String,
+    val detail: String,
+    val recipe: String,
+    val usesGpu: Boolean,
+    val scene: String? = null,
+) {
     Full(
         "Tam yük",
         "CPU, GPU ve bellek aynı anda: telefonun çekebildiği en yüksek güç. Ekranda hafif bir gösterge.",
@@ -19,15 +25,24 @@ enum class StressMode(val title: String, val detail: String, val recipe: String,
     ),
     Cinematic(
         "Sinematik · Havuz",
-        "Havuz reaktörü sahnesi, CPU tam yükte. Göz için: en yüksek güçten biraz düşük.",
+        "Suyun altında mavi parlayan bir havuz reaktörü, dalgalanan su, yansımalar.",
         "fp32_l2+scene",
         usesGpu = true,
+        scene = "Havuz",
     ),
     CinematicForest(
         "Sinematik · Orman",
-        "Yağmurlu, sisli bir orman, tepeden süzülen ışık huzmeleri; CPU tam yükte. Göz için.",
+        "Yağmurlu, sisli bir orman; tepeden süzülen ışık huzmeleri.",
         "fp32_l2+forest",
         usesGpu = true,
+        scene = "Orman",
+    ),
+    CinematicWhite(
+        "Sinematik · Beyaz",
+        "Bembeyaz, cam ve ayna yüzeyli koridorlar ve tüneller; net, sade.",
+        "fp32_l2+white",
+        usesGpu = true,
+        scene = "Beyaz",
     ),
     Cpu(
         "CPU",

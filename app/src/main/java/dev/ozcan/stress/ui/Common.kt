@@ -19,12 +19,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.ozcan.stress.ui.theme.StressColors
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** A titled card. */
 @Composable
@@ -64,27 +68,27 @@ fun Stat(label: String, value: String, modifier: Modifier = Modifier, accent: Co
     }
 }
 
-/** The radiation trefoil: a centre disc and three blades. */
+/**
+ * The app's mark: a gauge, its scale a 240-degree arc from lower left to lower
+ * right, filled and pointed at by the needle up to [reading] (0..1).
+ */
 @Composable
-fun Trefoil(color: Color, modifier: Modifier = Modifier) {
+fun GaugeMark(color: Color, modifier: Modifier = Modifier, reading: Float = 0.86f) {
     Canvas(modifier = modifier) {
         val r = size.minDimension / 2
         val c = Offset(size.width / 2, size.height / 2)
-        drawCircle(color, radius = r * 0.18f, center = c)
-        for (i in 0 until 3) {
-            val start = -90f - 30f + i * 120f
-            drawArc(
-                color = color,
-                startAngle = start,
-                sweepAngle = 60f,
-                useCenter = true,
-                topLeft = Offset(c.x - r, c.y - r),
-                size = Size(r * 2, r * 2),
-            )
-        }
-        // Clear the ring between the disc and the blades.
-        drawCircle(StressColors.Background, radius = r * 0.3f, center = c)
-        drawCircle(color, radius = r * 0.18f, center = c)
+        val stroke = r * 0.16f
+        val inset = stroke / 2
+        val arcTopLeft = Offset(c.x - r + inset, c.y - r + inset)
+        val arcSize = Size(2 * r - stroke, 2 * r - stroke)
+        val start = 150f
+        val sweep = 240f
+        drawArc(color.copy(alpha = 0.25f), start, sweep, false, arcTopLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+        drawArc(color, start, sweep * reading, false, arcTopLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+        val angle = Math.toRadians((start + sweep * reading).toDouble())
+        val tip = Offset(c.x + (cos(angle) * r * 0.6).toFloat(), c.y + (sin(angle) * r * 0.6).toFloat())
+        drawLine(color, c, tip, strokeWidth = stroke * 0.6f, cap = StrokeCap.Round)
+        drawCircle(color, radius = stroke * 0.8f, center = c)
     }
 }
 
