@@ -20,7 +20,7 @@ ama Prime95 çok daha fazla ısıtır. Bu uygulama Prime95 tarafında olacak. Ba
 
 ## 1 · Telefonun ölçülmüş gerçekleri
 
-2026-09-30'da `adb` ile ölçüldü (seri `AKSC025610001388`). Şartname sitelerinden değil, telefondan okundu.
+2026-09-30'da `adb` ile ölçüldü. Şartname sitelerinden değil, telefondan okundu.
 
 | | |
 |---|---|

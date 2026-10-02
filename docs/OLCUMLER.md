@@ -1,7 +1,7 @@
 # Ölçümler
 
 Her fazın telefonda ölçülen sonuçları. Burada yazmayan bir sayı ölçülmemiştir.
-Cihaz: Honor 400 (DNY-NX9), seri `AKSC025610001388`, Android 16.
+Cihaz: Honor 400 (DNY-NX9), Android 16.
 
 ## Faz 0 · Ölçüm aracı
 
