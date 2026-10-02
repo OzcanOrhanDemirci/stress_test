@@ -63,6 +63,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -564,7 +565,11 @@ private fun LastRun(record: RunRecord, onClick: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Rounded.Warning, null, tint = StressColors.Bad, modifier = Modifier.size(14.dp))
                 Text(
-                    stringResource(R.string.insight_errors_title, record.summary.computationErrors),
+                    pluralStringResource(
+                        R.plurals.insight_errors,
+                        record.summary.computationErrors.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                        record.summary.computationErrors,
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = StressColors.Bad,
                 )

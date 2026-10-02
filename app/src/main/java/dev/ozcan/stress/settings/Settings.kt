@@ -2,6 +2,7 @@ package dev.ozcan.stress.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.run.StressDuration
 import dev.ozcan.stress.run.StressMode
@@ -44,15 +45,15 @@ class SettingsStore(context: Context) {
     fun update(transform: (Settings) -> Settings) {
         val next = transform(_settings.value)
         if (next == _settings.value) return
-        prefs.edit()
-            .putBoolean(KEY_SAFETY, next.deviceSafety)
-            .putString(KEY_QUALITY, next.quality.name)
-            .putBoolean(KEY_DISPLAY, next.maxDisplay)
-            .putBoolean(KEY_HAPTICS, next.haptics)
-            .putBoolean(KEY_NOTICE, next.startupNotice)
-            .putString(KEY_MODE, next.lastMode.name)
-            .putString(KEY_DURATION, next.lastDuration.name)
-            .apply()
+        prefs.edit {
+            putBoolean(KEY_SAFETY, next.deviceSafety)
+            putString(KEY_QUALITY, next.quality.name)
+            putBoolean(KEY_DISPLAY, next.maxDisplay)
+            putBoolean(KEY_HAPTICS, next.haptics)
+            putBoolean(KEY_NOTICE, next.startupNotice)
+            putString(KEY_MODE, next.lastMode.name)
+            putString(KEY_DURATION, next.lastDuration.name)
+        }
         _settings.value = next
     }
 

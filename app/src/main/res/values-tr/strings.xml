@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Stress Test</string>
 
     <!-- Ortak -->
@@ -28,8 +28,8 @@
     <string name="mode_cpu_detail">Bütün çekirdekler, en çok güç çeken yükle: önbellekten akan FMA.</string>
     <string name="mode_gpu">GPU</string>
     <string name="mode_gpu_detail">Yalnız GPU, en çok güç çeken yakıcıyla.</string>
-    <string name="mode_dry">Kuru %100</string>
-    <string name="mode_dry_detail">Her çekirdek %100 meşgul görünür, ama hesap birimlerinin çoğu çalışmaz ve telefon az güç çeker. Bir referans: %100 her zaman gerçek yük demek değildir.</string>
+    <string name="mode_dry" formatted="false">Kuru %100</string>
+    <string name="mode_dry_detail" formatted="false">Her çekirdek %100 meşgul görünür, ama hesap birimlerinin çoğu çalışmaz ve telefon az güç çeker. Bir referans: %100 her zaman gerçek yük demek değildir.</string>
     <string name="scene_pool">Havuz</string>
     <string name="scene_pool_detail">Suyun altında mavi parlayan bir havuz reaktörü: simüle dalgalar, yansımalar, parçacıklar, alan derinliği.</string>
     <string name="scene_forest">Orman</string>
@@ -219,7 +219,10 @@
     <string name="insight_drain_detail">Bu yükte bir saatte harcanan pil yüzdesi.</string>
     <string name="insight_no_errors_title">Hesap hatası yok</string>
     <string name="insight_no_errors_detail">Yükün denetlediği her sonuç doğruydu: donanım ısı altında doğru hesapladı.</string>
-    <string name="insight_errors_title">%1$d hesap hatası</string>
+    <plurals name="insight_errors">
+        <item quantity="one">%1$d hesap hatası</item>
+        <item quantity="other">%1$d hesap hatası</item>
+    </plurals>
     <string name="insight_errors_detail">Donanım yük altında yanlış sonuç verdi: kararsızlık belirtisi (fazla ısı ya da kararsız frekans/gerilim).</string>
     <string name="insight_fps_title">Ortalama %1$s FPS</string>
     <string name="insight_fps_detail">En düşük saniye: %1$s FPS.</string>
@@ -291,10 +294,10 @@
     <string name="settings_section_about">Hakkında</string>
     <string name="settings_version">Sürüm %1$s</string>
     <string name="settings_about_tagline">Telefonunun gerçek sınırlarını ölçen stres testi.</string>
-    <string name="settings_about_text">Stress Test, ekranda görünen %100 ile yetinmez. İşlemcinin hesap birimlerini, bellek yolunu ve ekran kartını aynı anda gerçekten çalıştırır; telefonunun çekebildiği en yüksek gücü, ne kadar ısındığını ve ısındıkça nasıl yavaşladığını ölçer.</string>
+    <string name="settings_about_text" formatted="false">Stress Test, ekranda görünen %100 ile yetinmez. İşlemcinin hesap birimlerini, bellek yolunu ve ekran kartını aynı anda gerçekten çalıştırır; telefonunun çekebildiği en yüksek gücü, ne kadar ısındığını ve ısındıkça nasıl yavaşladığını ölçer.</string>
     <string name="settings_about_cpu">ARM assembly ile yazılmış CPU yükleri; her biri kendi sonucunu denetler, hesap hatası anında yakalanır.</string>
     <string name="settings_about_gpu">Vulkan GPU yakıcıları ve gerçek zamanlı üç sinematik 3D sahne.</string>
-    <string name="settings_about_analysis">Güç, sıcaklık, frekans ve kısılma saniye saniye izlenir; sonunda anlaşılır bir analiz ve PDF rapor.</string>
+    <string name="settings_about_analysis" tools:ignore="Typos">Güç, sıcaklık, frekans ve kısılma saniye saniye izlenir; sonunda anlaşılır bir analiz ve PDF rapor.</string>
     <string name="settings_about_quality">Giriş seviyesinden en yeni amiral gemilerine, her telefona göre grafik kalitesi.</string>
     <string name="settings_developer">Geliştiren</string>
     <string name="settings_licenses">Yazı tipleri: Space Grotesk, JetBrains Mono (SIL Open Font License 1.1)</string>

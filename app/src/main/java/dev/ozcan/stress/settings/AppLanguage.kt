@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
 import android.os.LocaleList
+import androidx.core.content.edit
 import java.util.Locale
 
 /** The app's language: the phone's own, or Turkish or English whatever the phone uses. */
@@ -49,7 +50,8 @@ object AppLanguages {
             activity.getSystemService(LocaleManager::class.java).applicationLocales =
                 language.tag?.let { LocaleList.forLanguageTags(it) } ?: LocaleList.getEmptyLocaleList()
         } else {
-            prefs(activity).edit().putString(KEY, language.tag).commit()
+            // Written before the activity is recreated, which reads it back.
+            prefs(activity).edit(commit = true) { putString(KEY, language.tag) }
             activity.recreate()
         }
     }

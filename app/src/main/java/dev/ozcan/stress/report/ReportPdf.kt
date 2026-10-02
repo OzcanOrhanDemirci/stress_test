@@ -12,7 +12,6 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
-import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -90,9 +89,7 @@ object ReportPdf {
         fun text(weight: Int): Typeface = weighted(grotesk, weight)
         fun number(weight: Int): Typeface = weighted(mono, weight)
 
-        private fun weighted(base: Typeface, weight: Int): Typeface =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) Typeface.create(base, weight, false)
-            else Typeface.create(base, if (weight >= 600) Typeface.BOLD else Typeface.NORMAL)
+        private fun weighted(base: Typeface, weight: Int): Typeface = Typeface.create(base, weight, false)
     }
 
     private fun paint(typeface: Typeface, size: Float, color: Int) = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {

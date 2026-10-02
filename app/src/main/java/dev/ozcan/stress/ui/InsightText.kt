@@ -48,7 +48,7 @@ object InsightText {
         is Insight.ComputationErrors -> if (insight.count == 0L) {
             context.getString(R.string.insight_no_errors_title)
         } else {
-            context.getString(R.string.insight_errors_title, insight.count)
+            context.resources.getQuantityString(R.plurals.insight_errors, insight.count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), insight.count)
         }
         is Insight.FrameRate -> context.getString(R.string.insight_fps_title, Format.number(insight.mean, 1))
     }

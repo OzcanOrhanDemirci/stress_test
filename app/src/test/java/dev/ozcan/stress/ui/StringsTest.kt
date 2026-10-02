@@ -24,8 +24,24 @@ class StringsTest {
         }
     }
 
+    /** Each plural's items, by quantity ("one", "other"). */
+    private fun plurals(path: String): Map<String, Map<String, String>> {
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File(path))
+        val nodes = document.getElementsByTagName("plurals")
+        return (0 until nodes.length).associate { i ->
+            val node = nodes.item(i)
+            val items = node.childNodes
+            node.attributes.getNamedItem("name").nodeValue to (0 until items.length)
+                .map { items.item(it) }
+                .filter { it.nodeName == "item" }
+                .associate { it.attributes.getNamedItem("quantity").nodeValue to it.textContent }
+        }
+    }
+
     private val english = strings("src/main/res/values/strings.xml")
     private val turkish = strings("src/main/res/values-tr/strings.xml")
+    private val englishPlurals = plurals("src/main/res/values/strings.xml")
+    private val turkishPlurals = plurals("src/main/res/values-tr/strings.xml")
 
     /** Positional arguments ("%1$s", "%2$d"), ignoring escaped percent signs. */
     private fun arguments(text: String): List<String> =
@@ -50,6 +66,28 @@ class StringsTest {
             val stray = text.replace("%%", "").replace(Regex("%\\d+\\$[sd]"), "")
             assertTrue("$name has a lone %: $text", '%' !in stray)
         }
+    }
+
+    @Test
+    fun `both languages have the same plurals, every item with the same arguments`() {
+        assertEquals(englishPlurals.keys.sorted(), turkishPlurals.keys.sorted())
+        for ((name, items) in englishPlurals) {
+            val expected = arguments(items.getValue("other"))
+            for ((language, plurals) in listOf("en" to englishPlurals, "tr" to turkishPlurals)) {
+                for ((quantity, text) in plurals.getValue(name)) {
+                    assertEquals("$language $name/$quantity", expected, arguments(text))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the code names only plurals that exist`() {
+        val used = File("src/main/java").walkTopDown().filter { it.extension == "kt" }
+            .flatMap { Regex("R\\.plurals\\.([a-z0-9_]+)").findAll(it.readText()).map { m -> m.groupValues[1] } }
+            .toSet()
+        val missing = used - englishPlurals.keys
+        assertTrue("missing: $missing", missing.isEmpty())
     }
 
     @Test

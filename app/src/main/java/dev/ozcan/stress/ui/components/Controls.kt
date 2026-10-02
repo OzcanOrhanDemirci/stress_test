@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.ozcan.stress.ui.theme.StressColors
@@ -201,7 +202,7 @@ fun <T> SegmentedControl(
         val offset by animateDpAsState(segment * index, spring(dampingRatio = 0.8f, stiffness = 500f), label = "segment")
         Box(
             Modifier
-                .offset(x = offset)
+                .offset { IntOffset(offset.roundToPx(), 0) }
                 .width(segment)
                 .fillMaxHeight()
                 .drawBehind {
