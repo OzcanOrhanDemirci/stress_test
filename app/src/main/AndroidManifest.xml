@@ -22,6 +22,20 @@
             </intent-filter>
         </activity>
 
+        <!--
+            The entry for lab sessions started over adb (tools/lab.mjs). A lab
+            session wakes the screen, shows over the lock screen and loads the
+            phone for as long as it is told to, so it must not be startable by
+            other apps: this entry needs DUMP, which the adb shell holds and an
+            installed app cannot be granted. The launcher entry ignores lab
+            extras altogether.
+        -->
+        <activity-alias
+            android:name=".LabActivity"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            android:targetActivity=".MainActivity" />
+
         <!-- Shares the PDF and CSV reports with other apps. -->
         <provider
             android:name="androidx.core.content.FileProvider"

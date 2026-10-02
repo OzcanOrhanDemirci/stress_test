@@ -79,7 +79,7 @@ class LabRunner(
             results += result
             files += file.name
             if (result.startResult != STARTED) {
-                _state.value = LabState.Failed("Yük başlatılamadı: ${result.workload} (${result.startResult})")
+                _state.value = LabState.Failed("Could not start the load: ${result.workload} (${result.startResult})")
                 return
             }
         }

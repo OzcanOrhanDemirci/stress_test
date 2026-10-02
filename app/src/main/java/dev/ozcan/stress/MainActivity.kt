@@ -69,8 +69,14 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
+    /** Lab keys only through the lab entry, which only the adb shell may start (see the manifest). */
     private fun labExtras(): Map<String, String?> {
+        if (intent.component?.className != LAB_ENTRY) return emptyMap()
         val extras = intent.extras ?: return emptyMap()
         return extras.keySet().filter { it.startsWith(LabSpec.PREFIX) }.associateWith { extras.getString(it) }
+    }
+
+    private companion object {
+        const val LAB_ENTRY = "dev.ozcan.stress.LabActivity"
     }
 }

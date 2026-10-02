@@ -72,7 +72,9 @@ function launch(opts, loads, onBattery) {
         // The value goes through the device shell, so it is single-quoted there.
         .flatMap(([k, v]) => ["--es", `lab.${k}`, `'${String(v)}'`]);
     adb(["logcat", "-c"]);
-    adb(["shell", "am", "start", "-S", "-n", `${PACKAGE}/.MainActivity`, ...extraArgs]);
+    // The lab entry, not the launcher: only the adb shell may start it, and the
+    // launcher ignores lab extras.
+    adb(["shell", "am", "start", "-S", "-n", `${PACKAGE}/dev.ozcan.stress.LabActivity`, ...extraArgs]);
 }
 
 function sessions() {
@@ -81,11 +83,11 @@ function sessions() {
 
 function pull(name) {
     const session = name ?? sessions().at(-1);
-    if (!session) throw new Error("telefonda oturum yok");
+    if (!session) throw new Error("no session on the phone");
     mkdirSync(OUT, { recursive: true });
     adb(["pull", `${REMOTE}/${session}`, OUT]);
     const complete = existsSync(join(OUT, session, "session.json"));
-    console.log(`çekildi: tools/out/${session} ${complete ? "(tamamlanmış)" : "(YARIM: session.json yok)"}`);
+    console.log(`pulled: tools/out/${session} ${complete ? "(complete)" : "(INCOMPLETE: no session.json)"}`);
     return session;
 }
 
@@ -107,19 +109,19 @@ function clusterRate(result, cpus) {
 
 function report(name) {
     const session = name ?? readdirSync(OUT).filter((s) => /^\d{8}-\d{6}$/.test(s)).sort().at(-1);
-    if (!session) throw new Error("tools/out altında oturum yok; önce pull");
+    if (!session) throw new Error("no session under tools/out; pull one first");
     const dir = join(OUT, session);
     const runs = readdirSync(dir)
         .filter((f) => /^\d{2}_.*\.json$/.test(f))
         .sort()
         .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
-    console.log(`oturum ${session}: ${runs.length} koşu\n`);
+    console.log(`session ${session}: ${runs.length} runs\n`);
 
     // Older results named the workload `assignment`.
     for (const r of runs) r.workload ??= r.assignment;
 
     for (const r of runs) {
-        const warn = [r.pluggedDuringRun && "ŞARJDA", !r.cooledInTime && "sıcak başladı", r.computationErrors > 0 && `HATA ${r.computationErrors}`]
+        const warn = [r.pluggedDuringRun && "CHARGING", !r.cooledInTime && "started hot", r.computationErrors > 0 && `ERRORS ${r.computationErrors}`]
             .filter(Boolean)
             .join(" · ");
         const start = Math.max(r.startTemperatures.A715 ?? 0, r.startTemperatures.A510 ?? 0);
@@ -127,12 +129,12 @@ function report(name) {
         const misplaced = r.cpus.reduce((a, c) => a + (c.misplacedBatches ?? 0), 0);
         const unit = r.cpus.find((c) => c.unit)?.unit ?? "";
         console.log(
-            `${String(r.runIndex + 1).padStart(2)}. ${r.workload.padEnd(26)} ilk30 ${fmt(r.loadFirst30sWatts)} W · ` +
-                `tüm ${fmt(r.load.meanWatts)} · boşta ${fmt(r.idle.meanWatts)} · ` +
+            `${String(r.runIndex + 1).padStart(2)}. ${r.workload.padEnd(26)} first30 ${fmt(r.loadFirst30sWatts)} W · ` +
+                `all ${fmt(r.load.meanWatts)} · idle ${fmt(r.idle.meanWatts)} · ` +
                 `A510 ${si(clusterRate(r, [0, 1, 2, 3]))} A715 ${si(clusterRate(r, [4, 5, 6]))} prime ${si(clusterRate(r, [7]))} ${unit} · ` +
-                `başlangıç ${fmt(start, 1)} °C · sayaç/akım ${fmt(r.load.chargeCounterAmps / r.load.meanDischargeAmps, 3)} · ` +
-                `yanlış çekirdek %${fmt(batches ? (100 * misplaced) / batches : null, 1)}` +
-                (r.gpu ? ` · GPU kare ${fmt(r.gpu.meanFrameMillis, 1)} ms (sahne ${fmt(r.gpu.meanVisibleMillis, 1)}) ${fmt(r.gpu.framesPerSecond, 1)} fps` : "") +
+                `start ${fmt(start, 1)} °C · counter/current ${fmt(r.load.chargeCounterAmps / r.load.meanDischargeAmps, 3)} · ` +
+                `wrong core ${fmt(batches ? (100 * misplaced) / batches : null, 1)}%` +
+                (r.gpu ? ` · GPU frame ${fmt(r.gpu.meanFrameMillis, 1)} ms (scene ${fmt(r.gpu.meanVisibleMillis, 1)}) ${fmt(r.gpu.framesPerSecond, 1)} fps` : "") +
                 (warn ? ` · ${warn}` : ""),
         );
     }
@@ -155,19 +157,19 @@ function report(name) {
         };
     });
     table.sort((a, b) => (b.first30 ?? 0) - (a.first30 ?? 0));
-    console.log("\n=== sıralama: ilk 30 sn ortalama güç ===");
+    console.log("\n=== ranking: mean power over the first 30 s ===");
     for (const t of table) {
         console.log(
-            `${t.load.padEnd(26)} ilk30 ${fmt(t.first30)} W (±${fmt(t.spread)}) · tüm ${fmt(t.all)} · son30 ${fmt(t.last30)} · ` +
-                `boşta üstü ${fmt(t.above)} · son30 MHz ${t.freqs.map((f) => fmt(f, 0)).join("/")} · A715 en çok ${fmt(t.maxA715, 1)} °C · hata ${t.errors}`,
+            `${t.load.padEnd(26)} first30 ${fmt(t.first30)} W (±${fmt(t.spread)}) · all ${fmt(t.all)} · last30 ${fmt(t.last30)} · ` +
+                `above idle ${fmt(t.above)} · last30 MHz ${t.freqs.map((f) => fmt(f, 0)).join("/")} · A715 max ${fmt(t.maxA715, 1)} °C · errors ${t.errors}`,
         );
     }
 }
 
 async function runOnCable(opts) {
-    if (!opts.load) throw new Error("--load gerekli");
+    if (!opts.load) throw new Error("--load is required");
     launch(opts, opts.load, false);
-    console.log(`▶ ${opts.load} (kabloda; güç geçersiz)`);
+    console.log(`▶ ${opts.load} (on the cable; power is not valid)`);
     const deadline = Date.now() + (Number(opts.idle ?? 10) + Number(opts.seconds ?? 60) + 15 * 60 + 60) * 1000;
     while (Date.now() < deadline) {
         await sleep(3000);
@@ -176,17 +178,17 @@ async function runOnCable(opts) {
         const error = log.split(/\r?\n/).find((l) => l.includes("error spec="));
         if (error) throw new Error(error);
     }
-    throw new Error("zaman aşımı");
+    throw new Error("timed out");
 }
 
 const args = parseArgs(process.argv.slice(2));
 try {
     switch (args._[0]) {
         case "start": {
-            if (!args.loads) throw new Error("--loads gerekli");
+            if (!args.loads) throw new Error("--loads is required");
             launch(args, args.loads, true);
             const n = args.loads.split(";").filter((s) => s.trim()).length * Number(args.repeat ?? 1);
-            console.log(`oturum başlatıldı: ${n} koşu. Telefon kablonun çıkarılmasını bekliyor.`);
+            console.log(`session started: ${n} runs. The phone is waiting for the cable to be unplugged.`);
             break;
         }
         case "run":
@@ -202,10 +204,10 @@ try {
             console.log(readTemps());
             break;
         default:
-            console.error("kullanım: node tools/lab.mjs start|run|pull|report|temps [--seçenekler]");
+            console.error("usage: node tools/lab.mjs start|run|pull|report|temps [--options]");
             process.exit(2);
     }
 } catch (e) {
-    console.error(`HATA: ${e.message}`);
+    console.error(`ERROR: ${e.message}`);
     process.exit(1);
 }

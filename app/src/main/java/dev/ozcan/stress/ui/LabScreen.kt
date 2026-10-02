@@ -48,12 +48,16 @@ class LabViewModel(graph: AppGraph, spec: LabSpec) : ViewModel() {
     }
 }
 
-/** A dark, almost empty screen: a lab run should measure the load, not the display. */
+/**
+ * A dark, almost empty screen: a lab run should measure the load, not the
+ * display. A developer screen, reached only over adb (tools/lab.mjs): its text
+ * is English and not translated.
+ */
 @Composable
 fun LabScreen(spec: Result<LabSpec>) {
     val parsed = spec.getOrElse { error ->
         LaunchedEffect(error) { Log.e(LabRunner.LOG_TAG, "error spec=${error.message}") }
-        LabText("Geçersiz lab komutu: ${error.message}", StressColors.Bad)
+        LabText("Invalid lab command: ${error.message}", StressColors.Bad)
         return
     }
     val context = LocalContext.current
@@ -71,26 +75,26 @@ fun LabScreen(spec: Result<LabSpec>) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        LabText("LAB · ${parsed.runCount} koşu · ${parsed.loadSeconds} sn yük", StressColors.TextDim)
+        LabText("LAB · ${runs(parsed.runCount)} · ${parsed.loadSeconds} s load", StressColors.TextDim)
         when (val s = state) {
-            null -> LabText("Hazırlanıyor", StressColors.TextDim)
-            LabState.WaitingForBattery -> LabText("Şarj kablosunu çıkar: ölçüm pilde yapılır.", StressColors.Warn)
+            null -> LabText("Preparing", StressColors.TextDim)
+            LabState.WaitingForBattery -> LabText("Unplug the cable: the measurement is made on battery.", StressColors.Warn)
             is LabState.Cooling -> {
-                LabText("${s.run + 1}/${s.runs} · soğuma bekleniyor", StressColors.Text)
+                LabText("${s.run + 1}/${s.runs} · cooling down", StressColors.Text)
                 LabText("CPU ${Format.celsius(s.hottest)} → ${Format.celsius(s.limit)}", StressColors.TextDim)
             }
             is LabState.Measuring -> {
                 val remaining = ((s.endsAtNanos - SystemClock.elapsedRealtimeNanos()) / 1e9).coerceAtLeast(0.0)
-                val phase = if (s.phase == LabState.Phase.Idle) "boşta ölçüm" else "yük"
+                val phase = if (s.phase == LabState.Phase.Idle) "idle" else "load"
                 LabText("${s.run + 1}/${s.runs} · ${s.workload}", StressColors.Text)
-                LabText("$phase · ${Format.number(remaining, 0)} sn", StressColors.Text)
+                LabText("$phase · ${Format.number(remaining, 0)} s", StressColors.Text)
                 LabText(Format.watts(live?.watts), StressColors.AccentDim)
             }
             is LabState.Finished -> {
-                LabText("bitti · ${s.results.size} koşu", StressColors.Good)
+                LabText("done · ${runs(s.results.size)}", StressColors.Good)
                 s.results.forEach { r ->
                     LabText(
-                        "${r.runIndex + 1}. ${r.workload} · ${Format.watts(r.load.meanWatts)} · hata ${r.computationErrors}",
+                        "${r.runIndex + 1}. ${r.workload} · ${Format.watts(r.load.meanWatts)} · errors ${r.computationErrors}",
                         StressColors.TextDim,
                     )
                 }
@@ -99,6 +103,8 @@ fun LabScreen(spec: Result<LabSpec>) {
         }
     }
 }
+
+private fun runs(count: Int) = if (count == 1) "1 run" else "$count runs"
 
 @Composable
 private fun LabText(text: String, color: androidx.compose.ui.graphics.Color) {
