@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <span>
+#include <string>
 
 namespace stress {
 
@@ -42,7 +43,8 @@ public:
         kFieldHeight = 10,
         kFieldBurnerNanos = 11,      // sum of GPU time spent in burner work
         kFieldVisibleNanos = 12,     // sum of GPU time spent drawing what the screen shows
-        kSnapshotStride = 13,
+        kFieldTimed = 13,            // 1: times come from GPU timestamps; 0: from the CPU, between frames
+        kSnapshotStride = 14,
     };
 
     enum State : int { kStateIdle = 0, kStateRunning = 1, kStateDeviceLost = 2, kStateFailed = 3 };
@@ -62,15 +64,20 @@ public:
     // Takes ownership of `window` (released on stop or failure). `burner` is an
     // index into gpuBurnerTable(), or -1 to draw the visible pass alone. The
     // visible pass is a scene (`sceneKind`: 0 the pool, 1 the forest, 2 the white world) at
-    // `sceneScalePercent` of the screen's resolution, or with `scene` false a
-    // cheap preview ring.
+    // `sceneScalePercent` of the screen's resolution and `sceneQuality` (0 low,
+    // 1 medium, 2 high), or with `scene` false a cheap preview ring.
     StartResult start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene, int sceneScalePercent,
-                      int sceneKind);
+                      int sceneKind, int sceneQuality);
 
     // Stops the render thread and releases every Vulkan object. Safe to call when idle.
     void stop();
 
     void snapshot(int64_t* out) const;
+
+    // The device's GPU as Vulkan describes it, without a window:
+    // "name|api major.minor.patch|driver version|vendor id|device id", or empty
+    // when there is no Vulkan 1.1 device.
+    static std::string describeDevice();
 
     struct Renderer;
 

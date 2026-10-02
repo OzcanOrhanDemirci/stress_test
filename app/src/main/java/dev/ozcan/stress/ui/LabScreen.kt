@@ -40,7 +40,7 @@ class LabViewModel(graph: AppGraph, spec: LabSpec) : ViewModel() {
     val state: StateFlow<LabState?> = runner.state
 
     val live: StateFlow<LiveView?> = graph.sampler.latest
-        .map { LiveView.from(graph.sampler.log.recent(DiagnosticsViewModel.LIVE_WINDOW_SAMPLES), graph.layout) }
+        .map { LiveView.from(graph.sampler.log.recent(LiveView.WINDOW_SAMPLES), graph.layout) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(1_000), null)
 
     init {

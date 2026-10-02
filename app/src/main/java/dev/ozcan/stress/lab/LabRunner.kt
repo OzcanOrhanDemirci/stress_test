@@ -109,7 +109,7 @@ class LabRunner(
     }
 
     /**
-     * Waits until both CPU clusters are at or below [limit] °C. Gives up after
+     * Waits until the CPU is at or below [limit] °C. Gives up after
      * [COOL_TIMEOUT_MILLIS] so a warm room cannot stall a session; the result
      * then records that the run started warm.
      */
@@ -117,7 +117,7 @@ class LabRunner(
         val deadline = SystemClock.elapsedRealtime() + COOL_TIMEOUT_MILLIS
         while (true) {
             val temps = sampler.latest.value?.sysfs?.temperatures.orEmpty()
-            val hottest = listOfNotNull(temps[ThermalGroup.BigCores], temps[ThermalGroup.LittleCores]).maxOrNull()
+            val hottest = temps[ThermalGroup.Cpu]
             if (hottest != null && hottest <= limit) return temps to true
             if (SystemClock.elapsedRealtime() > deadline) return temps to false
             _state.value = LabState.Cooling(index, count, hottest, limit)
@@ -132,7 +132,7 @@ class LabRunner(
         delay(spec.idleSeconds * 1000L)
         val idleEnd = now()
 
-        val settings = LoadSettings(spec.nice, spec.batchMillis, spec.scene, spec.sceneScalePercent)
+        val settings = LoadSettings(spec.nice, spec.batchMillis, spec.scene, spec.quality, spec.sceneScalePercent)
         val outcome = driver.start(run.load, settings)
         val loadStart = now()
         var loadEnd = loadStart

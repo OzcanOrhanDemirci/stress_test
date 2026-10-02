@@ -39,9 +39,33 @@ enum class GpuStartResult(val code: Int) {
 }
 
 /**
+ * How hard a cinematic scene works: its resolution, as a share of the
+ * screen's in each direction ([scalePercent]), and the native side's
+ * sampling (SceneRenderer::Quality). [Medium] is the scene as it was tuned
+ * on the Honor 400 (Snapdragon 7 Gen 3, a mid-range phone): 38-40 ms a frame
+ * at 45 % (docs/OLCUMLER.md, 2026-10-02). [Low] draws fewer pixels and
+ * samples for entry-level GPUs (20-25 ms there); [High] draws more of both
+ * for the fastest phones and runs at 3-7 frames a second on a mid-range one
+ * (150-300 ms). The forest is drawn from triangles, so its High is the
+ * screen's own resolution; the ray-marched scenes trace two rays a pixel.
+ */
+enum class SceneQuality(val code: Int, private val scale: Int, private val forestScale: Int) {
+    Low(0, 30, 30),
+    Medium(1, 45, 45),
+    High(2, 65, 100);
+
+    /** The share of the screen's resolution, in percent, [kind] is drawn at. */
+    fun scalePercent(kind: SceneKind): Int = if (kind == SceneKind.Forest) forestScale else scale
+
+    companion object {
+        fun fromCode(code: Int): SceneQuality = entries.firstOrNull { it.code == code } ?: Medium
+    }
+}
+
+/**
  * What the GPU should do: a burner (null: the visible pass alone), the GPU time
  * to fill per frame, and the visible pass: a [scene] ([sceneKind]) rendered at
- * [sceneScalePercent] of the screen's resolution, or a cheap preview ring.
+ * [sceneScalePercent] of the screen's resolution and [quality], or a cheap preview ring.
  */
 data class GpuRequest(
     val burner: GpuBurner?,
@@ -49,14 +73,16 @@ data class GpuRequest(
     val scene: Boolean = true,
     val sceneScalePercent: Int = DEFAULT_SCENE_SCALE_PERCENT,
     val sceneKind: SceneKind = SceneKind.Pool,
+    val quality: SceneQuality = SceneQuality.Medium,
 ) {
     companion object {
         /**
-         * The cinematic scene's resolution, as a share of the screen's in each
-         * direction; temporal accumulation and a Catmull-Rom upscale make up
-         * the rest. 45 % runs at ~49 ms a frame, ~20 fps (docs/OLCUMLER.md).
+         * The cinematic scene's resolution at Medium quality, as a share of the
+         * screen's in each direction; temporal accumulation and a Catmull-Rom
+         * upscale make up the rest. 45 % runs at ~49 ms a frame, ~20 fps on the
+         * Honor 400 (docs/OLCUMLER.md).
          */
-        const val DEFAULT_SCENE_SCALE_PERCENT = 45
+        val DEFAULT_SCENE_SCALE_PERCENT = SceneQuality.Medium.scalePercent(SceneKind.Pool)
 
         /**
          * Long enough that the frame's fixed costs are small next to the burner,
@@ -84,6 +110,8 @@ data class GpuSnapshot(
     /** Of [gpuNanos]: time in burner work, and time drawing the visible pass (the scene). */
     val burnerNanos: Long = 0,
     val visibleNanos: Long = 0,
+    /** True when the times come from GPU timestamps; false when the CPU timed whole frames (no timestamps). */
+    val timed: Boolean = true,
 ) {
     val isRunning: Boolean get() = state == GpuState.Running
 
@@ -165,6 +193,7 @@ class GpuEngine {
                 wanted.scene,
                 wanted.sceneScalePercent,
                 wanted.sceneKind.code,
+                wanted.quality.code,
             )
             val result = GpuStartResult.fromCode(code)
             lastStart = result
@@ -194,11 +223,12 @@ class GpuEngine {
             height = buffer[10].toInt(),
             burnerNanos = buffer[11],
             visibleNanos = buffer[12],
+            timed = buffer[13] != 0L,
         )
     }
 
     companion object {
         /** Must match `GpuLoad::kSnapshotStride`. */
-        const val SNAPSHOT_STRIDE = 13
+        const val SNAPSHOT_STRIDE = 14
     }
 }

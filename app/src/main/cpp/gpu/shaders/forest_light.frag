@@ -8,6 +8,7 @@
 
 #include "forest_params.glsl"
 #include "forest.glsl"
+#include "quality.glsl"
 
 layout(set = 0, binding = 0) uniform sampler2DShadow sunDepth;
 layout(set = 0, binding = 1) uniform sampler2D distances;  // R32F: fetched, never filtered
@@ -15,7 +16,8 @@ layout(set = 0, binding = 1) uniform sampler2D distances;  // R32F: fetched, nev
 layout(location = 0) flat in int layer;
 layout(location = 0) out vec4 colour;
 
-const int STATIONS = 12;
+// Points asked along each ray: 6 on Low, 12 on Medium, 24 on High.
+QUALITY_CONSTANT(STATIONS, 12)
 const float LIGHT_REACH = 70.0;
 
 float litAt(vec3 p) {

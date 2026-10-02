@@ -24,6 +24,16 @@ class PowerTest {
     }
 
     @Test
+    fun `voltage in volts or microvolts becomes millivolts`() {
+        assertEquals(4120, Power.normalizeMillivolts(4120))
+        assertEquals(4000, Power.normalizeMillivolts(4))
+        assertEquals(4120, Power.normalizeMillivolts(4_120_000))
+        assertNull(Power.normalizeMillivolts(0))
+        assertNull(Power.normalizeMillivolts(-1))
+        assertNull(Power.normalizeMillivolts(500))
+    }
+
+    @Test
     fun `needs three non-zero readings`() {
         assertNull(CurrentConvention.infer(listOf(0L, 0L, -5L, -6L)))
     }

@@ -41,8 +41,27 @@ enum class Blend { None, Additive };
 /** Whether a pipeline tests and writes the render pass's depth attachment. */
 enum class Depth { None, TestWrite, TestEqual };
 
-/** The one depth format: 32-bit float, for a forest's long view and thin cards. */
-constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT;
+/**
+ * Depth formats a scene may draw into, best first: 32-bit float for a
+ * forest's long view and thin cards, then what every device has.
+ */
+constexpr VkFormat kDepthFormats[] = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D16_UNORM};
+
+/** Whether a view of `format` sees its depth aspect (the depth formats above have no stencil). */
+constexpr bool isDepth(VkFormat format) {
+    return format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_X8_D24_UNORM_PACK32 || format == VK_FORMAT_D16_UNORM;
+}
+
+/** One specialization constant (constant_id 0) of a shader stage, an int. */
+struct Specialization {
+    int32_t value = 0;
+    VkSpecializationMapEntry entry{0, 0, sizeof(int32_t)};
+    VkSpecializationInfo info{1, &entry, sizeof(int32_t), &value};
+
+    explicit Specialization(int32_t v) : value(v) {}
+    Specialization(const Specialization&) = delete;
+    Specialization& operator=(const Specialization&) = delete;
+};
 
 /** Records one image layout transition. */
 void transition(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageLayout to, VkAccessFlags srcAccess,
@@ -54,6 +73,10 @@ struct Context {
     VkPhysicalDeviceMemoryProperties memory{};
     VkQueue queue = VK_NULL_HANDLE;
     VkCommandPool commandPool = VK_NULL_HANDLE;
+    /** The first of kDepthFormats the device can draw depth into. */
+    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+    /** Whether points may be larger than a pixel (particle sprites); without it they draw one pixel wide. */
+    bool largePoints = true;
 
     bool memoryType(uint32_t bits, VkMemoryPropertyFlags wanted, uint32_t& out) const;
 
@@ -79,12 +102,13 @@ struct Context {
     /**
      * A pipeline without vertex buffers: the vertex shader makes its own
      * geometry (a full-screen triangle, or points from a storage buffer).
-     * Viewport and scissor are dynamic.
+     * Viewport and scissor are dynamic. `fragmentConstants` sets the fragment
+     * shader's specialization constants (the scene's quality knobs).
      */
     bool graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipelineLayout layout, std::span<const uint32_t> vertex,
                           std::span<const uint32_t> fragment, Blend blend, VkPipeline& out,
                           VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-                          Depth depth = Depth::None) const;
+                          Depth depth = Depth::None, const VkSpecializationInfo* fragmentConstants = nullptr) const;
 
     bool computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const;
 

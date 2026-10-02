@@ -11,6 +11,7 @@
 #include <array>
 #include <cmath>
 #include <condition_variable>
+#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <vector>
@@ -107,7 +108,11 @@ struct GpuLoad::Renderer {
     int64_t targetFrameNanos = 0;
     bool scene = true;        // draw a scene; otherwise the cheap preview ring
     SceneRenderer::Kind sceneKind = SceneRenderer::Kind::Pool;
+    SceneRenderer::Quality sceneQuality = SceneRenderer::Quality::Medium;
     float sceneScale = 0.5f;  // scene resolution relative to the screen
+    uint32_t instanceVersion = VK_API_VERSION_1_1;
+    bool timed = false;            // GPU timestamps available (else frames are timed on the CPU)
+    int64_t lastCollectNanos = 0;  // when the previous frame was read back, for CPU timing
 
     VkInstance instance = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -121,6 +126,7 @@ struct GpuLoad::Renderer {
 
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     VkFormat format = VK_FORMAT_UNDEFINED;
+    VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     VkExtent2D extent{};
     VkRenderPass presentPass = VK_NULL_HANDLE;
     std::vector<VkImageView> views;
@@ -216,10 +222,15 @@ struct GpuLoad::Renderer {
     // ---- setup ----------------------------------------------------------------
 
     bool init() {
+        // The loader of a phone may be older than its driver: ask for the
+        // newer of 1.1 and what the loader knows, up to 1.2.
+        uint32_t loader = VK_API_VERSION_1_0;
+        if (vkEnumerateInstanceVersion(&loader) != VK_SUCCESS) loader = VK_API_VERSION_1_0;
+        instanceVersion = std::min<uint32_t>(std::max<uint32_t>(loader, VK_API_VERSION_1_1), VK_API_VERSION_1_2);
         VkApplicationInfo app{};
         app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         app.pApplicationName = "stress";
-        app.apiVersion = VK_API_VERSION_1_2;
+        app.apiVersion = instanceVersion;
         const char* instanceExtensions[] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME};
         VkInstanceCreateInfo instanceInfo{};
         instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -243,47 +254,67 @@ struct GpuLoad::Renderer {
         vkGetPhysicalDeviceProperties(physical, &properties);
         vkGetPhysicalDeviceMemoryProperties(physical, &memoryProperties);
         timestampPeriodNanos = properties.limits.timestampPeriod;
+        const uint32_t deviceVersion = std::min(properties.apiVersion, instanceVersion);
+        if (deviceVersion < VK_API_VERSION_1_1) {
+            LOGE("%s has Vulkan %u.%u; 1.1 is needed", properties.deviceName, VK_API_VERSION_MAJOR(properties.apiVersion),
+                 VK_API_VERSION_MINOR(properties.apiVersion));
+            return false;
+        }
 
         uint32_t familyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physical, &familyCount, nullptr);
         std::vector<VkQueueFamilyProperties> families(familyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physical, &familyCount, families.data());
+        // A family that can draw, compute and present; one with timestamps if
+        // there is one. Without them frames are timed on the CPU (collect()).
         bool foundFamily = false;
         for (uint32_t i = 0; i < familyCount; ++i) {
             VkBool32 present = VK_FALSE;
             vkGetPhysicalDeviceSurfaceSupportKHR(physical, i, surface, &present);
             const VkQueueFlags need = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
-            if ((families[i].queueFlags & need) == need && present && families[i].timestampValidBits > 0) {
-                queueFamily = i;
+            if ((families[i].queueFlags & need) != need || !present) continue;
+            const bool stamps = families[i].timestampValidBits > 0 && timestampPeriodNanos > 0.0;
+            if (foundFamily && (timed || !stamps)) continue;
+            queueFamily = i;
+            timed = stamps;
+            if (stamps) {
                 timestampMask = families[i].timestampValidBits >= 64 ? ~0ULL : (1ULL << families[i].timestampValidBits) - 1;
-                foundFamily = true;
-                break;
             }
+            foundFamily = true;
         }
         if (!foundFamily) {
-            LOGE("no queue family with graphics, compute, present and timestamps");
+            LOGE("no queue family with graphics, compute and present");
             return false;
         }
+        if (!timed) LOGW("no GPU timestamps: frames are timed on the CPU");
 
+        // FP16 arithmetic (G2 only): a Vulkan 1.2 feature, or on 1.1 the extension it came from.
+        const bool vulkan12 = deviceVersion >= VK_API_VERSION_1_2;
+        const bool float16Extension = !vulkan12 && hasDeviceExtension(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
         VkPhysicalDeviceVulkan12Features supported12{};
         supported12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        VkPhysicalDeviceShaderFloat16Int8Features supportedFloat16{};
+        supportedFloat16.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
         VkPhysicalDeviceFeatures2 supported{};
         supported.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        supported.pNext = &supported12;
+        supported.pNext = vulkan12 ? static_cast<void*>(&supported12)
+                                   : float16Extension ? static_cast<void*>(&supportedFloat16) : nullptr;
         vkGetPhysicalDeviceFeatures2(physical, &supported);
-        if (burner == kFp16 && !supported12.shaderFloat16) {
+        const bool float16 = vulkan12 ? supported12.shaderFloat16 == VK_TRUE : supportedFloat16.shaderFloat16 == VK_TRUE;
+        if (burner == kFp16 && !float16) {
             LOGE("FP16 arithmetic not supported");
-            return false;
-        }
-        if (!supported.features.largePoints) {
-            LOGE("large points not supported");
             return false;
         }
         VkPhysicalDeviceVulkan12Features enabled12{};
         enabled12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-        enabled12.shaderFloat16 = supported12.shaderFloat16;
+        enabled12.shaderFloat16 = float16 ? VK_TRUE : VK_FALSE;
+        VkPhysicalDeviceShaderFloat16Int8Features enabledFloat16{};
+        enabledFloat16.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
+        enabledFloat16.shaderFloat16 = float16 ? VK_TRUE : VK_FALSE;
         VkPhysicalDeviceFeatures enabledFeatures{};
-        enabledFeatures.largePoints = VK_TRUE;  // particle sprites
+        // Particle sprites; without the feature they are drawn a pixel wide.
+        enabledFeatures.largePoints = supported.features.largePoints;
+        if (!supported.features.largePoints) LOGW("large points not supported: particles are drawn a pixel wide");
 
         const float priority = 1.0f;
         VkDeviceQueueCreateInfo queueInfo{};
@@ -291,15 +322,17 @@ struct GpuLoad::Renderer {
         queueInfo.queueFamilyIndex = queueFamily;
         queueInfo.queueCount = 1;
         queueInfo.pQueuePriorities = &priority;
-        const char* deviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        std::vector<const char*> deviceExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        if (float16Extension && float16) deviceExtensions.push_back(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
         VkDeviceCreateInfo deviceInfo{};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceInfo.pNext = &enabled12;
+        deviceInfo.pNext = vulkan12 ? static_cast<const void*>(&enabled12)
+                                    : float16Extension && float16 ? static_cast<const void*>(&enabledFloat16) : nullptr;
         deviceInfo.pEnabledFeatures = &enabledFeatures;
         deviceInfo.queueCreateInfoCount = 1;
         deviceInfo.pQueueCreateInfos = &queueInfo;
-        deviceInfo.enabledExtensionCount = 1;
-        deviceInfo.ppEnabledExtensionNames = deviceExtensions;
+        deviceInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+        deviceInfo.ppEnabledExtensionNames = deviceExtensions.data();
         VK_TRY(vkCreateDevice(physical, &deviceInfo, nullptr, &device));
         vkGetDeviceQueue(device, queueFamily, 0, &queue);
         LOGI("GPU %s, API %u.%u, timestamp %.2f ns", properties.deviceName, VK_API_VERSION_MAJOR(properties.apiVersion),
@@ -314,9 +347,34 @@ struct GpuLoad::Renderer {
         vk.memory = memoryProperties;
         vk.queue = queue;
         vk.commandPool = commandPool;
+        vk.largePoints = supported.features.largePoints == VK_TRUE;
+        vk.depthFormat = VK_FORMAT_UNDEFINED;
+        for (VkFormat candidate : vk::kDepthFormats) {
+            VkFormatProperties formatProperties;
+            vkGetPhysicalDeviceFormatProperties(physical, candidate, &formatProperties);
+            if (formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                vk.depthFormat = candidate;
+                break;
+            }
+        }
+        if (vk.depthFormat == VK_FORMAT_UNDEFINED) {
+            LOGE("no depth format to draw into");
+            return false;
+        }
 
         return createPresentPass() && createSwapchain() && createFrameResources() && createBurnerResources() &&
                createPipelines();
+    }
+
+    bool hasDeviceExtension(const char* name) const {
+        uint32_t count = 0;
+        if (vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, nullptr) != VK_SUCCESS) return false;
+        std::vector<VkExtensionProperties> extensions(count);
+        if (vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, extensions.data()) != VK_SUCCESS) return false;
+        for (const auto& e : extensions) {
+            if (std::strcmp(e.extensionName, name) == 0) return true;
+        }
+        return false;
     }
 
     bool createPresentPass() {
@@ -327,9 +385,17 @@ struct GpuLoad::Renderer {
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface, &formatCount, formats.data());
         if (formats.empty()) return false;
-        format = formats[0].format;
-        for (const auto& f : formats) {
-            if (f.format == VK_FORMAT_R8G8B8A8_UNORM) format = f.format;
+        // The final pass writes display-ready (gamma-encoded) values, so an
+        // sRGB format, which would encode them again, comes last.
+        format = formats[0].format == VK_FORMAT_UNDEFINED ? VK_FORMAT_R8G8B8A8_UNORM : formats[0].format;
+        colorSpace = formats[0].colorSpace;
+        for (VkFormat wanted : {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM}) {
+            for (const auto& f : formats) {
+                if (f.format == wanted && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    format = f.format;
+                    colorSpace = f.colorSpace;
+                }
+            }
         }
 
         VkAttachmentDescription color{};
@@ -367,7 +433,7 @@ struct GpuLoad::Renderer {
         info.surface = surface;
         info.minImageCount = imageCount;
         info.imageFormat = format;
-        info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        info.imageColorSpace = colorSpace;
         info.imageExtent = extent;
         info.imageArrayLayers = 1;
         info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -433,6 +499,7 @@ struct GpuLoad::Renderer {
             semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
             VK_TRY(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &acquired[i]));
         }
+        if (!timed) return true;
         VkQueryPoolCreateInfo queryInfo{};
         queryInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
         queryInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
@@ -633,7 +700,7 @@ struct GpuLoad::Renderer {
             return vk.graphicsPipeline(presentPass, 1, graphicsLayout, kFullscreenVertSpirv, kPreviewFragSpirv, vk::Blend::None,
                                        previewPipeline);
         }
-        return sceneRenderer.init(vk, extent, sceneScale, presentPass, sceneKind);
+        return sceneRenderer.init(vk, extent, sceneScale, presentPass, sceneKind, sceneQuality);
     }
 
     void writeDescriptors() {
@@ -767,8 +834,10 @@ struct GpuLoad::Renderer {
         begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         VK_TRY(vkBeginCommandBuffer(cmd, &begin));
-        vkCmdResetQueryPool(cmd, queries, slot * kStampsPerFrame, kStampsPerFrame);
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queries, slot * kStampsPerFrame);
+        if (timed) {
+            vkCmdResetQueryPool(cmd, queries, slot * kStampsPerFrame, kStampsPerFrame);
+            vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queries, slot * kStampsPerFrame);
+        }
 
         VkViewport viewport{0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f};
         VkRect2D scissor{{0, 0}, extent};
@@ -805,7 +874,7 @@ struct GpuLoad::Renderer {
                                  nullptr, 0, nullptr);
         }
 
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * kStampsPerFrame + 1);
+        if (timed) vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * kStampsPerFrame + 1);
 
         const float seconds = static_cast<float>(static_cast<double>(nowNanos() - startNanos) * 1e-9);
         const float load = burner >= 0 ? 1.0f : 0.0f;
@@ -829,7 +898,7 @@ struct GpuLoad::Renderer {
         }
         vkCmdEndRenderPass(cmd);
 
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * kStampsPerFrame + 2);
+        if (timed) vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * kStampsPerFrame + 2);
         VK_TRY(vkEndCommandBuffer(cmd));
         return true;
     }
@@ -839,15 +908,25 @@ struct GpuLoad::Renderer {
         std::array<uint64_t, kStampsPerFrame> stamps{};
         int64_t burnerNanos = 0;
         int64_t visibleNanos = 0;
-        if (vkGetQueryPoolResults(device, queries, slot * kStampsPerFrame, kStampsPerFrame, sizeof(stamps), stamps.data(),
-                                  sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS) {
-            auto nanos = [&](uint64_t from, uint64_t to) {
-                const uint64_t ticks = ((to & timestampMask) - (from & timestampMask)) & timestampMask;
-                return static_cast<int64_t>(static_cast<double>(ticks) * timestampPeriodNanos);
-            };
-            burnerNanos = nanos(stamps[0], stamps[1]);
-            visibleNanos = nanos(stamps[1], stamps[2]);
+        const int64_t collectedAt = nowNanos();
+        if (timed) {
+            if (vkGetQueryPoolResults(device, queries, slot * kStampsPerFrame, kStampsPerFrame, sizeof(stamps),
+                                      stamps.data(), sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS) {
+                auto nanos = [&](uint64_t from, uint64_t to) {
+                    const uint64_t ticks = ((to & timestampMask) - (from & timestampMask)) & timestampMask;
+                    return static_cast<int64_t>(static_cast<double>(ticks) * timestampPeriodNanos);
+                };
+                burnerNanos = nanos(stamps[0], stamps[1]);
+                visibleNanos = nanos(stamps[1], stamps[2]);
+            }
+        } else if (lastCollectNanos > 0) {
+            // No timestamps: with frames queued back to back, the time between
+            // two finished frames is the GPU's time for one. The parts are not
+            // told apart, so the whole frame counts as the burner's when one runs.
+            const int64_t between = std::min<int64_t>(collectedAt - lastCollectNanos, 1'000'000'000);
+            (dispatchesInFlight[slot] > 0 ? burnerNanos : visibleNanos) = between;
         }
+        lastCollectNanos = collectedAt;
         const int64_t frameNanos = burnerNanos + visibleNanos;
 
         const uint32_t count = dispatchesInFlight[slot];
@@ -934,7 +1013,7 @@ GpuLoad::GpuLoad() = default;
 GpuLoad::~GpuLoad() { stop(); }
 
 GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene,
-                                    int sceneScalePercent, int sceneKind) {
+                                    int sceneScalePercent, int sceneKind, int sceneQuality) {
     std::lock_guard lock(control_);
     if (renderer_) {
         ANativeWindow_release(window);
@@ -953,6 +1032,9 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->sceneKind = sceneKind == 1   ? SceneRenderer::Kind::Forest
                           : sceneKind == 2 ? SceneRenderer::Kind::White
                                            : SceneRenderer::Kind::Pool;
+    renderer->sceneQuality = sceneQuality <= 0   ? SceneRenderer::Quality::Low
+                             : sceneQuality >= 2 ? SceneRenderer::Quality::High
+                                                 : SceneRenderer::Quality::Medium;
     if (pthread_create(&renderer->thread, nullptr, &Renderer::threadMain, renderer.get()) != 0) {
         renderer->destroy();
         return kSetupFailed;
@@ -1008,6 +1090,38 @@ void GpuLoad::snapshot(int64_t* out) const {
     out[kFieldHeight] = r.height.load(std::memory_order_relaxed);
     out[kFieldBurnerNanos] = r.burnerTotalNanos.load(std::memory_order_relaxed);
     out[kFieldVisibleNanos] = r.visibleTotalNanos.load(std::memory_order_relaxed);
+    out[kFieldTimed] = r.timed ? 1 : 0;
+}
+
+std::string GpuLoad::describeDevice() {
+    uint32_t loader = VK_API_VERSION_1_0;
+    if (vkEnumerateInstanceVersion(&loader) != VK_SUCCESS) return {};
+    VkApplicationInfo app{};
+    app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app.pApplicationName = "stress";
+    app.apiVersion = std::max<uint32_t>(loader, VK_API_VERSION_1_1);
+    VkInstanceCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    info.pApplicationInfo = &app;
+    VkInstance instance = VK_NULL_HANDLE;
+    if (vkCreateInstance(&info, nullptr, &instance) != VK_SUCCESS) return {};
+    std::string text;
+    uint32_t count = 1;
+    VkPhysicalDevice physical = VK_NULL_HANDLE;
+    const VkResult enumerated = vkEnumeratePhysicalDevices(instance, &count, &physical);
+    if ((enumerated == VK_SUCCESS || enumerated == VK_INCOMPLETE) && count > 0) {
+        VkPhysicalDeviceProperties p;
+        vkGetPhysicalDeviceProperties(physical, &p);
+        if (p.apiVersion >= VK_API_VERSION_1_1) {
+            char line[512];
+            std::snprintf(line, sizeof(line), "%s|%u.%u.%u|%u|%u|%u", p.deviceName, VK_API_VERSION_MAJOR(p.apiVersion),
+                          VK_API_VERSION_MINOR(p.apiVersion), VK_API_VERSION_PATCH(p.apiVersion), p.driverVersion,
+                          p.vendorID, p.deviceID);
+            text = line;
+        }
+    }
+    vkDestroyInstance(instance, nullptr);
+    return text;
 }
 
 }  // namespace stress

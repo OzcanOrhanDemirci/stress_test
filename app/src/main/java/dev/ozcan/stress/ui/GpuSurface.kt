@@ -9,15 +9,19 @@ import dev.ozcan.stress.engine.GpuEngine
 
 /**
  * The surface the renderer draws on. It hands its surface to [engine] when it
- * appears and takes it back, synchronously, before it goes away.
+ * appears (then calls [onAttached]) and takes it back, synchronously, before
+ * it goes away.
  */
 @Composable
-fun GpuSurface(engine: GpuEngine, modifier: Modifier = Modifier) {
+fun GpuSurface(engine: GpuEngine, modifier: Modifier = Modifier, onAttached: (() -> Unit)? = null) {
     AndroidView(
         factory = { context ->
             SurfaceView(context).apply {
                 holder.addCallback(object : SurfaceHolder.Callback {
-                    override fun surfaceCreated(holder: SurfaceHolder) = engine.attachAsync(holder.surface)
+                    override fun surfaceCreated(holder: SurfaceHolder) {
+                        engine.attachAsync(holder.surface)
+                        onAttached?.invoke()
+                    }
 
                     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
 

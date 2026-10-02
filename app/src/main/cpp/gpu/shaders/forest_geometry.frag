@@ -6,6 +6,10 @@
 
 #include "forest_params.glsl"
 #include "forest.glsl"
+#include "quality.glsl"
+
+// Shadow map taps a pixel takes: 4 on Low, 8 on Medium, 16 on High.
+QUALITY_CONSTANT(SHADOW_TAPS, 8)
 
 layout(location = 0) in vec3 world;
 layout(location = 1) in vec3 normalIn;
@@ -19,8 +23,8 @@ layout(location = 1) out float distanceOut;
 
 layout(set = 0, binding = 0) uniform sampler2DShadow sunDepth;
 
-// Sunlight reaching a surface point: the shadow map read at eight points of a
-// small disc (the sun's penumbra a few metres under the canopy), the disc
+// Sunlight reaching a surface point: the shadow map read at SHADOW_TAPS points
+// of a small disc (the sun's penumbra a few metres under the canopy), the disc
 // turned differently at every pixel and frame so the soft edge builds up as
 // frames accumulate. The point is lifted off its surface a little first.
 float sunlight(vec3 p, vec3 n) {
@@ -31,12 +35,12 @@ float sunlight(vec3 p, vec3 n) {
     const float PENUMBRA = 0.1;  // metres
     vec2 radius = PENUMBRA / SHADOW_HALF * 0.5;
     float lit = 0.0;
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < SHADOW_TAPS; ++i) {
         float a = turn + float(i) * 2.39996;
-        vec2 o = vec2(cos(a), sin(a)) * sqrt((float(i) + 0.5) / 8.0) * radius;
+        vec2 o = vec2(cos(a), sin(a)) * sqrt((float(i) + 0.5) / float(SHADOW_TAPS)) * radius;
         lit += texture(sunDepth, vec3(s.xy * 0.5 + 0.5 + o, s.z - 0.0003));
     }
-    return lit / 8.0;
+    return lit / float(SHADOW_TAPS);
 }
 
 // Bark relief, a height over (round, up) in metres. A spruce's scaly plates

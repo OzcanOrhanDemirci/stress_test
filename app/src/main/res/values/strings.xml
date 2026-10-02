@@ -1,4 +1,322 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Stres</string>
+    <string name="app_name">Stress</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="title_with_part">%1$s · %2$s</string>
+    <string name="title_with_value">%1$s %2$s</string>
+    <string name="unit_seconds">seconds</string>
+    <string name="unit_pixel_rate">pixel/s</string>
+    <string name="hours_minutes">%1$d h %2$d min</string>
+    <string name="minutes_only">%1$d min</string>
+
+    <!-- Tabs -->
+    <string name="tab_test">Test</string>
+    <string name="tab_history">History</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Modes -->
+    <string name="mode_full">Max power</string>
+    <string name="mode_full_detail">CPU, GPU and memory at once: the most power the phone can draw. A light gauge on screen.</string>
+    <string name="mode_cinematic">Cinematic</string>
+    <string name="mode_cinematic_detail">A real-time 3D scene on screen while every CPU core runs flat out.</string>
+    <string name="mode_cpu">CPU</string>
+    <string name="mode_cpu_detail">Every core with the load that draws the most power: FMA streaming through the caches.</string>
+    <string name="mode_gpu">GPU</string>
+    <string name="mode_gpu_detail">The GPU alone, with the burner that draws the most power.</string>
+    <string name="mode_dry">Dry 100</string>
+    <string name="mode_dry_detail">Cores look fully busy while their units idle: the Prime95 versus Cinebench difference, measured.</string>
+    <string name="scene_pool">Pool</string>
+    <string name="scene_pool_detail">A pool reactor glowing blue under water: simulated waves, reflections, particles, depth of field.</string>
+    <string name="scene_forest">Forest</string>
+    <string name="scene_forest_detail">A dense, misty forest in light rain, with sunbeams through the canopy and soft shadows.</string>
+    <string name="scene_white">White</string>
+    <string name="scene_white_detail">A white world of glass and mirror corridors and tunnels: crisp, clean, full of reflections.</string>
+
+    <!-- Durations and quality -->
+    <string name="duration_1">1 min</string>
+    <string name="duration_5">5 min</string>
+    <string name="duration_15">15 min</string>
+    <string name="duration_30">30 min</string>
+    <string name="duration_endless">∞</string>
+    <string name="quality_low">Low</string>
+    <string name="quality_low_detail">For entry-level phones: fewer pixels and samples. A mid-range phone runs it smoothly.</string>
+    <string name="quality_medium">Medium</string>
+    <string name="quality_medium_detail">For mid-range phones (such as Snapdragon 7 Gen 3): the scenes as they were tuned.</string>
+    <string name="quality_high">High</string>
+    <string name="quality_high_detail">For the newest flagships: more pixels and twice the rays. A mid-range phone drops to a few frames a second.</string>
+
+    <!-- Home -->
+    <string name="home_tagline">Stress test · benchmark</string>
+    <string name="home_section_mode">Test mode</string>
+    <string name="home_section_duration">Duration</string>
+    <string name="home_section_last">Last run</string>
+    <string name="home_badge_max">Highest power</string>
+    <string name="home_badge_reference">Reference</string>
+    <string name="home_quality">Graphics quality</string>
+    <string name="home_start">START TEST</string>
+    <string name="home_live_battery">Battery</string>
+    <string name="home_live_chip">Chip</string>
+    <string name="home_live_power">Power</string>
+    <string name="home_live_charging">Charging</string>
+    <string name="home_live_thermal">Thermal: %1$s</string>
+    <string name="home_last_peak">peak</string>
+    <string name="home_plugged">The charger is connected: the test runs, but the power drawn from the battery cannot be measured.</string>
+    <string name="home_no_vulkan">This phone has no Vulkan 1.1 GPU driver, so the GPU and cinematic tests are off. The CPU tests work.</string>
+    <string name="home_blocked_title">Not yet</string>
+    <string name="home_blocked_text">Device safety holds the test: %1$s. Let the phone cool down (or charge it) and try again.</string>
+
+    <!-- Safety -->
+    <string name="safety_on_short">Protected</string>
+    <string name="safety_off_short">Unprotected</string>
+    <string name="safety_status_on">On: the phone is protected</string>
+    <string name="safety_status_off">Off: no protection</string>
+    <string name="safety_on_text">The app watches the phone throughout the test and stops it before it gets dangerously hot or flat:</string>
+    <string name="safety_limit_battery">Stops when the battery reaches %1$s</string>
+    <string name="safety_limit_chip">Stops when the CPU or GPU reaches %1$s</string>
+    <string name="safety_limit_skin">Stops when the case reaches %1$s</string>
+    <string name="safety_limit_thermal">Stops when Android reports %1$s thermal status</string>
+    <string name="safety_limit_level">Stops when the battery falls to %1$s</string>
+    <string name="safety_limit_start">Will not start while the battery is above %1$s</string>
+    <string name="safety_off_body">Tests run without the app\'s limits, until you stop them. The phone\'s own thermal protection still works, but the app will not step in.</string>
+    <string name="safety_off_title">Turn off device safety?</string>
+    <string name="safety_off_text">Without it the app will not stop a test when the battery, the case or the chip gets too hot, or when the battery runs low. Long tests can make the phone very hot. Only the phone\'s own protection remains.</string>
+    <string name="safety_off_confirm">Turn off</string>
+    <string name="safety_off_keep">Keep on</string>
+    <string name="safety_reason_battery_hot">Battery temperature</string>
+    <string name="safety_reason_chip_hot">Chip temperature</string>
+    <string name="safety_reason_skin_hot">Case temperature</string>
+    <string name="safety_reason_thermal">Android thermal status</string>
+    <string name="safety_reason_battery_low">Battery</string>
+
+    <!-- Thermal status -->
+    <string name="thermal_none">Normal</string>
+    <string name="thermal_light">Light</string>
+    <string name="thermal_moderate">Moderate</string>
+    <string name="thermal_severe">Severe</string>
+    <string name="thermal_critical">Critical</string>
+    <string name="thermal_emergency">Emergency</string>
+    <string name="thermal_shutdown">Shutdown</string>
+
+    <!-- Temperatures and clusters -->
+    <string name="temp_cpu">CPU</string>
+    <string name="temp_gpu">GPU</string>
+    <string name="temp_memory">Memory</string>
+    <string name="temp_skin">Case</string>
+    <string name="temp_battery">Battery</string>
+    <string name="temp_npu">NPU</string>
+    <string name="temp_modem">Modem</string>
+    <string name="temp_camera">Camera</string>
+    <string name="role_all">CPU</string>
+    <string name="role_little">Little</string>
+    <string name="role_mid">Mid</string>
+    <string name="role_big">Big</string>
+    <string name="role_prime">Prime</string>
+
+    <!-- Run -->
+    <string name="run_baseline_title">Idle measurement</string>
+    <string name="run_baseline_text">Do not touch the phone: first the power it draws at rest is measured.</string>
+    <string name="run_baseline_idle">Idle: %1$s</string>
+    <string name="run_stop">Stop</string>
+    <string name="run_stop_title">Stop the test?</string>
+    <string name="run_stop_text">What has been measured so far is kept and analysed.</string>
+    <string name="run_stop_confirm">Stop</string>
+    <string name="run_stop_continue">Keep going</string>
+    <string name="run_analysing">Analysing the results…</string>
+    <string name="run_saved">Saved. Opening the results…</string>
+    <string name="run_cancelled">Cancelled</string>
+    <string name="run_cancelled_text">The test was stopped before the load began; nothing was recorded.</string>
+    <string name="run_failed">The test could not start</string>
+    <string name="run_failed_text">A part of the load did not start (%1$s).</string>
+    <string name="run_power_caption">idle %1$s · load +%2$s</string>
+    <string name="run_power_invalid">charging: power not measurable</string>
+    <string name="run_safety_ok">Safe</string>
+    <string name="run_gpu_load">GPU load</string>
+    <string name="run_errors">Errors %1$d</string>
+    <string name="run_gauge_power">battery power</string>
+    <string name="run_gauge_chip">chip temperature</string>
+    <string name="run_cores">%1$d CPU CORES AT FULL LOAD</string>
+
+    <!-- End reasons -->
+    <string name="end_completed">Completed</string>
+    <string name="end_user">Stopped</string>
+    <string name="end_safety">Stopped by device safety</string>
+    <string name="end_gpu_failed">The GPU failed</string>
+    <string name="end_interrupted">Interrupted</string>
+    <string name="end_completed_short">Completed</string>
+    <string name="end_user_short">Stopped</string>
+    <string name="end_safety_short">Safety stop</string>
+    <string name="end_gpu_failed_short">GPU error</string>
+    <string name="end_interrupted_short">Interrupted</string>
+
+    <!-- Result -->
+    <string name="result_title">Result</string>
+    <string name="result_missing">This run is no longer stored.</string>
+    <string name="result_peak">Peak power</string>
+    <string name="result_sustained">Sustained</string>
+    <string name="result_mean">Mean power</string>
+    <string name="result_idle">Idle</string>
+    <string name="result_energy">Energy</string>
+    <string name="result_battery">Battery</string>
+    <string name="result_battery_life">Full battery at this load</string>
+    <string name="result_hottest">Hottest chip</string>
+    <string name="result_cpu_perf">CPU performance</string>
+    <string name="result_gpu_perf">GPU performance</string>
+    <string name="result_fps">Frame rate</string>
+    <string name="result_fps_min">lowest %1$s</string>
+    <string name="result_stability">Stability</string>
+    <string name="result_errors">Computation errors</string>
+    <string name="result_power_invalid">Power was not measured</string>
+    <string name="result_analysis">Analysis</string>
+    <string name="result_charts">Charts</string>
+    <string name="result_device">Device</string>
+    <string name="result_export">Report</string>
+
+    <!-- Charts -->
+    <string name="chart_power">Power</string>
+    <string name="chart_temperature">Temperature</string>
+    <string name="chart_clock">CPU clock</string>
+    <string name="chart_performance">Performance</string>
+    <string name="chart_performance_hint">Work per second, against the best second</string>
+    <string name="chart_fps">Frame rate</string>
+    <string name="chart_battery">Battery level</string>
+
+    <!-- Insights -->
+    <string name="insight_safety_title">Device safety stopped the test</string>
+    <string name="insight_safety_detail">Reading: %1$s. The results up to that moment are kept.</string>
+    <string name="insight_gpu_failed_title">The GPU failed</string>
+    <string name="insight_gpu_failed_detail">The graphics driver stopped or reset the GPU. On a weaker phone, try a lower graphics quality.</string>
+    <string name="insight_interrupted_title">The test was interrupted</string>
+    <string name="insight_interrupted_detail">The app left the screen, which takes the big cores and the GPU away from the load.</string>
+    <string name="insight_charging_title">The charger was connected</string>
+    <string name="insight_charging_detail">On a charger the battery gauge measures charging and load together, so the power figures are not valid.</string>
+    <string name="insight_counter_title">Power from the charge counter</string>
+    <string name="insight_counter_detail">This phone reports no instantaneous current: the mean power comes from the battery\'s charge counter, peaks are unknown.</string>
+    <string name="insight_throttled_title">Throttling began at %1$s</string>
+    <string name="insight_throttled_detail">%1$s first fell below 97%% of its top clock for three seconds: the phone slowed down to hold its temperature.</string>
+    <string name="insight_never_throttled_title">No throttling</string>
+    <string name="insight_never_throttled_detail">The loaded cores held their top clocks for the whole test.</string>
+    <string name="insight_drop_title">Performance fell by %1$s</string>
+    <string name="insight_drop_detail_good">The last minute was as fast as the first: the cooling keeps up with this load.</string>
+    <string name="insight_drop_detail_info">The phone gave up some speed as it heated: normal under a sustained load.</string>
+    <string name="insight_drop_detail_warn">The phone slowed down a lot as it heated: its cooling is the limit under this load.</string>
+    <string name="insight_stability_title">Stability %1$s · %2$s</string>
+    <string name="insight_stability_detail">The slowest minute against the fastest (the 3DMark measure). Above 95 is excellent.</string>
+    <string name="insight_chip_title">%1$s peaked at %2$s</string>
+    <string name="insight_chip_detail_hot">At its throttling point: the phone holds the chip there by lowering its clocks.</string>
+    <string name="insight_chip_detail_warm">Warm, within the chip\'s working range.</string>
+    <string name="insight_chip_detail_cool">Cool: this load did not heat the chip much.</string>
+    <string name="insight_battery_title">Battery %1$s → %2$s</string>
+    <string name="insight_battery_detail">The battery warmed by %1$s °C.</string>
+    <string name="insight_battery_detail_hot">The battery got hot (+%1$s °C): heat ages a battery faster.</string>
+    <string name="insight_drain_title">Battery drained %1$s%% per hour</string>
+    <string name="insight_drain_detail">Battery level lost per hour at this load.</string>
+    <string name="insight_no_errors_title">No computation errors</string>
+    <string name="insight_no_errors_detail">Every result the load checked was right: the hardware computed correctly under heat.</string>
+    <string name="insight_errors_title">%1$d computation errors</string>
+    <string name="insight_errors_detail">The hardware returned wrong results under load: a sign of instability (too hot, or an unstable clock or voltage).</string>
+    <string name="insight_fps_title">%1$s FPS on average</string>
+    <string name="insight_fps_detail">Lowest second: %1$s FPS.</string>
+    <string name="insight_fps_detail_plain">Frames drawn per second by the scene.</string>
+    <string name="grade_excellent">excellent</string>
+    <string name="grade_good">good</string>
+    <string name="grade_fair">fair</string>
+    <string name="grade_poor">poor</string>
+
+    <!-- Export -->
+    <string name="export_pdf_title">PDF report</string>
+    <string name="export_pdf_detail">The test, the device, the headline numbers, the analysis and the charts, on two A4 pages.</string>
+    <string name="export_share_pdf">Share report</string>
+    <string name="export_save_pdf">Save PDF</string>
+    <string name="export_csv">Data (CSV)</string>
+    <string name="export_share_title">Share</string>
+    <string name="export_saved">Report saved</string>
+    <string name="export_failed">The report could not be written</string>
+    <string name="report_title">Stress test report</string>
+    <string name="report_run_id">Run %1$s</string>
+    <string name="report_section_test">Test</string>
+    <string name="report_section_device">Device</string>
+    <string name="report_section_results">Results</string>
+    <string name="report_mode">Mode</string>
+    <string name="report_duration">Duration</string>
+    <string name="report_end">Ending</string>
+    <string name="report_workload">Workload</string>
+    <string name="report_device">Model</string>
+    <string name="report_footer">Stress %1$s · stress test and benchmark</string>
+    <string name="report_page">Page %1$d / %2$d</string>
+
+    <!-- History -->
+    <string name="history_title">History</string>
+    <string name="history_count">Runs: %1$d</string>
+    <string name="history_empty_title">No runs yet</string>
+    <string name="history_empty_text">Finished tests appear here with their results and charts.</string>
+    <string name="history_delete_title">Delete this run?</string>
+    <string name="history_delete_text">Its results and charts will be removed for good.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_safety">Device safety</string>
+    <string name="settings_section_graphics">Graphics</string>
+    <string name="settings_quality">Scene quality</string>
+    <string name="settings_quality_detail">How hard the cinematic scenes work. Choose by the phone: every level keeps the GPU fully busy.</string>
+    <string name="settings_quality_scale">Internal resolution: %1$d%% of the screen (forest %2$d%%)</string>
+    <string name="settings_section_test">Test</string>
+    <string name="settings_display">Full brightness during tests</string>
+    <string name="settings_display_detail">Maximum brightness and refresh rate, so the display adds the same load every time.</string>
+    <string name="settings_haptics">Vibration</string>
+    <string name="settings_haptics_detail">A short vibration when a test starts, ends or is stopped.</string>
+    <string name="settings_section_device">Device</string>
+    <string name="settings_device">Device info and sensors</string>
+    <string name="settings_device_detail">Processor, GPU, live readings, which sensors the app can read, manual load tests.</string>
+    <string name="settings_clear">Clear history</string>
+    <string name="settings_clear_detail">Deletes every stored run.</string>
+    <string name="settings_clear_title">Clear the history?</string>
+    <string name="settings_clear_text">Every stored run, with its results and charts, will be deleted for good.</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_about_text">A stress test and benchmark: assembly CPU loads that verify their own results, Vulkan GPU burners and real-time 3D scenes, power measured from the battery.</string>
+    <string name="settings_licenses">Fonts: Space Grotesk, JetBrains Mono (SIL Open Font License 1.1)</string>
+
+    <!-- Device -->
+    <string name="device_title">Device</string>
+    <string name="device_section_hardware">Hardware</string>
+    <string name="device_section_power">Battery and power</string>
+    <string name="device_section_clocks">Clocks</string>
+    <string name="device_section_sensors">Sensors</string>
+    <string name="device_section_advanced">Advanced</string>
+    <string name="device_soc">Chipset</string>
+    <string name="device_cpu">CPU</string>
+    <string name="device_cores">Cores</string>
+    <string name="device_gpu">GPU</string>
+    <string name="device_no_vulkan">No Vulkan 1.1</string>
+    <string name="device_android">Android</string>
+    <string name="device_ram">Memory</string>
+    <string name="device_display">Display</string>
+    <string name="device_app">App version</string>
+    <string name="device_current">Current</string>
+    <string name="device_current_raw">Raw current (CURRENT_NOW)</string>
+    <string name="device_voltage">Voltage</string>
+    <string name="device_thermal_status">Thermal status</string>
+    <string name="device_headroom">Thermal headroom</string>
+    <string name="device_unreadable">Not readable on this phone.</string>
+    <string name="device_sensors_detail">What this app may read on this phone. Phones close some sensors to apps; the app then measures without them.</string>
+    <string name="device_clock_of">Clock · %1$s</string>
+    <string name="device_gpu_counter">GPU load counter</string>
+    <string name="device_readable">readable</string>
+    <string name="device_closed">closed</string>
+    <string name="device_advanced">Manual load tests</string>
+    <string name="device_advanced_detail">Run one CPU kernel or GPU burner by hand. They stop when you leave this screen.</string>
+    <string name="device_cpu_kernels">CPU kernels</string>
+    <string name="device_gpu_burners">GPU burners</string>
+    <string name="device_start">Start</string>
+    <string name="device_start_failed">Could not start: %1$s</string>
+    <string name="device_running">Running</string>
+    <string name="device_none">none</string>
+    <string name="device_gpu_state">State</string>
+    <string name="device_frame">Frame</string>
+    <string name="device_work">Work</string>
 </resources>

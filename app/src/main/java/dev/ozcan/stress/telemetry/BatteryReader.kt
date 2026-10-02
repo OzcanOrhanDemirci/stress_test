@@ -88,7 +88,7 @@ class BatteryReader(private val context: Context) {
         return BatteryReading(
             currentRaw = property(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW),
             chargeCounterMicroAmpHours = property(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)?.let(Power::normalizeChargeCounter),
-            voltageMillivolts = b?.voltageMillivolts?.takeIf { it > 0 },
+            voltageMillivolts = b?.voltageMillivolts?.let(Power::normalizeMillivolts),
             voltageAgeNanos = b?.let { nowNanos - it.receivedNanos },
             temperatureCelsius = b?.temperatureTenths?.takeIf { it != Int.MIN_VALUE }?.let { it / 10.0 },
             levelPercent = b?.takeIf { it.level >= 0 && it.scale > 0 }?.let { it.level * 100 / it.scale },

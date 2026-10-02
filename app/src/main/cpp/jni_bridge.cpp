@@ -6,6 +6,7 @@
 #include <sched.h>
 #include <time.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <string>
@@ -65,8 +66,8 @@ Java_dev_ozcan_stress_engine_NativeBridge_kernelTable(JNIEnv* env, jclass) {
     for (size_t i = 0; i < table.size(); ++i) {
         const auto& k = table[i];
         char line[160];
-        std::snprintf(line, sizeof(line), "%s|%s|%s|%.17g|%u", k.key, k.code, k.unit, k.opsPerIteration(),
-                      k.bufferBytes);
+        std::snprintf(line, sizeof(line), "%s|%s|%s|%.17g|%u|%d", k.key, k.code, k.unit, k.opsPerIteration(),
+                      k.bufferBytes, stress::kernelSupported(k) ? 1 : 0);
         jstring s = env->NewStringUTF(line);
         env->SetObjectArrayElement(result, static_cast<jsize>(i), s);
         env->DeleteLocalRef(s);
@@ -98,13 +99,19 @@ Java_dev_ozcan_stress_engine_NativeBridge_cpuSnapshotStride(JNIEnv*, jclass) {
     return stress::CpuLoad::kSnapshotStride;
 }
 
+// Fills as many CPU slots as `out` holds (the app sizes it to the device's CPUs).
 JNIEXPORT void JNICALL
 Java_dev_ozcan_stress_engine_NativeBridge_cpuSnapshot(JNIEnv* env, jclass, jlongArray out) {
     constexpr int kLength = stress::CpuLoad::kMaxCpus * stress::CpuLoad::kSnapshotStride;
-    if (env->GetArrayLength(out) < kLength) return;
     std::array<int64_t, kLength> values{};
     gCpuLoad.snapshot(values.data());
-    env->SetLongArrayRegion(out, 0, kLength, reinterpret_cast<const jlong*>(values.data()));
+    const jsize wanted = std::min<jsize>(env->GetArrayLength(out), kLength);
+    env->SetLongArrayRegion(out, 0, wanted, reinterpret_cast<const jlong*>(values.data()));
+}
+
+JNIEXPORT jint JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_cpuMaxCount(JNIEnv*, jclass) {
+    return stress::CpuLoad::kMaxCpus;
 }
 
 // Runs one kernel to completion on a fresh thread pinned to `cpu` (-1: not
@@ -180,10 +187,17 @@ Java_dev_ozcan_stress_engine_NativeBridge_gpuBurnerTable(JNIEnv* env, jclass) {
 JNIEXPORT jint JNICALL
 Java_dev_ozcan_stress_engine_NativeBridge_gpuStart(JNIEnv* env, jclass, jobject surface, jint burner,
                                                    jint targetFrameMillis, jboolean scene, jint sceneScalePercent,
-                                                   jint sceneKind) {
+                                                   jint sceneKind, jint sceneQuality) {
     ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
     if (window == nullptr) return stress::GpuLoad::kSetupFailed;
-    return gGpuLoad.start(window, burner, targetFrameMillis, scene == JNI_TRUE, sceneScalePercent, sceneKind);
+    return gGpuLoad.start(window, burner, targetFrameMillis, scene == JNI_TRUE, sceneScalePercent, sceneKind,
+                          sceneQuality);
+}
+
+// The GPU as Vulkan names it (GpuLoad::describeDevice); empty without Vulkan 1.1.
+JNIEXPORT jstring JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_gpuDescribe(JNIEnv* env, jclass) {
+    return env->NewStringUTF(stress::GpuLoad::describeDevice().c_str());
 }
 
 JNIEXPORT void JNICALL

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Reports are written to the cache (AppGraph.reportDir) and shared from there. -->
+<paths>
+    <cache-path name="reports" path="reports/" />
+</paths>

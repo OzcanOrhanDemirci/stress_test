@@ -15,7 +15,7 @@ import org.junit.Test
 
 class LabAnalysisTest {
 
-    private val workload = Workload(CoreAssignment.uniform(TestSamples.gemm), GpuPart(TestSamples.gpuFp32))
+    private val workload = Workload(CoreAssignment.uniform(TestSamples.gemm, TestSamples.CPU_COUNT), GpuPart(TestSamples.gpuFp32))
 
     private val spec = LabSpec(
         loads = listOf(workload),
@@ -29,7 +29,7 @@ class LabAnalysisTest {
         waitForBattery = true,
     )
 
-    private val context = RunContext(workload, index = 2, count = 5, mapOf(ThermalGroup.BigCores to 39.5), cooledInTime = true)
+    private val context = RunContext(workload, index = 2, count = 5, mapOf(ThermalGroup.Cpu to 39.5), cooledInTime = true)
 
     /**
      * 10 s idle at 0.5 A then 60 s of load at 2 A, both at 4.0 V, sampled at
@@ -46,7 +46,7 @@ class LabAnalysisTest {
         val load = (0 until 600).map { i ->
             val cpu = TestSamples.snapshot(TestSamples.gemm, batches = i * 5L, errors = errors)
             val gpu = TestSamples.gpu(TestSamples.gpuFp32, frames = i / 4L, errors = gpuErrors)
-            val temps = mapOf(ThermalGroup.BigCores to 40.0 + i / 20.0)
+            val temps = mapOf(ThermalGroup.Cpu to 40.0 + i / 20.0)
             sample(
                 t, currentRaw = -2_000_000, chargeCounter = counter.toLong(), cpu = cpu, temperatures = temps,
                 plugged = plugged && i == 300, gpu = gpu, gpuBusy = GpuBusy(980, 1000),
@@ -77,7 +77,7 @@ class LabAnalysisTest {
         assertEquals("fp32_gemm+gpu_fp32", r.workload)
         assertEquals(2, r.runIndex)
         assertEquals(5, r.runCount)
-        assertEquals(mapOf("A715" to 39.5), r.startTemperatures)
+        assertEquals(mapOf("cpu" to 39.5), r.startTemperatures)
     }
 
     @Test
@@ -96,7 +96,7 @@ class LabAnalysisTest {
         listOf(1804.8, 2400.0, 2630.4).zip(r.clusters) { expected, cluster ->
             assertEquals(expected, cluster.meanMhz!!, 1e-6)
         }
-        assertEquals(40.0 + 599 / 20.0, r.maxTemperatures.getValue("A715"), 1e-9)
+        assertEquals(40.0 + 599 / 20.0, r.maxTemperatures.getValue("cpu"), 1e-9)
         assertEquals(0L, r.computationErrors)
     }
 

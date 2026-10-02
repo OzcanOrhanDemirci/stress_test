@@ -48,25 +48,31 @@ data class CpuSnapshot(val workers: List<WorkerState>) {
     val isIdle: Boolean get() = workers.all { it.kernel == null }
 
     companion object {
-        val IDLE = CpuSnapshot(List(CoreAssignment.CPU_COUNT) { WorkerState(it, null, 0, 0, 0, -1, 0) })
+        fun idle(cpuCount: Int) = CpuSnapshot(List(cpuCount) { WorkerState(it, null, 0, 0, 0, -1, 0) })
     }
 }
 
-/** Kotlin face of the native CPU burner. One load runs at a time. */
-class CpuEngine {
+/**
+ * Kotlin face of the native CPU burner, for a device with [requestedCpus]
+ * CPUs (capped at the native side's slots). One load runs at a time.
+ */
+class CpuEngine(requestedCpus: Int) {
 
     val kernels: List<CpuKernel> = CpuKernel.parseTable(NativeBridge.kernelTable())
+
+    /** CPUs the load can use: one burner thread each. */
+    val cpuCount: Int = requestedCpus.coerceIn(1, NativeBridge.cpuMaxCount())
 
     private val stride = NativeBridge.cpuSnapshotStride().also {
         check(it == SNAPSHOT_STRIDE) { "Native snapshot stride $it, expected $SNAPSHOT_STRIDE" }
     }
-    private val buffer = LongArray(CoreAssignment.CPU_COUNT * stride)
+    private val buffer = LongArray(cpuCount * stride)
 
     fun kernel(key: String): CpuKernel = kernels.first { it.key == key }
 
     /** Calibrates the kernels (a few tens of milliseconds each), then starts every worker at once. */
     fun start(assignment: CoreAssignment, nice: Int = 0, batchMillis: Int = DEFAULT_BATCH_MILLIS): StartResult {
-        if (assignment.isIdle) return StartResult.InvalidKernel
+        if (assignment.isIdle || assignment.kernelPerCpu.any { it != null && !it.supported }) return StartResult.InvalidKernel
         return StartResult.fromCode(NativeBridge.cpuStart(assignment.toNative(), nice, batchMillis))
     }
 
@@ -76,7 +82,7 @@ class CpuEngine {
     fun snapshot(): CpuSnapshot {
         NativeBridge.cpuSnapshot(buffer)
         return CpuSnapshot(
-            List(CoreAssignment.CPU_COUNT) { cpu ->
+            List(cpuCount) { cpu ->
                 val at = cpu * stride
                 val kernelIndex = buffer[at].toInt()
                 WorkerState(

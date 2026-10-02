@@ -3,7 +3,7 @@ package dev.ozcan.stress.lab
 import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.GpuBurner
-import dev.ozcan.stress.engine.GpuRequest
+import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.engine.Workload
 import kotlin.random.Random
 
@@ -34,7 +34,9 @@ data class LabSpec(
     val waitForBattery: Boolean,
     /** Whether GPU workloads draw the reactor scene (or the cheap preview ring) as their visible pass. */
     val scene: Boolean = true,
-    val sceneScalePercent: Int = GpuRequest.DEFAULT_SCENE_SCALE_PERCENT,
+    /** The scenes' quality; their scale is the quality's unless [sceneScalePercent] names one. */
+    val quality: SceneQuality = SceneQuality.Medium,
+    val sceneScalePercent: Int? = null,
 ) {
     val runCount: Int get() = loads.size * repeat
 
@@ -51,7 +53,12 @@ data class LabSpec(
         const val DEFAULT_BRIGHTNESS = 0.2f
 
         /** Returns null when no lab key is present, so a normal launch is not an error. */
-        fun parse(extras: Map<String, String?>, kernels: List<CpuKernel>, burners: List<GpuBurner>): Result<LabSpec>? {
+        fun parse(
+            extras: Map<String, String?>,
+            kernels: List<CpuKernel>,
+            burners: List<GpuBurner>,
+            cpuCount: Int,
+        ): Result<LabSpec>? {
             if (extras.keys.none { it.startsWith(PREFIX) }) return null
             return runCatching {
                 fun text(key: String): String? = extras[PREFIX + key]?.trim()?.takeIf { it.isNotEmpty() }
@@ -74,7 +81,7 @@ data class LabSpec(
 
                 val loadText = text("load") ?: throw IllegalArgumentException("${PREFIX}load is required")
                 val loads = loadText.split(';').map { it.trim() }.filter { it.isNotEmpty() }
-                    .map { Workload.parse(it, kernels, burners) }
+                    .map { Workload.parse(it, kernels, burners, cpuCount) }
                 require(loads.isNotEmpty()) { "${PREFIX}load names no load" }
 
                 LabSpec(
@@ -88,7 +95,8 @@ data class LabSpec(
                     coolCelsius = double("cool", default = 40.0, range = 20.0..95.0),
                     waitForBattery = int("battery", default = 1, range = 0..1) == 1,
                     scene = int("scene", default = 1, range = 0..1) == 1,
-                    sceneScalePercent = int("scale", default = GpuRequest.DEFAULT_SCENE_SCALE_PERCENT, range = 10..100),
+                    quality = SceneQuality.fromCode(int("quality", default = SceneQuality.Medium.code, range = 0..2)),
+                    sceneScalePercent = text("scale")?.let { int("scale", default = 0, range = 10..100) },
                 )
             }
         }

@@ -1,6 +1,5 @@
 package dev.ozcan.stress
 
-import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.CpuSnapshot
 import dev.ozcan.stress.engine.GpuBurner
@@ -15,8 +14,10 @@ import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.SysfsReading
 import dev.ozcan.stress.telemetry.ThermalGroup
 
-/** Builders for made-up telemetry. */
+/** Builders for made-up telemetry, on an eight-CPU phone laid out like the Honor 400. */
 object TestSamples {
+
+    const val CPU_COUNT = 8
 
     val gemm = CpuKernel(index = 2, key = "fp32_gemm", code = "C2", unit = WorkUnit.Flop, opsPerIteration = 1000.0, bufferBytes = 16000)
     val dry = CpuKernel(index = 0, key = "dry", code = "K0", unit = WorkUnit.Op, opsPerIteration = 4.0, bufferBytes = 64)
@@ -50,7 +51,7 @@ object TestSamples {
 
     fun snapshot(kernel: CpuKernel?, batches: Long, iterations: Long = 10, errors: Long = 0): CpuSnapshot =
         CpuSnapshot(
-            List(CoreAssignment.CPU_COUNT) { cpu ->
+            List(CPU_COUNT) { cpu ->
                 WorkerState(
                     cpu = cpu,
                     kernel = kernel,
@@ -69,9 +70,9 @@ object TestSamples {
         chargeCounter: Long? = 4_000_000,
         millivolts: Int? = 4000,
         plugged: Boolean = false,
-        cpu: CpuSnapshot = CpuSnapshot.IDLE,
+        cpu: CpuSnapshot = CpuSnapshot.idle(CPU_COUNT),
         freqKhz: List<Long?> = listOf(1_804_800, 2_400_000, 2_630_400),
-        temperatures: Map<ThermalGroup, Double> = mapOf(ThermalGroup.BigCores to 40.0),
+        temperatures: Map<ThermalGroup, Double> = mapOf(ThermalGroup.Cpu to 40.0),
         level: Int = 80,
         batteryCelsius: Double = 30.0,
         broadcasts: Long = 0,

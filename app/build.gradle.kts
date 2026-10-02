@@ -10,13 +10,14 @@ plugins {
 android {
     namespace = "dev.ozcan.stress"
     compileSdk = 36
-    // The app targets one phone (Honor 400, Android 16). Pinning the NDK keeps
-    // the assembler that builds the kernels the one they were measured with.
+    // Pinning the NDK keeps the assembler that builds the kernels the one
+    // they were measured with.
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
         applicationId = "dev.ozcan.stress"
-        minSdk = 36
+        // Android 10: Vulkan 1.1 on every 64-bit phone, and the thermal status API.
+        minSdk = 29
         targetSdk = 36
         versionCode = providers.gradleProperty("stress.versionCode").get().toInt()
         versionName = providers.gradleProperty("stress.versionName").get()
@@ -86,6 +87,7 @@ dependencies {
     implementation(composeBom)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)

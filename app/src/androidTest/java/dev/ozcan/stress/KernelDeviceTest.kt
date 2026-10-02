@@ -2,7 +2,6 @@ package dev.ozcan.stress
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.ozcan.stress.engine.CpuKernel
-import dev.ozcan.stress.engine.KernelCatalog
 import dev.ozcan.stress.engine.NativeBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -27,11 +26,12 @@ class KernelDeviceTest {
     }
 
     @Test
-    fun tableIsCompleteAndDescribed() {
+    fun tableIsComplete() {
         assertEquals(15, kernels.size)
         assertEquals(kernels.size, kernels.map { it.key }.toSet().size)
-        assertEquals(KernelCatalog.keys, kernels.map { it.key }.toSet())
         kernels.forEach { assertTrue("${it.code} does no work", it.opsPerIteration > 0) }
+        // The Snapdragon 7 Gen 3 has every extension the kernels use (dot product, int8 and bf16 matrices).
+        kernels.forEach { assertTrue("${it.code} reported unsupported", it.supported) }
     }
 
     @Test

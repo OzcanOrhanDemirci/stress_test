@@ -101,8 +101,7 @@ bool Context::createView(VkImage image, VkFormat format, VkImageView& out) const
     info.image = image;
     info.viewType = VK_IMAGE_VIEW_TYPE_2D;
     info.format = format;
-    const bool depth = format == kDepthFormat || format == VK_FORMAT_D16_UNORM;
-    const VkImageAspectFlags aspect = depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    const VkImageAspectFlags aspect = isDepth(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     info.subresourceRange = {aspect, 0, 1, 0, 1};
     VK_TRY(vkCreateImageView(device, &info, nullptr, &out));
     return true;
@@ -185,7 +184,8 @@ bool Context::framebuffer(VkRenderPass pass, std::span<const VkImageView> views,
 
 bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipelineLayout layout,
                                std::span<const uint32_t> vertex, std::span<const uint32_t> fragment, Blend blend,
-                               VkPipeline& out, VkPrimitiveTopology topology, Depth depth) const {
+                               VkPipeline& out, VkPrimitiveTopology topology, Depth depth,
+                               const VkSpecializationInfo* fragmentConstants) const {
     VkShaderModule vert, frag;
     if (!shaderModule(vertex, vert)) return false;
     if (!shaderModule(fragment, frag)) {
@@ -201,6 +201,7 @@ bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipe
     stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     stages[1].module = frag;
     stages[1].pName = "main";
+    stages[1].pSpecializationInfo = fragmentConstants;
 
     VkPipelineVertexInputStateCreateInfo vertexInput{};
     vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

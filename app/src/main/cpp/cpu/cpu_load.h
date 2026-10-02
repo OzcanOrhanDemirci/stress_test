@@ -29,7 +29,9 @@ bool runKernelOnce(int kernelIndex, uint64_t iterations, Digest& out);
 // computation error (the hardware produced a wrong result).
 class CpuLoad {
 public:
-    static constexpr int kMaxCpus = 8;
+    // Room for every CPU a phone has had so far; the app sizes its own view
+    // from the device and reads only the slots it needs.
+    static constexpr int kMaxCpus = 32;
 
     // Snapshot layout: kSnapshotStride values per CPU slot, kMaxCpus slots.
     enum SnapshotField : int {
@@ -65,7 +67,8 @@ public:
     CpuLoad(const CpuLoad&) = delete;
     CpuLoad& operator=(const CpuLoad&) = delete;
 
-    // kernelPerCpu[i] is a kernel index for CPU i, or -1 to leave it idle.
+    // kernelPerCpu[i] is a kernel index for CPU i, or -1 to leave it idle. A
+    // kernel this CPU cannot run (kernelSupported()) is refused as invalid.
     // Blocks until every worker has built its buffer, then releases them together.
     StartResult start(const std::array<int, kMaxCpus>& kernelPerCpu, int nice, int batchMillis);
 

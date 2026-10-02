@@ -37,6 +37,14 @@ public:
     /** Which scene is drawn; the passes that follow the camera are built for it. */
     enum class Kind { Pool = 0, Forest = 1, White = 2 };
 
+    /**
+     * How much work a pixel gets: Medium is the scene as it was tuned on the
+     * Honor 400 (Snapdragon 7 Gen 3); Low halves the sampling for entry-level
+     * GPUs, High doubles it for the fastest. The resolution, the larger lever,
+     * comes with the scale the caller passes.
+     */
+    enum class Quality { Low = 0, Medium = 1, High = 2 };
+
     struct ForestParams {
         float width;
         float height;
@@ -118,7 +126,8 @@ public:
     static constexpr uint32_t kBloomLevels = 5;
 
     /** `presentPass` is the render pass the final picture is drawn in; `screen` its size. */
-    bool init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind);
+    bool init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind,
+              Quality quality);
 
     /** Records scene, TAA and bloom for one frame; call before the present pass begins. */
     void record(VkCommandBuffer cmd, float time);
@@ -160,6 +169,7 @@ private:
     std::array<vk::Image, kBloomLevels> bloom_{};
     vk::Image dof_;  // half the scene, like bloom_[0]
     Kind kind_ = Kind::Pool;
+    Quality quality_ = Quality::Medium;
 
     // The forest's own pass: colour and distance as the pool's, plus depth.
     vk::Image depth_;
@@ -169,6 +179,7 @@ private:
     VkPipeline forestSkyPipeline_ = VK_NULL_HANDLE;
     VkPipeline forestGeometryPipeline_ = VK_NULL_HANDLE;
     // The sun's shadow map and the sunbeam pass that reads it with the distances.
+    uint32_t shadowRes_ = 0;  // texels a side: SHADOW_RES, twice that on High
     vk::Image shadow_;
     VkSampler shadowSampler_ = VK_NULL_HANDLE;  // depth comparison, nearest
     VkRenderPass shadowPass_ = VK_NULL_HANDLE;

@@ -17,6 +17,7 @@ add_library(stress SHARED
 
 # Shaders: compiled by the NDK's glslc and embedded as uint32_t arrays, so the
 # library carries its SPIR-V and there are no assets to load at run time.
+# Vulkan 1.1 (SPIR-V 1.3) is what every 64-bit phone since Android 10 has.
 if(CMAKE_HOST_WIN32)
     set(GLSLC "${ANDROID_NDK}/shader-tools/${ANDROID_HOST_TAG}/glslc.exe")
 else()
@@ -33,7 +34,7 @@ function(add_shader source name symbol)
     set(header "${SHADER_OUT}/${name}.h")
     add_custom_command(
         OUTPUT "${header}"
-        COMMAND "${GLSLC}" --target-env=vulkan1.2 -O -Werror ${ARGN} "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" -o "${spv}"
+        COMMAND "${GLSLC}" --target-env=vulkan1.1 -O -Werror ${ARGN} "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" -o "${spv}"
         COMMAND "${CMAKE_COMMAND}" -DINPUT=${spv} -DOUTPUT=${header} -DSYMBOL=${symbol}
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_spirv.cmake"
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/gpu/shaders/${source}" ${SHADER_INCLUDES}

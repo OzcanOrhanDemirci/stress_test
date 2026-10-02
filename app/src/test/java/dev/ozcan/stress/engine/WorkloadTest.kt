@@ -8,7 +8,7 @@ import org.junit.Test
 
 class WorkloadTest {
 
-    private fun parse(text: String) = Workload.parse(text, TestSamples.kernels, TestSamples.burners)
+    private fun parse(text: String) = Workload.parse(text, TestSamples.kernels, TestSamples.burners, TestSamples.CPU_COUNT)
 
     @Test
     fun `cpu only, gpu only and both`() {

@@ -63,7 +63,7 @@ bool pinCurrentThread(int cpu) {
 
 bool runKernelOnce(int kernelIndex, uint64_t iterations, Digest& out) {
     const KernelSpec* spec = kernelAt(kernelIndex);
-    if (spec == nullptr || iterations == 0) return false;
+    if (spec == nullptr || iterations == 0 || !kernelSupported(*spec)) return false;
     OperandBuffer buffer = makeOperands(*spec);
     if (!buffer) return false;
     spec->fn(iterations, buffer.get(), spec->bufferBytes, &out);
@@ -155,7 +155,7 @@ CpuLoad::StartResult CpuLoad::start(const std::array<int, kMaxCpus>& kernelPerCp
     for (int k : kernelPerCpu) {
         if (k < 0) continue;
         const KernelSpec* spec = kernelAt(k);
-        if (spec == nullptr) return kInvalidKernel;
+        if (spec == nullptr || !kernelSupported(*spec)) return kInvalidKernel;
         if (calibrated[static_cast<size_t>(k)]) continue;
         if (!calibrate(*spec, batchMillis, calibrations[static_cast<size_t>(k)])) return kNoMemory;
         calibrated[static_cast<size_t>(k)] = true;

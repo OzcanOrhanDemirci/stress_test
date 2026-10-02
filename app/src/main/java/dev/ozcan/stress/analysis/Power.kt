@@ -46,6 +46,19 @@ object Power {
     fun normalizeChargeCounter(raw: Long): Long = if (raw in 1 until MIN_PLAUSIBLE_MICROAMP_HOURS) raw * 1000 else raw
 
     /**
+     * `EXTRA_VOLTAGE` in millivolts. Android documents mV; a few devices send
+     * volts or microvolts, told apart by size (a cell sits near 3-4.5 V).
+     * Null when the value is missing or makes no sense in any unit.
+     */
+    fun normalizeMillivolts(raw: Int): Int? = when {
+        raw <= 0 -> null
+        raw < 20 -> raw * 1000
+        raw in 1_000..20_000 -> raw
+        raw >= 1_000_000 -> raw / 1000
+        else -> null
+    }
+
+    /**
      * Battery output power of each sample in watts: discharge current times
      * battery voltage. Samples taken while plugged in, or missing either
      * value, are skipped: on a charger the gauge measures the net of charging

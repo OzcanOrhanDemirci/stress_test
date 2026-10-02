@@ -1,6 +1,5 @@
 package dev.ozcan.stress.lab
 
-import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.SysfsLayout
 import dev.ozcan.stress.telemetry.ThermalGroup
@@ -17,8 +16,8 @@ object SampleCsv {
             layout.clusters.forEach { add("freq_policy${it.policy}_khz") }
             ThermalGroup.entries.forEach { add("temp_${it.name}_c") }
             addAll(listOf("gpu_busy", "gpu_total"))
-            repeat(CoreAssignment.CPU_COUNT) { add("batches_cpu$it") }
-            repeat(CoreAssignment.CPU_COUNT) { add("misplaced_cpu$it") }
+            repeat(layout.cpuCount) { add("batches_cpu$it") }
+            repeat(layout.cpuCount) { add("misplaced_cpu$it") }
             add("errors")
             addAll(listOf("gpu_state", "gpu_frames", "gpu_dispatches", "gpu_work", "gpu_ns", "gpu_per_frame", "gpu_errors"))
         }

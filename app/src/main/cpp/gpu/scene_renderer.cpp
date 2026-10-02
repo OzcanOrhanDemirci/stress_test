@@ -67,6 +67,17 @@ bool named(bool created, const char* what) {
     return created;
 }
 
+/** A value for each quality level: Low, Medium, High. */
+template <typename T>
+T byQuality(SceneRenderer::Quality quality, T low, T medium, T high) {
+    switch (quality) {
+        case SceneRenderer::Quality::Low: return low;
+        case SceneRenderer::Quality::High: return high;
+        case SceneRenderer::Quality::Medium: break;
+    }
+    return medium;
+}
+
 /** The R2 sequence: sub-pixel offsets that cover the pixel evenly over any run of frames. */
 void jitter(uint32_t frame, float& x, float& y) {
     constexpr double g = 1.32471795724474602596;
@@ -77,9 +88,12 @@ void jitter(uint32_t frame, float& x, float& y) {
 
 }  // namespace
 
-bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind) {
+bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind,
+                         Quality quality) {
     vk_ = &vk;
     kind_ = kind;
+    quality_ = quality;
+    shadowRes_ = byQuality<uint32_t>(quality, SHADOW_RES, SHADOW_RES, 2 * SHADOW_RES);
     extent_ = {std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.width) * scale)),
                std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.height) * scale))};
     if (!createTargets() || !createPasses() || !createDescriptors() || !createWater() ||
@@ -414,8 +428,11 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
                                             : white ? std::span<const uint32_t>(kFinalWhiteFragSpirv)
                                                     : std::span<const uint32_t>(kFinalFragSpirv);
     const std::span<const uint32_t> scene = white ? std::span<const uint32_t>(kWhiteSceneFragSpirv) : kPoolSceneFragSpirv;
+    // Rays a pixel traces (pool_scene.frag, white_scene.frag: SAMPLES).
+    const vk::Specialization samples(byQuality(quality_, 1, 1, 2));
     return named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, scene, vk::Blend::None,
-                                 scenePipeline_), "PoolScene") &&
+                                 scenePipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vk::Depth::None,
+                                 &samples.info), "PoolScene") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, taa, vk::Blend::None, taaPipeline_), "Taa") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kBloomDownFragSpirv, vk::Blend::None,
                                  downPipeline_), "BloomDown") &&
@@ -551,14 +568,14 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
 }
 
 bool SceneRenderer::createForest() {
-    if (!vk_->createImage(extent_, vk::kDepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_)) return false;
+    if (!vk_->createImage(extent_, vk_->depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_)) return false;
     // Colour and distance as the pool's pass leaves them; the sky covers every pixel first.
     const std::array<VkAttachmentDescription, 2> colours{
         attachment(kHdr, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
         attachment(kDistance, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
     };
     VkAttachmentDescription depth{};
-    depth.format = vk::kDepthFormat;
+    depth.format = vk_->depthFormat;
     depth.samples = VK_SAMPLE_COUNT_1_BIT;
     depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -619,16 +636,20 @@ bool SceneRenderer::createForest() {
     info.pushConstantRangeCount = 1;
     info.pPushConstantRanges = &push;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &info, nullptr, &forestLayout_));
+    // Shadow map taps a surface takes (forest_geometry.frag) and points a sunbeam asks (forest_light.frag).
+    const vk::Specialization taps(byQuality(quality_, 4, 8, 16));
+    const vk::Specialization stations(byQuality(quality_, 6, 12, 24));
     return named(vk_->graphicsPipeline(forestPass_, 2, forestLayout_, kFullscreenVertSpirv, kForestSkyFragSpirv,
                                        vk::Blend::None, forestSkyPipeline_), "ForestSky") &&
            named(vk_->graphicsPipeline(forestPass_, 2, forestLayout_, kForestGeometryVertSpirv, kForestGeometryFragSpirv,
                                        vk::Blend::None, forestGeometryPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-                                       vk::Depth::TestWrite), "ForestGeometry") &&
+                                       vk::Depth::TestWrite, &taps.info), "ForestGeometry") &&
            named(vk_->graphicsPipeline(shadowPass_, 0, forestLayout_, kForestGeometryVertSpirv, kForestShadowFragSpirv,
                                        vk::Blend::None, forestShadowPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                                        vk::Depth::TestWrite), "ForestShadow") &&
            named(vk_->graphicsPipeline(addPass_, 1, forestLayout_, kFullscreenVertSpirv, kForestLightFragSpirv,
-                                       vk::Blend::Additive, forestLightPipeline_), "ForestLight") &&
+                                       vk::Blend::Additive, forestLightPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                                       vk::Depth::None, &stations.info), "ForestLight") &&
            named(vk_->graphicsPipeline(particlePass_, 1, forestLayout_, kForestRainVertSpirv, kForestRainFragSpirv,
                                        vk::Blend::Additive, forestRainPipeline_), "ForestRain");
 }
@@ -636,7 +657,7 @@ bool SceneRenderer::createForest() {
 // The sun's shadow map: 16-bit depth, which every device can draw into and
 // sample; nearest texels, compared in the shader's own disc of taps.
 bool SceneRenderer::createForestShadow() {
-    const VkExtent2D size{static_cast<uint32_t>(SHADOW_RES), static_cast<uint32_t>(SHADOW_RES)};
+    const VkExtent2D size{shadowRes_, shadowRes_};
     if (!vk_->createImage(size, VK_FORMAT_D16_UNORM,
                           VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, shadow_)) {
         return false;
@@ -681,7 +702,7 @@ void SceneRenderer::recordForestShadow(VkCommandBuffer cmd) {
     begin.clearValueCount = 1;
     begin.pClearValues = &clear;
     vkCmdBeginRenderPass(cmd, &begin, VK_SUBPASS_CONTENTS_INLINE);
-    const auto side = static_cast<float>(SHADOW_RES);
+    const auto side = static_cast<float>(shadowRes_);
     const VkViewport viewport{0.0f, 0.0f, side, side, 0.0f, 1.0f};
     const VkRect2D scissor{{0, 0}, shadow_.extent};
     vkCmdSetViewport(cmd, 0, 1, &viewport);

@@ -61,8 +61,9 @@ data class GpuPart(
  * One workload: a CPU assignment, a GPU part, or both at once.
  *
  * Text form: parts joined by '+'. A part naming a GPU burner key, or `scene`,
- * is the GPU part; any other part is a [CoreAssignment]. `fp32_gemm`,
- * `gpu_fp32`, `scene` and `0-3:dry,4-7:bf16_mmla+gpu_texture` are all workloads.
+ * is the GPU part; any other part is a [CoreAssignment] over the device's
+ * CPUs. `fp32_gemm`, `gpu_fp32`, `scene` and `0-3:dry,4-7:bf16_mmla+gpu_texture`
+ * are all workloads.
  */
 data class Workload(val cpu: CoreAssignment?, val gpu: GpuPart?) {
 
@@ -74,7 +75,7 @@ data class Workload(val cpu: CoreAssignment?, val gpu: GpuPart?) {
     fun describe(): String = listOfNotNull(cpu?.describe(), gpu?.key).joinToString("+")
 
     companion object {
-        fun parse(text: String, kernels: List<CpuKernel>, burners: List<GpuBurner>): Workload {
+        fun parse(text: String, kernels: List<CpuKernel>, burners: List<GpuBurner>, cpuCount: Int): Workload {
             var cpu: CoreAssignment? = null
             var gpu: GpuPart? = null
             for (part in text.split('+').map { it.trim() }) {
@@ -85,7 +86,7 @@ data class Workload(val cpu: CoreAssignment?, val gpu: GpuPart?) {
                     gpu = gpuPart
                 } else {
                     require(cpu == null) { "Two CPU parts in '$text'" }
-                    cpu = CoreAssignment.parse(part, kernels)
+                    cpu = CoreAssignment.parse(part, kernels, cpuCount)
                 }
             }
             return Workload(cpu, gpu)

@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Stres</string>
+
+    <!-- Ortak -->
+    <string name="ok">Tamam</string>
+    <string name="back">Geri</string>
+    <string name="cancel">Vazgeç</string>
+    <string name="delete">Sil</string>
+    <string name="title_with_part">%1$s · %2$s</string>
+    <string name="title_with_value">%1$s %2$s</string>
+    <string name="unit_seconds">saniye</string>
+    <string name="unit_pixel_rate">piksel/s</string>
+    <string name="hours_minutes">%1$d sa %2$d dk</string>
+    <string name="minutes_only">%1$d dk</string>
+
+    <!-- Sekmeler -->
+    <string name="tab_test">Test</string>
+    <string name="tab_history">Geçmiş</string>
+    <string name="tab_settings">Ayarlar</string>
+
+    <!-- Modlar -->
+    <string name="mode_full">Tam yük</string>
+    <string name="mode_full_detail">CPU, GPU ve bellek aynı anda: telefonun çekebildiği en yüksek güç. Ekranda hafif bir gösterge.</string>
+    <string name="mode_cinematic">Sinematik</string>
+    <string name="mode_cinematic_detail">Bütün CPU çekirdekleri tam yükteyken ekranda gerçek zamanlı bir 3D sahne.</string>
+    <string name="mode_cpu">CPU</string>
+    <string name="mode_cpu_detail">Bütün çekirdekler, en çok güç çeken yükle: önbellekten akan FMA.</string>
+    <string name="mode_gpu">GPU</string>
+    <string name="mode_gpu_detail">Yalnız GPU, en çok güç çeken yakıcıyla.</string>
+    <string name="mode_dry">Kuru 100</string>
+    <string name="mode_dry_detail">Çekirdekler tam dolu görünür ama birimleri boştadır: Prime95 ile Cinebench farkını ölçerek görmek için.</string>
+    <string name="scene_pool">Havuz</string>
+    <string name="scene_pool_detail">Suyun altında mavi parlayan bir havuz reaktörü: simüle dalgalar, yansımalar, parçacıklar, alan derinliği.</string>
+    <string name="scene_forest">Orman</string>
+    <string name="scene_forest_detail">Hafif yağmurda sık ve sisli bir orman: tepeden süzülen ışık huzmeleri, yumuşak gölgeler.</string>
+    <string name="scene_white">Beyaz</string>
+    <string name="scene_white_detail">Cam ve ayna yüzeyli koridorlar ve tünellerle bembeyaz bir dünya: net, sade, yansımalarla dolu.</string>
+
+    <!-- Süre ve kalite -->
+    <string name="duration_1">1 dk</string>
+    <string name="duration_5">5 dk</string>
+    <string name="duration_15">15 dk</string>
+    <string name="duration_30">30 dk</string>
+    <string name="duration_endless">∞</string>
+    <string name="quality_low">Düşük</string>
+    <string name="quality_low_detail">Giriş seviyesi telefonlar için: daha az piksel ve örnek. Orta seviye bir telefon akıcı oynatır.</string>
+    <string name="quality_medium">Orta</string>
+    <string name="quality_medium_detail">Orta seviye telefonlar için (ör. Snapdragon 7 Gen 3): sahnelerin ayarlandığı hâli.</string>
+    <string name="quality_high">Yüksek</string>
+    <string name="quality_high_detail">En yeni amiral gemileri için: daha çok piksel ve iki kat ışın. Orta seviye bir telefon saniyede birkaç kareye düşer.</string>
+
+    <!-- Ana ekran -->
+    <string name="home_tagline">Stres testi · benchmark</string>
+    <string name="home_section_mode">Test modu</string>
+    <string name="home_section_duration">Süre</string>
+    <string name="home_section_last">Son koşu</string>
+    <string name="home_badge_max">En yüksek güç</string>
+    <string name="home_badge_reference">Referans</string>
+    <string name="home_quality">Grafik kalitesi</string>
+    <string name="home_start">TESTİ BAŞLAT</string>
+    <string name="home_live_battery">Pil</string>
+    <string name="home_live_chip">Çip</string>
+    <string name="home_live_power">Güç</string>
+    <string name="home_live_charging">Şarjda</string>
+    <string name="home_live_thermal">Termal: %1$s</string>
+    <string name="home_last_peak">tepe</string>
+    <string name="home_plugged">Şarj kablosu takılı: test çalışır ama pilden çekilen güç ölçülemez.</string>
+    <string name="home_no_vulkan">Bu telefonda Vulkan 1.1 GPU sürücüsü yok; GPU ve sinematik testler kapalı. CPU testleri çalışır.</string>
+    <string name="home_blocked_title">Henüz değil</string>
+    <string name="home_blocked_text">Cihaz güvenliği testi bekletiyor: %1$s. Telefonun soğumasını bekle (ya da şarj et) ve yeniden dene.</string>
+
+    <!-- Güvenlik -->
+    <string name="safety_on_short">Korumalı</string>
+    <string name="safety_off_short">Korumasız</string>
+    <string name="safety_status_on">Açık: cihaz korunuyor</string>
+    <string name="safety_status_off">Kapalı: koruma yok</string>
+    <string name="safety_on_text">Uygulama test boyunca telefonu izler ve tehlikeli ölçüde ısınmadan ya da pili bitmeden testi durdurur:</string>
+    <string name="safety_limit_battery">Pil %1$s olunca durur</string>
+    <string name="safety_limit_chip">CPU ya da GPU %1$s olunca durur</string>
+    <string name="safety_limit_skin">Gövde %1$s olunca durur</string>
+    <string name="safety_limit_thermal">Android termal durumu “%1$s” olunca durur</string>
+    <string name="safety_limit_level">Pil %1$s seviyesine inince durur</string>
+    <string name="safety_limit_start">Pil %1$s üstündeyken test başlamaz</string>
+    <string name="safety_off_body">Testler, sen durdurana kadar uygulamanın sınırları olmadan çalışır. Telefonun kendi termal koruması yine çalışır ama uygulama araya girmez.</string>
+    <string name="safety_off_title">Cihaz güvenliği kapatılsın mı?</string>
+    <string name="safety_off_text">Kapalıyken uygulama; pil, gövde ya da çip çok ısındığında veya pil azaldığında testi durdurmaz. Uzun testler telefonu çok ısıtabilir. Geriye yalnız telefonun kendi koruması kalır.</string>
+    <string name="safety_off_confirm">Kapat</string>
+    <string name="safety_off_keep">Açık kalsın</string>
+    <string name="safety_reason_battery_hot">Pil sıcaklığı</string>
+    <string name="safety_reason_chip_hot">Çip sıcaklığı</string>
+    <string name="safety_reason_skin_hot">Gövde sıcaklığı</string>
+    <string name="safety_reason_thermal">Android termal durumu</string>
+    <string name="safety_reason_battery_low">Pil</string>
+
+    <!-- Termal durum -->
+    <string name="thermal_none">Normal</string>
+    <string name="thermal_light">Hafif</string>
+    <string name="thermal_moderate">Orta</string>
+    <string name="thermal_severe">Ciddi</string>
+    <string name="thermal_critical">Kritik</string>
+    <string name="thermal_emergency">Acil</string>
+    <string name="thermal_shutdown">Kapanma</string>
+
+    <!-- Sıcaklıklar ve kümeler -->
+    <string name="temp_cpu">CPU</string>
+    <string name="temp_gpu">GPU</string>
+    <string name="temp_memory">Bellek</string>
+    <string name="temp_skin">Gövde</string>
+    <string name="temp_battery">Pil</string>
+    <string name="temp_npu">NPU</string>
+    <string name="temp_modem">Modem</string>
+    <string name="temp_camera">Kamera</string>
+    <string name="role_all">CPU</string>
+    <string name="role_little">Küçük</string>
+    <string name="role_mid">Orta</string>
+    <string name="role_big">Büyük</string>
+    <string name="role_prime">Prime</string>
+
+    <!-- Koşu -->
+    <string name="run_baseline_title">Boşta ölçüm</string>
+    <string name="run_baseline_text">Telefona dokunma: önce dinlenirken çektiği güç ölçülüyor.</string>
+    <string name="run_baseline_idle">Boşta: %1$s</string>
+    <string name="run_stop">Durdur</string>
+    <string name="run_stop_title">Test durdurulsun mu?</string>
+    <string name="run_stop_text">Şimdiye kadar ölçülenler saklanır ve analiz edilir.</string>
+    <string name="run_stop_confirm">Durdur</string>
+    <string name="run_stop_continue">Devam et</string>
+    <string name="run_analysing">Sonuçlar hesaplanıyor…</string>
+    <string name="run_saved">Kaydedildi. Sonuçlar açılıyor…</string>
+    <string name="run_cancelled">İptal edildi</string>
+    <string name="run_cancelled_text">Test, yük başlamadan durduruldu; bir şey kaydedilmedi.</string>
+    <string name="run_failed">Test başlatılamadı</string>
+    <string name="run_failed_text">Yükün bir parçası başlamadı (%1$s).</string>
+    <string name="run_power_caption">boşta %1$s · yük +%2$s</string>
+    <string name="run_power_invalid">şarjda: güç ölçülemez</string>
+    <string name="run_safety_ok">Güvenli</string>
+    <string name="run_gpu_load">GPU yükü</string>
+    <string name="run_errors">Hata %1$d</string>
+    <string name="run_gauge_power">pil gücü</string>
+    <string name="run_gauge_chip">çip sıcaklığı</string>
+    <string name="run_cores">%1$d CPU ÇEKİRDEĞİ TAM YÜKTE</string>
+
+    <!-- Bitiş nedenleri -->
+    <string name="end_completed">Tamamlandı</string>
+    <string name="end_user">Durduruldu</string>
+    <string name="end_safety">Cihaz güvenliği durdurdu</string>
+    <string name="end_gpu_failed">GPU hata verdi</string>
+    <string name="end_interrupted">Yarıda kesildi</string>
+    <string name="end_completed_short">Tamamlandı</string>
+    <string name="end_user_short">Durduruldu</string>
+    <string name="end_safety_short">Güvenlik durdurdu</string>
+    <string name="end_gpu_failed_short">GPU hatası</string>
+    <string name="end_interrupted_short">Kesildi</string>
+
+    <!-- Sonuç -->
+    <string name="result_title">Sonuç</string>
+    <string name="result_missing">Bu koşu artık kayıtlı değil.</string>
+    <string name="result_peak">Tepe güç</string>
+    <string name="result_sustained">Sürekli</string>
+    <string name="result_mean">Ortalama güç</string>
+    <string name="result_idle">Boşta</string>
+    <string name="result_energy">Enerji</string>
+    <string name="result_battery">Pil</string>
+    <string name="result_battery_life">Bu yükte tam pil</string>
+    <string name="result_hottest">En sıcak çip</string>
+    <string name="result_cpu_perf">CPU performansı</string>
+    <string name="result_gpu_perf">GPU performansı</string>
+    <string name="result_fps">Kare hızı</string>
+    <string name="result_fps_min">en düşük %1$s</string>
+    <string name="result_stability">Kararlılık</string>
+    <string name="result_errors">Hesap hatası</string>
+    <string name="result_power_invalid">Güç ölçülemedi</string>
+    <string name="result_analysis">Analiz</string>
+    <string name="result_charts">Grafikler</string>
+    <string name="result_device">Cihaz</string>
+    <string name="result_export">Rapor</string>
+
+    <!-- Grafikler -->
+    <string name="chart_power">Güç</string>
+    <string name="chart_temperature">Sıcaklık</string>
+    <string name="chart_clock">CPU frekansı</string>
+    <string name="chart_performance">Performans</string>
+    <string name="chart_performance_hint">Saniye başına iş, en iyi saniyeye göre</string>
+    <string name="chart_fps">Kare hızı</string>
+    <string name="chart_battery">Pil seviyesi</string>
+
+    <!-- Bulgular -->
+    <string name="insight_safety_title">Testi cihaz güvenliği durdurdu</string>
+    <string name="insight_safety_detail">Ölçülen: %1$s. O ana kadarki sonuçlar saklandı.</string>
+    <string name="insight_gpu_failed_title">GPU hata verdi</string>
+    <string name="insight_gpu_failed_detail">Grafik sürücüsü GPU\'yu durdurdu ya da sıfırladı. Daha zayıf bir telefonda daha düşük bir grafik kalitesi dene.</string>
+    <string name="insight_interrupted_title">Test yarıda kesildi</string>
+    <string name="insight_interrupted_detail">Uygulama ekrandan çıktı; bu, büyük çekirdekleri ve GPU\'yu yükten alır.</string>
+    <string name="insight_charging_title">Şarj kablosu takılıydı</string>
+    <string name="insight_charging_detail">Şarjdayken pil ölçeri şarjı ve yükü birlikte ölçer; güç değerleri geçersizdir.</string>
+    <string name="insight_counter_title">Güç, şarj sayacından</string>
+    <string name="insight_counter_detail">Bu telefon anlık akımı bildirmiyor: ortalama güç pilin şarj sayacından hesaplandı, tepeler bilinmiyor.</string>
+    <string name="insight_throttled_title">Kısılma %1$s anında başladı</string>
+    <string name="insight_throttled_detail">%1$s ilk kez üç saniye boyunca en yüksek frekansının %%97\'sinin altına indi: telefon sıcaklığını tutmak için yavaşladı.</string>
+    <string name="insight_never_throttled_title">Kısılma yok</string>
+    <string name="insight_never_throttled_detail">Yükteki çekirdekler test boyunca en yüksek frekanslarında kaldı.</string>
+    <string name="insight_drop_title">Performans %1$s düştü</string>
+    <string name="insight_drop_detail_good">Son dakika ilk dakika kadar hızlıydı: soğutma bu yüke yetişiyor.</string>
+    <string name="insight_drop_detail_info">Telefon ısındıkça biraz hız verdi: sürekli yük altında olağan.</string>
+    <string name="insight_drop_detail_warn">Telefon ısındıkça çok yavaşladı: bu yükte sınırı soğutması belirliyor.</string>
+    <string name="insight_stability_title">Kararlılık %1$s · %2$s</string>
+    <string name="insight_stability_detail">En yavaş dakikanın en hızlı dakikaya oranı (3DMark ölçütü). 95 üstü mükemmeldir.</string>
+    <string name="insight_chip_title">%1$s en çok %2$s oldu</string>
+    <string name="insight_chip_detail_hot">Kısılma noktasında: telefon çipi frekansını düşürerek orada tutuyor.</string>
+    <string name="insight_chip_detail_warm">Ilık, çipin çalışma aralığında.</string>
+    <string name="insight_chip_detail_cool">Serin: bu yük çipi pek ısıtmadı.</string>
+    <string name="insight_battery_title">Pil %1$s → %2$s</string>
+    <string name="insight_battery_detail">Pil %1$s °C ısındı.</string>
+    <string name="insight_battery_detail_hot">Pil ısındı (+%1$s °C): sıcaklık pili daha çabuk yaşlandırır.</string>
+    <string name="insight_drain_title">Saatte %%%1$s pil tüketimi</string>
+    <string name="insight_drain_detail">Bu yükte bir saatte harcanan pil yüzdesi.</string>
+    <string name="insight_no_errors_title">Hesap hatası yok</string>
+    <string name="insight_no_errors_detail">Yükün denetlediği her sonuç doğruydu: donanım ısı altında doğru hesapladı.</string>
+    <string name="insight_errors_title">%1$d hesap hatası</string>
+    <string name="insight_errors_detail">Donanım yük altında yanlış sonuç verdi: kararsızlık belirtisi (fazla ısı ya da kararsız frekans/gerilim).</string>
+    <string name="insight_fps_title">Ortalama %1$s FPS</string>
+    <string name="insight_fps_detail">En düşük saniye: %1$s FPS.</string>
+    <string name="insight_fps_detail_plain">Sahnenin saniyede çizdiği kare.</string>
+    <string name="grade_excellent">mükemmel</string>
+    <string name="grade_good">iyi</string>
+    <string name="grade_fair">orta</string>
+    <string name="grade_poor">zayıf</string>
+
+    <!-- Dışa aktarma -->
+    <string name="export_pdf_title">PDF rapor</string>
+    <string name="export_pdf_detail">Test, cihaz, öne çıkan değerler, analiz ve grafikler; iki A4 sayfa.</string>
+    <string name="export_share_pdf">Raporu paylaş</string>
+    <string name="export_save_pdf">PDF kaydet</string>
+    <string name="export_csv">Veri (CSV)</string>
+    <string name="export_share_title">Paylaş</string>
+    <string name="export_saved">Rapor kaydedildi</string>
+    <string name="export_failed">Rapor yazılamadı</string>
+    <string name="report_title">Stres testi raporu</string>
+    <string name="report_run_id">Koşu %1$s</string>
+    <string name="report_section_test">Test</string>
+    <string name="report_section_device">Cihaz</string>
+    <string name="report_section_results">Sonuçlar</string>
+    <string name="report_mode">Mod</string>
+    <string name="report_duration">Süre</string>
+    <string name="report_end">Bitiş</string>
+    <string name="report_workload">İş yükü</string>
+    <string name="report_device">Model</string>
+    <string name="report_footer">Stres %1$s · stres testi ve benchmark</string>
+    <string name="report_page">Sayfa %1$d / %2$d</string>
+
+    <!-- Geçmiş -->
+    <string name="history_title">Geçmiş</string>
+    <string name="history_count">%1$d koşu</string>
+    <string name="history_empty_title">Henüz koşu yok</string>
+    <string name="history_empty_text">Biten testler sonuçları ve grafikleriyle burada görünür.</string>
+    <string name="history_delete_title">Bu koşu silinsin mi?</string>
+    <string name="history_delete_text">Sonuçları ve grafikleri kalıcı olarak silinecek.</string>
+
+    <!-- Ayarlar -->
+    <string name="settings_title">Ayarlar</string>
+    <string name="settings_safety">Cihaz güvenliği</string>
+    <string name="settings_section_graphics">Grafik</string>
+    <string name="settings_quality">Sahne kalitesi</string>
+    <string name="settings_quality_detail">Sinematik sahnelerin ne kadar çalışacağı. Telefona göre seç: her seviye GPU\'yu tamamen meşgul eder.</string>
+    <string name="settings_quality_scale">İç çözünürlük: %%%1$d (orman %%%2$d)</string>
+    <string name="settings_section_test">Test</string>
+    <string name="settings_display">Testte en yüksek parlaklık</string>
+    <string name="settings_display_detail">En yüksek parlaklık ve yenileme hızı: ekran her testte aynı yükü katsın.</string>
+    <string name="settings_haptics">Titreşim</string>
+    <string name="settings_haptics_detail">Test başlarken, biterken ya da durdurulduğunda kısa bir titreşim.</string>
+    <string name="settings_section_device">Cihaz</string>
+    <string name="settings_device">Cihaz bilgisi ve sensörler</string>
+    <string name="settings_device_detail">İşlemci, GPU, canlı değerler, uygulamanın okuyabildiği sensörler, elle yük denemeleri.</string>
+    <string name="settings_clear">Geçmişi temizle</string>
+    <string name="settings_clear_detail">Kayıtlı bütün koşuları siler.</string>
+    <string name="settings_clear_title">Geçmiş temizlensin mi?</string>
+    <string name="settings_clear_text">Kayıtlı bütün koşular, sonuç ve grafikleriyle birlikte kalıcı olarak silinecek.</string>
+    <string name="settings_section_about">Hakkında</string>
+    <string name="settings_version">Sürüm %1$s</string>
+    <string name="settings_about_text">Bir stres testi ve benchmark: kendi sonucunu doğrulayan assembly CPU yükleri, Vulkan GPU yakıcıları ve gerçek zamanlı 3D sahneler; güç pilden ölçülür.</string>
+    <string name="settings_licenses">Yazı tipleri: Space Grotesk, JetBrains Mono (SIL Open Font License 1.1)</string>
+
+    <!-- Cihaz -->
+    <string name="device_title">Cihaz</string>
+    <string name="device_section_hardware">Donanım</string>
+    <string name="device_section_power">Pil ve güç</string>
+    <string name="device_section_clocks">Frekanslar</string>
+    <string name="device_section_sensors">Sensörler</string>
+    <string name="device_section_advanced">Gelişmiş</string>
+    <string name="device_soc">Yonga seti</string>
+    <string name="device_cpu">CPU</string>
+    <string name="device_cores">Çekirdek</string>
+    <string name="device_gpu">GPU</string>
+    <string name="device_no_vulkan">Vulkan 1.1 yok</string>
+    <string name="device_android">Android</string>
+    <string name="device_ram">Bellek</string>
+    <string name="device_display">Ekran</string>
+    <string name="device_app">Uygulama sürümü</string>
+    <string name="device_current">Akım</string>
+    <string name="device_current_raw">Ham akım (CURRENT_NOW)</string>
+    <string name="device_voltage">Gerilim</string>
+    <string name="device_thermal_status">Termal durum</string>
+    <string name="device_headroom">Termal pay</string>
+    <string name="device_unreadable">Bu telefonda okunamıyor.</string>
+    <string name="device_sensors_detail">Bu uygulamanın bu telefonda okuyabildikleri. Telefonlar bazı sensörleri uygulamalara kapatır; uygulama o zaman onlarsız ölçer.</string>
+    <string name="device_clock_of">Frekans · %1$s</string>
+    <string name="device_gpu_counter">GPU yük sayacı</string>
+    <string name="device_readable">okunuyor</string>
+    <string name="device_closed">kapalı</string>
+    <string name="device_advanced">Elle yük denemeleri</string>
+    <string name="device_advanced_detail">Tek bir CPU çekirdek yükünü ya da GPU yakıcısını elle çalıştır. Bu ekrandan çıkınca dururlar.</string>
+    <string name="device_cpu_kernels">CPU yükleri</string>
+    <string name="device_gpu_burners">GPU yakıcıları</string>
+    <string name="device_start">Başlat</string>
+    <string name="device_start_failed">Başlatılamadı: %1$s</string>
+    <string name="device_running">Çalışan</string>
+    <string name="device_none">yok</string>
+    <string name="device_gpu_state">Durum</string>
+    <string name="device_frame">Kare</string>
+    <string name="device_work">İş</string>
+</resources>

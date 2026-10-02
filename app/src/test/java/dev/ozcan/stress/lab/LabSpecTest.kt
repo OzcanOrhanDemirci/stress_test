@@ -1,7 +1,7 @@
 package dev.ozcan.stress.lab
 
 import dev.ozcan.stress.TestSamples
-import dev.ozcan.stress.engine.GpuRequest
+import dev.ozcan.stress.engine.SceneQuality
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -11,11 +11,12 @@ import kotlin.random.Random
 
 class LabSpecTest {
 
-    private fun parse(vararg pairs: Pair<String, String?>) = LabSpec.parse(mapOf(*pairs), TestSamples.kernels, TestSamples.burners)
+    private fun parse(vararg pairs: Pair<String, String?>) =
+        LabSpec.parse(mapOf(*pairs), TestSamples.kernels, TestSamples.burners, TestSamples.CPU_COUNT)
 
     @Test
     fun `a launch without lab keys is not a lab run`() {
-        assertNull(LabSpec.parse(mapOf("other" to "x"), TestSamples.kernels, TestSamples.burners))
+        assertNull(LabSpec.parse(mapOf("other" to "x"), TestSamples.kernels, TestSamples.burners, TestSamples.CPU_COUNT))
     }
 
     @Test
@@ -31,7 +32,9 @@ class LabSpecTest {
         assertEquals(40.0, spec.coolCelsius, 0.0)
         assertTrue(spec.waitForBattery)
         assertTrue(spec.scene)
-        assertEquals(GpuRequest.DEFAULT_SCENE_SCALE_PERCENT, spec.sceneScalePercent)
+        // The scale follows the quality unless one is named.
+        assertNull(spec.sceneScalePercent)
+        assertEquals(SceneQuality.Medium, spec.quality)
     }
 
     @Test
@@ -48,6 +51,7 @@ class LabSpecTest {
             "lab.battery" to "0",
             "lab.scene" to "0",
             "lab.scale" to "75",
+            "lab.quality" to "2",
         )!!.getOrThrow()
         assertEquals(listOf("dry", "0-3:dry,4-7:fp32_gemm+gpu_fp32", "gpu_blend"), spec.loads.map { it.describe() })
         assertEquals(3, spec.repeat)
@@ -61,6 +65,7 @@ class LabSpecTest {
         assertFalse(spec.waitForBattery)
         assertFalse(spec.scene)
         assertEquals(75, spec.sceneScalePercent)
+        assertEquals(SceneQuality.High, spec.quality)
     }
 
     @Test
@@ -83,6 +88,7 @@ class LabSpecTest {
             arrayOf("lab.load" to "fp32_gemm", "lab.battery" to "2"),
             arrayOf("lab.load" to "fp32_gemm", "lab.repeat" to "0"),
             arrayOf("lab.load" to "unknown"),
+            arrayOf("lab.load" to "fp32_gemm", "lab.quality" to "3"),
         )) {
             val result = parse(*bad)!!
             assertTrue(bad.contentToString(), result.isFailure)

@@ -13,8 +13,11 @@ internal object NativeBridge {
         System.loadLibrary("stress")
     }
 
-    /** One line per kernel: `key|code|unit|opsPerIteration|bufferBytes`. */
+    /** One line per kernel: `key|code|unit|opsPerIteration|bufferBytes|supported`. */
     @JvmStatic external fun kernelTable(): Array<String>
+
+    /** CPU slots the native load has; a device with more CPUs uses this many. */
+    @JvmStatic external fun cpuMaxCount(): Int
 
     /** Returns a native `StartResult` code; `0` means the load is running. */
     @JvmStatic external fun cpuStart(kernelPerCpu: IntArray, nice: Int, batchMillis: Int): Int
@@ -40,8 +43,8 @@ internal object NativeBridge {
 
     /**
      * Blocks while Vulkan is set up; returns a native `GpuLoad::StartResult` code. [burner] -1 draws the
-     * visible pass alone: a [scene] ([sceneKind], [SceneKind.code]) at [sceneScalePercent] of the screen,
-     * or the preview ring.
+     * visible pass alone: a [scene] ([sceneKind], [SceneKind.code]) at [sceneScalePercent] of the screen and
+     * [sceneQuality] ([SceneQuality.code]), or the preview ring.
      */
     @JvmStatic external fun gpuStart(
         surface: Surface,
@@ -50,7 +53,11 @@ internal object NativeBridge {
         scene: Boolean,
         sceneScalePercent: Int,
         sceneKind: Int,
+        sceneQuality: Int,
     ): Int
+
+    /** `name|api version|driver version|vendor id|device id` of the Vulkan GPU; empty without Vulkan 1.1. */
+    @JvmStatic external fun gpuDescribe(): String
 
     @JvmStatic external fun gpuStop()
 

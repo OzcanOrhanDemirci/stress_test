@@ -18,6 +18,8 @@ data class LabResult(
     val batchMillis: Int,
     val scene: Boolean,
     val sceneScalePercent: Int,
+    /** The scenes' quality (SceneQuality's name). */
+    val quality: String = "Medium",
     val idleSeconds: Int,
     val loadSeconds: Int,
     val startResult: String,

@@ -6,12 +6,17 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-/** How a workload runs, apart from what it runs. */
+/**
+ * How a workload runs, apart from what it runs. A scene is drawn at [quality],
+ * at [sceneScalePercent] when set and otherwise at its quality's scale; a
+ * scale in the workload's own text wins over both.
+ */
 data class LoadSettings(
     val nice: Int = 0,
     val batchMillis: Int = CpuEngine.DEFAULT_BATCH_MILLIS,
     val scene: Boolean = true,
-    val sceneScalePercent: Int = GpuRequest.DEFAULT_SCENE_SCALE_PERCENT,
+    val quality: SceneQuality = SceneQuality.Medium,
+    val sceneScalePercent: Int? = null,
 )
 
 /** Starts and stops both halves of a [Workload], the same way for lab sessions and for the app's runs. */
@@ -31,8 +36,9 @@ class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) {
             val request = GpuRequest(
                 part.burner,
                 scene = part.scene ?: settings.scene,
-                sceneScalePercent = part.sceneScalePercent ?: settings.sceneScalePercent,
+                sceneScalePercent = part.sceneScalePercent ?: settings.sceneScalePercent ?: settings.quality.scalePercent(part.kind),
                 sceneKind = part.kind,
+                quality = settings.quality,
             )
             withContext(Dispatchers.Default) { gpu.request(request) }
             val started = gpu.lastStart

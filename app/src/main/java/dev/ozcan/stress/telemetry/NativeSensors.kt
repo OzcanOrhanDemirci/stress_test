@@ -2,7 +2,7 @@ package dev.ozcan.stress.telemetry
 
 import dev.ozcan.stress.engine.NativeBridge
 
-/** Raw kgsl `gpubusy` counters: busy time and total time of the driver's current window. */
+/** The GPU's load as its driver counts it: busy time out of total (a percentage reads as out of 100). */
 data class GpuBusy(val busy: Long, val total: Long) {
     val fraction: Double? get() = if (total > 0 && busy in 0..total) busy.toDouble() / total else null
 }
@@ -23,6 +23,7 @@ data class SensorAvailability(
 ) {
     fun readableZones(group: ThermalGroup): Int = zones.count { it.first.group == group && it.second }
     fun totalZones(group: ThermalGroup): Int = zones.count { it.first.group == group }
+    fun readable(group: ThermalGroup): Boolean = readableZones(group) > 0
 }
 
 /** Reads the layout's files through the native reader (one pread each). */
@@ -40,7 +41,7 @@ class NativeSensors(val layout: SysfsLayout) : AutoCloseable {
         availability = SensorAvailability(
             clusters = layout.clusters.mapIndexed { i, c -> c to readable[i] },
             zones = layout.zones.mapIndexed { i, z -> z to readable[clusterCount + i] },
-            gpuBusy = readable[clusterCount + zoneCount],
+            gpuBusy = layout.gpuBusyPath != null && readable.getOrElse(clusterCount + zoneCount) { false },
         )
     }
 
@@ -56,29 +57,45 @@ class NativeSensors(val layout: SysfsLayout) : AutoCloseable {
         const val VALUES_PER_FILE = 2
         private const val MISSING = Long.MIN_VALUE
 
-        /** Zone readings outside this range are sensor placeholders (e.g. -273000). */
-        private val PLAUSIBLE_MILLI_C = -40_000L..150_000L
+        /** Readings outside this range, in °C, are sensor placeholders (e.g. -273000) or not temperatures. */
+        private val PLAUSIBLE_CELSIUS = -40.0..150.0
+
+        /**
+         * A zone's reading in °C. Kernels report millidegrees, but some
+         * drivers give degrees or tenths: a value is read in the unit that
+         * puts it in a phone's range. Zero is a sensor that is not running.
+         */
+        fun celsius(raw: Long): Double? {
+            if (raw == 0L) return null
+            val value = when {
+                raw in -40L..150L -> raw.toDouble()
+                raw in 151L..1500L -> raw / 10.0
+                else -> raw / 1000.0
+            }
+            return value.takeIf { it in PLAUSIBLE_CELSIUS }
+        }
 
         /** Turns the flat native value array into a reading. Separate from I/O so it can be tested. */
         fun decode(layout: SysfsLayout, values: LongArray): SysfsReading {
-            fun first(index: Int): Long? = values[index * VALUES_PER_FILE].takeIf { it != MISSING }
-            fun second(index: Int): Long? = values[index * VALUES_PER_FILE + 1].takeIf { it != MISSING }
+            fun first(index: Int): Long? = values.getOrNull(index * VALUES_PER_FILE)?.takeIf { it != MISSING }
+            fun second(index: Int): Long? = values.getOrNull(index * VALUES_PER_FILE + 1)?.takeIf { it != MISSING }
 
             val clusterCount = layout.clusters.size
-            val freqs = List(clusterCount) { first(it) }
+            val freqs = List(clusterCount) { first(it)?.takeIf { khz -> khz > 0 } }
 
             val temperatures = HashMap<ThermalGroup, Double>()
             layout.zones.forEachIndexed { i, zone ->
-                val milli = first(clusterCount + i)?.takeIf { it in PLAUSIBLE_MILLI_C } ?: return@forEachIndexed
-                val celsius = milli / 1000.0
+                val celsius = first(clusterCount + i)?.let(::celsius) ?: return@forEachIndexed
                 temperatures.merge(zone.group, celsius, ::maxOf)
             }
 
             val gpuIndex = clusterCount + layout.zones.size
             val busy = first(gpuIndex)
-            val total = second(gpuIndex)
-            val gpu = if (busy != null && total != null) GpuBusy(busy, total) else null
-
+            val gpu = when {
+                layout.gpuBusyPath == null || busy == null -> null
+                layout.gpuBusyFormat == GpuBusyFormat.Percent -> GpuBusy(busy, 100)
+                else -> second(gpuIndex)?.let { GpuBusy(busy, it) }
+            }
             return SysfsReading(freqs, temperatures, gpu)
         }
     }

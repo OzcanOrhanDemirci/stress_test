@@ -1,8 +1,27 @@
 package dev.ozcan.stress.run
 
+import dev.ozcan.stress.device.DeviceInfo
 import kotlinx.serialization.Serializable
 
-/** One stress run as the app keeps it: what ran, the verdict, and the curves behind it. */
+/** Why a run ended. */
+enum class EndReason {
+    /** The planned duration ran out. */
+    Completed,
+    /** The user stopped it. */
+    User,
+    /** Device safety stopped it ([RunRecord.safetyReason]). */
+    Safety,
+    /** The GPU failed or was reset by its driver. */
+    GpuFailed,
+    /** The app left the screen, which takes the load's cores and surface away. */
+    Interrupted,
+}
+
+/**
+ * One stress run as the app keeps it: what ran, the verdict, and the curves
+ * behind it. Fields added after the first version have defaults, so older
+ * runs still load.
+ */
 @Serializable
 data class RunRecord(
     val id: String,
@@ -15,6 +34,18 @@ data class RunRecord(
     val stoppedEarly: Boolean,
     val summary: RunSummary,
     val series: RunSeries,
+    val device: DeviceInfo? = null,
+    /** The scene's quality (SceneQuality's name) for cinematic runs. */
+    val quality: String? = null,
+    /** Whether device safety watched the run. */
+    val safetyEnabled: Boolean? = null,
+    /** EndReason's name. */
+    val endReason: String? = null,
+    /** SafetyReason's name and its reading, when device safety ended the run. */
+    val safetyReason: String? = null,
+    val safetyValue: Double? = null,
+    /** The app's version that measured it. */
+    val appVersion: String? = null,
 )
 
 @Serializable
@@ -45,6 +76,22 @@ data class RunSummary(
     val computationErrors: Long,
     /** False when the charger was attached at any point: the power figures are then not valid. */
     val powerValid: Boolean,
+    /** Mean CPU work rate over the load, in [cpuUnit] per second (all CPUs together). */
+    val cpuMeanRate: Double? = null,
+    /** WorkUnit's name of the CPU kernel. */
+    val cpuUnit: String? = null,
+    /** CPU work rate of the first and the last minute (or tenth of the load when shorter). */
+    val cpuStartRate: Double? = null,
+    val cpuEndRate: Double? = null,
+    val gpuMeanRate: Double? = null,
+    val gpuUnit: String? = null,
+    val meanFps: Double? = null,
+    /** Lowest one-second frame rate after the first ten seconds. */
+    val minFps: Double? = null,
+    /** Highest Android thermal status seen (PowerManager.THERMAL_STATUS_*). */
+    val maxThermalStatus: Int? = null,
+    /** True when the watts come from the charge counter's slope: the phone has no usable instantaneous current. */
+    val powerFromCounter: Boolean = false,
 )
 
 /** Once-a-second curves. Every list has one entry per second of the load; null where unmeasured. */
@@ -60,4 +107,6 @@ data class RunSeries(
     val cpuRelative: List<Double?>,
     val gpuRelative: List<Double?>,
     val batteryPercent: List<Int?>,
+    /** Frames drawn each second, when the GPU drew. */
+    val fps: List<Double?> = emptyList(),
 )

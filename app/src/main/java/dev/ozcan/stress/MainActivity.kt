@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         setShowWhenLocked(true)
         setTurnScreenOn(true)
 
-        val lab = LabSpec.parse(labExtras(), graph.cpu.kernels, graph.gpu.burners)
+        val lab = LabSpec.parse(labExtras(), graph.cpu.kernels, graph.gpu.burners, graph.cpu.cpuCount)
         lab?.getOrNull()?.let { spec ->
             window.attributes = window.attributes.apply { screenBrightness = spec.brightness }
         }

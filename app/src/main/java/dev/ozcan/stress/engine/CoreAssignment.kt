@@ -1,7 +1,8 @@
 package dev.ozcan.stress.engine
 
 /**
- * Which kernel runs on which CPU; `null` leaves the CPU idle.
+ * Which kernel runs on which CPU; `null` leaves the CPU idle. There is one
+ * entry for every CPU of the device ([cpuCount]).
  *
  * Text form, used by lab commands: either one kernel key for every CPU
  * (`fp32_gemm`) or comma separated `cpus:key` groups where `cpus` is a single
@@ -11,22 +12,24 @@ package dev.ozcan.stress.engine
 data class CoreAssignment(val kernelPerCpu: List<CpuKernel?>) {
 
     init {
-        require(kernelPerCpu.size == CPU_COUNT) { "Expected $CPU_COUNT CPUs, got ${kernelPerCpu.size}" }
+        require(kernelPerCpu.isNotEmpty()) { "An assignment needs at least one CPU" }
     }
+
+    val cpuCount: Int get() = kernelPerCpu.size
 
     val isIdle: Boolean get() = kernelPerCpu.all { it == null }
 
-    fun toNative(): IntArray = IntArray(CPU_COUNT) { kernelPerCpu[it]?.index ?: -1 }
+    fun toNative(): IntArray = IntArray(cpuCount) { kernelPerCpu[it]?.index ?: -1 }
 
     /** Inverse of [parse]; groups neighbouring CPUs that run the same kernel. */
     fun describe(): String {
         if (kernelPerCpu.all { it != null && it == kernelPerCpu[0] }) return kernelPerCpu[0]!!.key
         val groups = mutableListOf<String>()
         var start = 0
-        while (start < CPU_COUNT) {
+        while (start < cpuCount) {
             val kernel = kernelPerCpu[start]
             var end = start
-            while (end + 1 < CPU_COUNT && kernelPerCpu[end + 1] == kernel) end++
+            while (end + 1 < cpuCount && kernelPerCpu[end + 1] == kernel) end++
             if (kernel != null) {
                 val cpus = if (start == end) "$start" else "$start-$end"
                 groups += "$cpus:${kernel.key}"
@@ -37,26 +40,24 @@ data class CoreAssignment(val kernelPerCpu: List<CpuKernel?>) {
     }
 
     companion object {
-        /** The Honor 400 has eight CPUs: 0-3 Cortex-A510, 4-6 Cortex-A715, 7 Cortex-A715 prime. */
-        const val CPU_COUNT = 8
+        fun uniform(kernel: CpuKernel?, cpuCount: Int): CoreAssignment = CoreAssignment(List(cpuCount) { kernel })
 
-        fun uniform(kernel: CpuKernel?): CoreAssignment = CoreAssignment(List(CPU_COUNT) { kernel })
-
-        fun parse(text: String, kernels: List<CpuKernel>): CoreAssignment {
+        fun parse(text: String, kernels: List<CpuKernel>, cpuCount: Int): CoreAssignment {
+            require(cpuCount > 0) { "No CPUs" }
             val byKey = kernels.associateBy { it.key }
             fun kernel(key: String) = byKey[key.trim()] ?: throw IllegalArgumentException("Unknown kernel '$key'")
 
             val trimmed = text.trim()
             require(trimmed.isNotEmpty()) { "Empty assignment" }
-            if (':' !in trimmed) return uniform(kernel(trimmed))
+            if (':' !in trimmed) return uniform(kernel(trimmed), cpuCount)
 
-            val slots = arrayOfNulls<CpuKernel>(CPU_COUNT)
+            val slots = arrayOfNulls<CpuKernel>(cpuCount)
             for (group in trimmed.split(',')) {
                 val (cpus, key) = group.split(':').let {
                     require(it.size == 2) { "Malformed group '$group'" }
                     it[0].trim() to it[1]
                 }
-                val range = parseRange(cpus)
+                val range = parseRange(cpus, cpuCount)
                 for (cpu in range) {
                     require(slots[cpu] == null) { "CPU $cpu assigned twice" }
                     slots[cpu] = kernel(key)
@@ -65,7 +66,7 @@ data class CoreAssignment(val kernelPerCpu: List<CpuKernel?>) {
             return CoreAssignment(slots.toList())
         }
 
-        private fun parseRange(text: String): IntRange {
+        private fun parseRange(text: String, cpuCount: Int): IntRange {
             val bounds = text.split('-').map {
                 it.trim().toIntOrNull() ?: throw IllegalArgumentException("Bad CPU '$text'")
             }
@@ -74,7 +75,7 @@ data class CoreAssignment(val kernelPerCpu: List<CpuKernel?>) {
                 2 -> bounds[0]..bounds[1]
                 else -> throw IllegalArgumentException("Bad CPU range '$text'")
             }
-            require(!range.isEmpty() && range.first >= 0 && range.last < CPU_COUNT) { "CPU range '$text' out of 0-${CPU_COUNT - 1}" }
+            require(!range.isEmpty() && range.first >= 0 && range.last < cpuCount) { "CPU range '$text' out of 0-${cpuCount - 1}" }
             return range
         }
     }

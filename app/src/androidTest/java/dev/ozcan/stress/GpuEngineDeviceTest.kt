@@ -8,13 +8,13 @@ import android.os.HandlerThread
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.ozcan.stress.engine.GpuBurner
-import dev.ozcan.stress.engine.GpuCatalog
 import dev.ozcan.stress.engine.GpuEngine
 import dev.ozcan.stress.engine.GpuRequest
 import dev.ozcan.stress.engine.GpuSnapshot
 import dev.ozcan.stress.engine.GpuStartResult
 import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.SceneKind
+import dev.ozcan.stress.engine.SceneQuality
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -58,16 +58,23 @@ class GpuEngineDeviceTest {
     }
 
     @Test
-    fun tableIsDescribed() {
-        assertEquals(GpuCatalog.keys, engine.burners.map { it.key }.toSet())
+    fun tableNamesTheFiveBurners() {
+        assertEquals(listOf("gpu_fp32", "gpu_fp16", "gpu_texture", "gpu_bandwidth", "gpu_blend"), engine.burners.map { it.key })
     }
 
     @Test
-    fun everySceneRuns() {
-        for (kind in SceneKind.entries) {
-            val s = run(GpuRequest(null, sceneKind = kind), 2_000)
-            assertEquals("$kind state", GpuState.Running, s.state)
-            assertTrue("$kind frames ${s.frames}", s.frames > 5)
+    fun everySceneRunsAtEveryQuality() {
+        for (quality in SceneQuality.entries) {
+            for (kind in SceneKind.entries) {
+                // High draws a few frames a second on this phone: wait longer for it.
+                val millis = if (quality == SceneQuality.High) 3_000L else 2_000L
+                val request = GpuRequest(null, sceneKind = kind, quality = quality, sceneScalePercent = quality.scalePercent(kind))
+                val s = run(request, millis)
+                assertEquals("$kind $quality state", GpuState.Running, s.state)
+                assertTrue("$kind $quality frames ${s.frames}", s.frames > 3)
+                assertTrue("$kind $quality untimed", s.timed)
+                Log.i(TAG, "$kind $quality %.1f ms a frame".format(s.gpuNanos / 1e6 / s.frames.coerceAtLeast(1)))
+            }
         }
     }
 

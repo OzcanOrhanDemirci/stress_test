@@ -4,16 +4,18 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.StartResult
+import dev.ozcan.stress.telemetry.SysfsLayout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CpuEngineDeviceTest {
 
-    private val engine = CpuEngine()
+    private val engine = CpuEngine(SysfsLayout.discover().cpuCount)
 
     @After
     fun stop() = engine.stop()
@@ -21,7 +23,7 @@ class CpuEngineDeviceTest {
     @Test
     fun everyCoreBurnsPinnedAndWithoutErrors() {
         val kernel = engine.kernel("fp32_gemm")
-        assertEquals(StartResult.Started, engine.start(CoreAssignment.uniform(kernel)))
+        assertEquals(StartResult.Started, engine.start(CoreAssignment.uniform(kernel, engine.cpuCount)))
         // At rest core_ctl keeps CPUs 5 and 7 paused; the load must win them back.
         val deadline = System.nanoTime() + 3_000_000_000L
         while (!engine.snapshot().workers.all { it.isPinned } && System.nanoTime() < deadline) Thread.sleep(50)
@@ -41,7 +43,8 @@ class CpuEngineDeviceTest {
 
     @Test
     fun mixedAssignmentsRunTheirOwnKernels() {
-        val assignment = CoreAssignment.parse("0-3:memcopy,4-6:bf16_mmla,7:mixed", engine.kernels)
+        assumeTrue("an eight-CPU phone with bf16", engine.cpuCount == 8 && engine.kernel("bf16_mmla").supported)
+        val assignment = CoreAssignment.parse("0-3:memcopy,4-6:bf16_mmla,7:mixed", engine.kernels, engine.cpuCount)
         assertEquals(StartResult.Started, engine.start(assignment))
         Thread.sleep(1_000)
         val snapshot = engine.snapshot()
@@ -52,7 +55,7 @@ class CpuEngineDeviceTest {
 
     @Test
     fun aSecondStartIsRefusedUntilStopped() {
-        val assignment = CoreAssignment.uniform(engine.kernel("dry"))
+        val assignment = CoreAssignment.uniform(engine.kernel("dry"), engine.cpuCount)
         assertEquals(StartResult.Started, engine.start(assignment))
         assertEquals(StartResult.AlreadyRunning, engine.start(assignment))
         engine.stop()
@@ -61,6 +64,19 @@ class CpuEngineDeviceTest {
 
     @Test
     fun anIdleAssignmentIsRejected() {
-        assertEquals(StartResult.InvalidKernel, engine.start(CoreAssignment.uniform(null)))
+        assertEquals(StartResult.InvalidKernel, engine.start(CoreAssignment.uniform(null, engine.cpuCount)))
+    }
+
+    @Test
+    fun aKernelTheCpuCannotRunIsRejected() {
+        val unsupported = engine.kernel("bf16_mmla").copy(supported = false)
+        assertEquals(StartResult.InvalidKernel, engine.start(CoreAssignment.uniform(unsupported, engine.cpuCount)))
+    }
+
+    @Test
+    fun theEngineCoversEveryCpu() {
+        // Every CPU the kernel can bring online gets a slot, paused ones too.
+        assertTrue(engine.cpuCount >= Runtime.getRuntime().availableProcessors())
+        assertEquals(engine.cpuCount, engine.snapshot().workers.size)
     }
 }

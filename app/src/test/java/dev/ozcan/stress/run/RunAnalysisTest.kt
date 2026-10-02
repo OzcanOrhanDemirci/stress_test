@@ -33,7 +33,7 @@ class RunAnalysisTest {
             // The engine reports whole batches of 10 iterations of 1000 units: 10_000 units a batch.
             val cpu = TestSamples.snapshot(TestSamples.gemm, batches = (cpuWork / 10_000 / 8).toLong())
             val gpu = TestSamples.gpu(TestSamples.gpuFp32, frames = i.toLong(), workPerFrame = 0).copy(work = gpuWork)
-            val temps = mapOf(ThermalGroup.BigCores to 40.0 + s / 10, ThermalGroup.Gpu to 35.0 + s / 20)
+            val temps = mapOf(ThermalGroup.Cpu to 40.0 + s / 10, ThermalGroup.Gpu to 35.0 + s / 20)
             val sampleAt = sample(
                 t, currentRaw = (-amps * 1_000_000).toLong(), chargeCounter = 4_000_000, cpu = cpu, gpu = gpu,
                 freqKhz = listOf(1_804_800, bigKhz, 2_630_400), temperatures = temps, plugged = plugged && i == 900,
@@ -77,8 +77,8 @@ class RunAnalysisTest {
         assertNull(summary.firstThrottleSeconds.getValue("p7"))
         assertEquals(0.8, summary.cpuStability!!, 0.01)
         assertEquals(0.8, summary.gpuStability!!, 0.01)
-        assertEquals(40.0 + 179.9 / 10, summary.maxTemperatures.getValue("A715"), 1e-6)
-        assertEquals(40.0, summary.startTemperatures.getValue("A715"), 1e-9)
+        assertEquals(40.0 + 179.9 / 10, summary.maxTemperatures.getValue("cpu"), 1e-6)
+        assertEquals(40.0, summary.startTemperatures.getValue("cpu"), 1e-9)
         assertEquals(30.0, summary.maxTemperatures.getValue(RunAnalysis.BATTERY), 1e-9)
         assertEquals(0L, summary.computationErrors)
     }
@@ -92,7 +92,8 @@ class RunAnalysisTest {
         assertEquals(1.0, series.cpuRelative[30]!!, 0.02)
         assertEquals(0.8, series.cpuRelative[120]!!, 0.02)
         assertEquals(1920.0, series.clocksMhz.getValue("p4")[100]!!, 1e-9)
-        assertEquals(setOf("A715", "A510", "GPU", "DDR"), series.temperatures.keys)
+        // Only groups that were read get a curve.
+        assertEquals(setOf("cpu", "gpu"), series.temperatures.keys)
         assertNull(series.cpuRelative.last())
     }
 
@@ -102,6 +103,46 @@ class RunAnalysisTest {
         val gpuOnly = load.map { it.copy(cpu = TestSamples.snapshot(null, 0)) }
         val summary = RunAnalysis.analyze(baseline, gpuOnly, TestSamples.clusters) { "p${it.policy}" }.first
         assertTrue(summary.firstThrottleSeconds.isEmpty())
+    }
+
+    @Test
+    fun `work rates of the whole load and of its first and last minute`() {
+        val (summary, _) = analyze()
+        // 100 batches a second a CPU for a minute, then 80: 10 000 units a batch, 8 CPUs.
+        assertEquals(100.0 * 8 * 10_000, summary.cpuStartRate!!, 100.0 * 8 * 10_000 * 0.02)
+        assertEquals(80.0 * 8 * 10_000, summary.cpuEndRate!!, 80.0 * 8 * 10_000 * 0.02)
+        assertEquals((60 * 100.0 + 120 * 80.0) / 180 * 8 * 10_000, summary.cpuMeanRate!!, 1_000_000.0 * 0.02)
+        assertEquals("Flop", summary.cpuUnit)
+        assertEquals("Flop", summary.gpuUnit)
+    }
+
+    @Test
+    fun `a burner's frames are paced, so only a scene gets a frame rate`() {
+        val (burner, burnerSeries) = analyze()
+        assertNull(burner.meanFps)
+        assertTrue(burnerSeries.fps.isEmpty())
+
+        val (baseline, load) = run()
+        val scene = load.mapIndexed { i, s -> s.copy(gpu = TestSamples.gpu(null, frames = i / 4L)) }
+        val (summary, series) = RunAnalysis.analyze(baseline, scene, TestSamples.clusters) { "p${it.policy}" }
+        // A frame every four samples of 0.1 s: 2.5 frames a second.
+        assertEquals(2.5, summary.meanFps!!, 0.05)
+        assertEquals(series.seconds.size, series.fps.size)
+        assertNull(summary.gpuMeanRate)
+    }
+
+    @Test
+    fun `without an instantaneous current the charge counter gives the mean power`() {
+        val (baseline, load) = run()
+        // The counter falls 2 A for 180 s; the current reads zero, as some phones report it.
+        val counted = load.mapIndexed { i, s ->
+            s.copy(battery = s.battery.copy(currentRaw = 0, chargeCounterMicroAmpHours = 4_000_000L - (2.0 * i / 10 / 3.6 * 1000).toLong()))
+        }
+        val quiet = baseline.map { s -> s.copy(battery = s.battery.copy(currentRaw = 0)) }
+        val summary = RunAnalysis.analyze(quiet, counted, TestSamples.clusters) { "p${it.policy}" }.first
+        assertTrue(summary.powerFromCounter)
+        assertNull(summary.peakWatts)
+        assertEquals(2.0 * 4.0, summary.meanWatts!!, 0.05)
     }
 
     @Test

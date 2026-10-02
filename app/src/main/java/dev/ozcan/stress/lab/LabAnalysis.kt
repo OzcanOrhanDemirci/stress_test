@@ -44,12 +44,13 @@ object LabAnalysis {
             workload = run.load.describe(),
             runIndex = run.index,
             runCount = run.count,
-            startTemperatures = run.startTemperatures.mapKeys { it.key.label },
+            startTemperatures = run.startTemperatures.mapKeys { it.key.key },
             cooledInTime = run.cooledInTime,
             nice = spec.nice,
             batchMillis = spec.batchMillis,
             scene = spec.scene,
-            sceneScalePercent = spec.sceneScalePercent,
+            sceneScalePercent = spec.sceneScalePercent ?: run.load.gpu?.let { spec.quality.scalePercent(it.kind) } ?: 0,
+            quality = spec.quality.name,
             idleSeconds = spec.idleSeconds,
             loadSeconds = spec.loadSeconds,
             startResult = startResult,
@@ -68,7 +69,7 @@ object LabAnalysis {
             clusters = clusterResults(load, clusters),
             gpu = gpuResult(load),
             maxTemperatures = load.flatMap { it.sysfs.temperatures.entries }
-                .groupBy({ it.key.label }, { it.value })
+                .groupBy({ it.key.key }, { it.value })
                 .mapValues { (_, values) -> values.max() },
             cadence = cadence(all),
             computationErrors = (load.lastOrNull()?.cpu?.errors ?: 0L) + (load.lastOrNull()?.gpu?.errors ?: 0L),
