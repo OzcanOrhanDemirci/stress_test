@@ -10,10 +10,10 @@
 [![AArch64 assembly](https://img.shields.io/badge/AArch64-assembly-555555)](app/src/main/cpp/cpu)
 [![Vulkan](https://img.shields.io/badge/Vulkan-1.1%2B-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
 [![Min SDK](https://img.shields.io/badge/minSdk-29-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
-[![Tuned on](https://img.shields.io/badge/tuned%20on-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#the-device-it-was-tuned-on)
+[![Reference device](https://img.shields.io/badge/reference%20device-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#the-reference-device)
 [![Version](https://img.shields.io/badge/version-0.2.0-success)](#status)
 
-**10.1 W** at full load on the phone it was tuned on · **2.6×** the power of an "idle 100 %" on the same cores · three cinematic scenes at three quality levels · device safety · a PDF report
+**10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · three cinematic scenes at three quality levels · device safety · a PDF report
 
 [The question](#the-question) · [Results](#results) · [Modes](#modes) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
 
@@ -27,14 +27,16 @@
 
 ---
 
-A private project that began with one phone. Version 0.1.0 targeted a single
-**Honor 400**; since 0.2.0 (2 October 2026) it runs on any 64-bit phone with
-Android 10 or later. Every number below was measured on the Honor, and every
-load was chosen against those measurements rather than against a generic phone.
-The choices travel: a load that keeps a core's multiply-add units, load path and
-caches busy at once draws the most on the next core design too, so the recipes
-stayed as they were and the app learned to find its way round other phones:
-their core count and names, their thermal sensors, their GPU drivers.
+Stress Test is a stress test and benchmark for Android: it runs on any 64-bit
+phone with Android 10 or later. It began on 30 September 2026 as a personal test
+for a single **Honor 400** and grew, with version 0.2.0 on 2 October 2026, into an
+app anyone can use on their own phone. The Honor stayed on as the reference
+device: every number below was measured on it, and every load was chosen against
+those measurements rather than against a generic phone. The choices travel: a
+load that keeps a core's multiply-add units, load path and caches busy at once
+draws the most on the next core design too, so the recipes stayed as they were
+and the app learned to find its way round every other phone: their core count
+and names, their thermal sensors, their GPU drivers.
 
 ## The question
 
@@ -46,7 +48,7 @@ from the cache, with the arithmetic units, the load path and the cache all
 running at once. Both read as 100 %. Only one of them heats the phone.
 
 It is the difference between Cinebench and Prime95, and this project measures
-it. On this phone:
+it. On the reference phone:
 
 | What runs on all eight cores | Reported load | Battery power |
 | --- | --- | --- |
@@ -133,7 +135,7 @@ before the measurement was 97 %, so the scenes became their own mode
 
 ## The cinematic scenes
 
-The second goal of the project, added halfway: *the most impressive picture this
+The second goal of the project, added halfway: *the most impressive picture the
 phone can show*. At Medium quality each scene is rendered at 45 % of the screen's
 resolution and built up to full resolution over time: every frame moves its samples by a
 sub-pixel jitter and reseeds its random effects, a temporal pass reprojects the
@@ -257,7 +259,7 @@ turns it off, and the settings turn it back on.
 ## How power is measured
 
 The phone gives an app no access to its battery sysfs; the only source is
-`BatteryManager`. Its fields on this phone needed measuring before they could be
+`BatteryManager`. Its fields on the reference phone needed measuring before they could be
 trusted:
 
 - `CURRENT_NOW` is in **milliamperes** (not microamperes), negative while
@@ -273,7 +275,7 @@ A sampler reads power, every thermal zone, the frequency of each cluster and the
 GPU's busy counter ten times a second and keeps a bounded log.
 
 **Comparing loads fairly** needs the cable out (a charging battery says nothing
-about what the phone draws), and this phone drops adb over TCP and wireless
+about what the phone draws), and the reference phone drops adb over TCP and wireless
 debugging alike the moment the cable is unplugged. So comparisons run as **lab sessions** the phone runs by itself:
 `tools/lab.mjs` starts a session over the cable, the phone waits until it is
 unplugged, then for each load in random order it waits until its CPUs have
@@ -352,7 +354,7 @@ measurement that settled it.
 | | |
 | --- | --- |
 | **One criterion: watts** | Not "100 %", not a score. A load wins only by drawing more measured power from the battery. |
-| **One phone, then every phone (0.2.0)** | The recipes measured on one phone stay; the app finds its way round the others. |
+| **From one phone to every Android phone (0.2.0)** | Began as a personal test for one phone; the recipes measured there stay, and the app finds its way round every other phone. |
 | **Device safety, on by default (0.2.0)** | Replaced "no protections". Limits above the phone's throttling point; off is a choice, confirmed. |
 | **A report to take away (0.2.0)** | Replaced "no export": the analysis stays on the phone, and a PDF or CSV can leave it. |
 | **Scenes are their own mode** | A scene drew 88.5 % of full load against a 97 % rule written before the measurement. |
@@ -363,7 +365,7 @@ measurement that settled it.
 ## What is verified
 
 ```bash
-./gradlew testDebugUnitTest            # 99 JVM tests
+./gradlew testDebugUnitTest            # 101 JVM tests
 ./gradlew connectedDebugAndroidTest    # 19 tests on the phone
 ```
 
@@ -395,9 +397,9 @@ works), Android SDK Platform 36, NDK 29.0.14206865 and CMake 4.1.2; the
 shaders are compiled with the NDK's `glslc`. The build targets `arm64-v8a`
 only, and `minSdk` is 29 (Android 10, where every 64-bit phone has Vulkan 1.1;
 without it the GPU and cinematic modes are switched off and the CPU modes still
-run). The release build is signed with the debug key; it is never distributed.
+run). The release build is signed with the debug key.
 
-### The device it was tuned on
+### The reference device
 
 | | |
 | --- | --- |
@@ -428,10 +430,11 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 ## Status
 
-**Version 0.2.0.** A hobby project, built for one phone between 30 September
-and 1 October 2026 and reopened on 2 October 2026 to run on every phone, with
-device safety, a report, comparisons and graphics quality levels. It accepts no
-contributions and stays private.
+**Version 0.2.0.** Begun on 30 September 2026 as a personal test for one phone,
+Stress Test became a stress test and benchmark for Android phones with 0.2.0 on
+2 October 2026: it runs on every 64-bit phone with Android 10 or later and adds
+device safety, a report, comparisons, graphics quality levels and an English and
+Turkish interface. The repository is private.
 
 ## Licence
 

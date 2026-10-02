@@ -10,10 +10,10 @@
 [![AArch64 assembly](https://img.shields.io/badge/AArch64-assembly-555555)](app/src/main/cpp/cpu)
 [![Vulkan](https://img.shields.io/badge/Vulkan-1.1%2B-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
 [![Min SDK](https://img.shields.io/badge/minSdk-29-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
-[![Ayarland%C4%B1%C4%9F%C4%B1 cihaz](https://img.shields.io/badge/ayarland%C4%B1%C4%9F%C4%B1%20cihaz-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#ayarlandığı-cihaz)
+[![Referans cihaz](https://img.shields.io/badge/referans%20cihaz-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#referans-cihaz)
 [![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-0.2.0-success)](#durum)
 
-Ayarlandığı telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede üç sinematik sahne · cihaz güvenliği · PDF rapor
+Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede üç sinematik sahne · cihaz güvenliği · PDF rapor
 
 [Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
 
@@ -27,10 +27,12 @@ Ayarlandığı telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %10
 
 ---
 
-Tek bir telefonla başlamış kişisel bir proje. 0.1.0 yalnız bir **Honor 400**'ü
-hedefliyordu; 0.2.0'dan beri (2 Ekim 2026) Android 10 ve üstü her 64-bit telefonda
-çalışıyor. Aşağıdaki her sayı Honor'da ölçüldü; her yük de genel bir telefona göre
-değil, bu ölçümlere göre seçildi. Seçimler taşınıyor: bir çekirdeğin çarp-topla
+Stress Test, Android için bir stres testi ve benchmark uygulaması: Android 10 ve
+üstü her 64-bit telefonda çalışır. 30 Eylül 2026'da tek bir **Honor 400** için
+kişisel bir test olarak başladı; 2 Ekim 2026'daki 0.2.0 sürümüyle herkesin kendi
+telefonunda kullanabileceği bir uygulamaya dönüştü. Honor referans cihaz olarak
+kaldı: aşağıdaki her sayı onda ölçüldü; her yük de genel bir telefona göre değil,
+bu ölçümlere göre seçildi. Seçimler taşınıyor: bir çekirdeğin çarp-topla
 birimlerini, yükleme yolunu ve önbelleklerini aynı anda meşgul eden yük, bir
 sonraki çekirdek tasarımında da en çok gücü çeker. Bu yüzden tarifler aynen kaldı;
 uygulama da öbür telefonlarda yolunu bulmayı öğrendi: çekirdek sayıları ve adları,
@@ -46,7 +48,7 @@ ve birimlerinin neredeyse hepsi boşta kalır. Aynı çekirdek, işlenenleri
 birimler, yükleme yolu ve önbellek aynı anda çalışır. İkisi de %100 görünür.
 Telefonu ısıtan yalnız biridir.
 
-Bu, Cinebench ile Prime95 arasındaki farktır ve bu proje onu ölçer. Bu telefonda:
+Bu, Cinebench ile Prime95 arasındaki farktır ve bu proje onu ölçer. Referans telefonda:
 
 | Sekiz çekirdekte çalışan | Görünen yük | Pilden çekilen güç |
 | --- | --- | --- |
@@ -132,7 +134,7 @@ yüzden sahneler kendi modlarına taşındı ([docs/PLAN.md](docs/PLAN.md), §13
 
 ## Sinematik sahneler
 
-Projenin yarısında eklenen ikinci hedef: *bu telefonun gösterebileceği en
+Projenin yarısında eklenen ikinci hedef: *telefonun gösterebileceği en
 etkileyici görüntü.* Orta kalitede her sahne ekran çözünürlüğünün %45'inde çizilir ve zamanla
 tam çözünürlüğe kurulur: her kare örneklerini piksel altı bir kaymayla oynatır
 ve rastgele etkilerini yeniden tohumlar; zamansal geçiş önceki kareleri kamerayla
@@ -255,7 +257,7 @@ onu kapatır, ayarlar yeniden açar.
 ## Güç nasıl ölçülüyor
 
 Telefon, bir uygulamaya pilinin sysfs dosyalarını açmıyor; tek kaynak
-`BatteryManager`. Bu telefondaki alanlarına güvenmeden önce onları ölçmek gerekti:
+`BatteryManager`. Referans telefondaki alanlarına güvenmeden önce onları ölçmek gerekti:
 
 - `CURRENT_NOW` **miliamper** cinsinden (mikroamper değil), boşalırken eksi,
   saniyede bir güncelleniyor. Uygulama birimi ve işareti varsaymıyor, okumalardan
@@ -270,7 +272,7 @@ Bir örnekleyici gücü, bütün termal bölgeleri, her kümenin frekansını ve
 meşguliyet sayacını saniyede on kez okuyor ve sınırlı bir kayıt tutuyor.
 
 **Yükleri adil karşılaştırmak** kablonun çıkmasını gerektiriyor (şarj olan bir
-pil telefonun ne çektiğini söylemez) ve bu telefon kablo çıktığı anda TCP
+pil telefonun ne çektiğini söylemez) ve referans telefon kablo çıktığı anda TCP
 üzerinden de kablosuz hata ayıklamayla da adb bağlantısını düşürüyor. Bu yüzden
 karşılaştırmalar telefonun kendi kendine koşturduğu **lab oturumları** olarak
 yapılıyor: `tools/lab.mjs` oturumu kablo üzerinden başlatıyor, telefon kablonun
@@ -352,7 +354,7 @@ bölümünde tam olarak yazılı.
 | | |
 | --- | --- |
 | **Tek ölçüt: watt** | "%100" değil, puan değil. Bir yük ancak pilden ölçülen daha fazla güç çekerek kazanır. |
-| **Önce bir telefon, sonra her telefon (0.2.0)** | Bir telefonda ölçülen tarifler kalır; uygulama öbürlerinde yolunu bulur. |
+| **Bir telefondan bütün Android telefonlara (0.2.0)** | Tek bir telefon için kişisel bir test olarak başladı; orada ölçülen tarifler kalır, uygulama öbür telefonlarda yolunu bulur. |
 | **Cihaz güvenliği, varsayılan açık (0.2.0)** | "Koruma yok"un yerini aldı. Sınırlar telefonun kısma noktasının üstünde; kapatmak onaylanan bir seçim. |
 | **Yanında götürülen rapor (0.2.0)** | "Dışa aktarma yok"un yerini aldı: analiz telefonda kalır, PDF ya da CSV dışarı çıkabilir. |
 | **Sahneler ayrı mod** | Sahne, ölçümden önce yazılan %97 kuralına karşı tam yükün %88,5'ini çekti. |
@@ -363,7 +365,7 @@ bölümünde tam olarak yazılı.
 ## Neler doğrulandı
 
 ```bash
-./gradlew testDebugUnitTest            # 99 JVM testi
+./gradlew testDebugUnitTest            # 101 JVM testi
 ./gradlew connectedDebugAndroidTest    # telefonda 19 test
 ```
 
@@ -397,9 +399,9 @@ SDK Platform 36, NDK 29.0.14206865 ve CMake 4.1.2 gerekir; gölgelendiriciler
 NDK'nın `glslc`'siyle derlenir. Derleme yalnız `arm64-v8a` içindir ve `minSdk`
 29'dur (Android 10: her 64-bit telefonda Vulkan 1.1 var; yoksa GPU ve sinematik
 modlar kapanır, CPU modları yine çalışır). Sürüm derlemesi debug anahtarıyla
-imzalanır; hiçbir yere dağıtılmaz.
+imzalanır.
 
-### Ayarlandığı cihaz
+### Referans cihaz
 
 | | |
 | --- | --- |
@@ -430,10 +432,11 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 ## Durum
 
-**Sürüm 0.2.0.** 30 Eylül ile 1 Ekim 2026 arasında tek bir telefon için yapılmış,
-2 Ekim 2026'da cihaz güvenliği, rapor, karşılaştırma ve grafik kalitesiyle her
-telefonda çalışmak üzere yeniden açılmış bir hobi projesi. Katkı kabul etmiyor ve
-private kalıyor.
+**Sürüm 0.2.0.** 30 Eylül 2026'da tek bir telefon için kişisel bir test olarak
+başlayan Stress Test, 2 Ekim 2026'daki 0.2.0 ile Android telefonlar için bir stres
+testi ve benchmark uygulaması oldu: Android 10 ve üstü her 64-bit telefonda
+çalışır; cihaz güvenliği, rapor, karşılaştırma, grafik kalitesi ve Türkçe-İngilizce
+arayüz ekledi. Depo gizli (private).
 
 ## Lisans
 

@@ -1,12 +1,14 @@
 # stress_test: Plan
 
 > Sürüm 1 · 2026-09-30 · **Özcan onayladı (2026-10-01).** Kararlar §13'te.
-> **2026-10-02:** proje yeniden açıldı; uygulama bütün telefonlara açıldı (0.2.0). Yeni kararlar §13/11 ve §16;
-> aşağıdaki "yalnız Honor 400", "koruma yok", "dışa aktarma yok" kararları **onlarla değişti**.
+> **2026-10-02:** proje yeniden açıldı ve kapsamı büyüdü: Honor 400 için kişisel bir testten **Android telefonlar için
+> bir stres testi ve benchmark uygulamasına** (0.2.0, adı **Stress Test**). Honor artık referans cihaz: ölçümler onda.
+> Yeni kararlar §13/11 ve §16; aşağıdaki "yalnız Honor 400", "koruma yok", "dışa aktarma yok" kararları **onlarla değişti**.
 
 ## 0 · Tek ölçüt
 
-**Honor 400'de çekilebilen en yüksek güç (watt).** Hedef "kuru %100" değil: Prime95 ile Cinebench'in ikisi de %100 gösterir,
+**Telefonun çekebildiği en yüksek güç (watt)**; ölçümler referans cihaz Honor 400'de (ilk sürümde hedef yalnız oydu).
+Hedef "kuru %100" değil: Prime95 ile Cinebench'in ikisi de %100 gösterir,
 ama Prime95 çok daha fazla ısıtır. Bu uygulama Prime95 tarafında olacak. Başka her şey ikincil.
 
 Özcan'ın kararları (2026-09-30; ilk üçü 2026-10-02'de değişti, §13/11):
