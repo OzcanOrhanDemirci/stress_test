@@ -15,16 +15,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // A load only reaches every core while the app is on screen (the
-        // top-app cpuset); the screen must stay on and show over the lock
-        // screen so lab runs started over adb find it there.
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        setShowWhenLocked(true)
-        setTurnScreenOn(true)
 
         val lab = LabSpec.parse(labExtras(), graph.cpu.kernels, graph.gpu.burners, graph.cpu.cpuCount)
-        lab?.getOrNull()?.let { spec ->
-            window.attributes = window.attributes.apply { screenBrightness = spec.brightness }
+        if (lab != null) {
+            // A load only reaches every core while the app is on screen (the
+            // top-app cpuset); a lab session started over adb must find the
+            // screen on and the app over the lock screen. The app's own runs
+            // keep the screen on only while they run (RunScreen).
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            lab.getOrNull()?.let { spec ->
+                window.attributes = window.attributes.apply { screenBrightness = spec.brightness }
+            }
         }
 
         setContent {

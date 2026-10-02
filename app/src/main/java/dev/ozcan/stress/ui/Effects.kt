@@ -6,6 +6,7 @@ import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
 
 /**
  * While shown, drives the display as hard as it goes: full brightness and the
@@ -38,5 +39,19 @@ fun MaxDisplayEffect() {
                 preferredDisplayModeId = previous.preferredDisplayModeId
             }
         }
+    }
+}
+
+/**
+ * Keeps the screen on while shown: a run must stay in front, or the load
+ * loses the big cores and the GPU its surface. Elsewhere the screen times out
+ * as usual.
+ */
+@Composable
+fun KeepScreenOnEffect() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
     }
 }

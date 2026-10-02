@@ -67,6 +67,8 @@ class ChartAndFormatTest {
         assertEquals("41,5 °C", Format.celsius(41.49))
         assertEquals("2400 MHz", Format.mhz(2_400_000))
         assertEquals("%31", Format.percent(0.3073))
+        assertEquals("-%6", Format.percent(-0.06))
+        assertEquals("%0", Format.percent(-0.001))
         assertEquals("%5", Format.percentValue(5))
         assertEquals(Format.MISSING, Format.number(Double.NaN, 1))
     }
@@ -76,6 +78,7 @@ class ChartAndFormatTest {
         Locale.setDefault(Locale.US)
         assertEquals("7.25 W", Format.watts(7.2489))
         assertEquals("31%", Format.percent(0.3073))
+        assertEquals("-6%", Format.percent(-0.06))
         assertEquals("5%", Format.percentValue(5))
     }
 

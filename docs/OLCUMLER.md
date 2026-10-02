@@ -206,3 +206,32 @@ Havuz sahnesi %45 ölçekte (yeni boru hattı, parçacık düzeltmesinden sonra,
   CPU 165-178 GFLOPS, hesap hatası 0. Uygulamanın kendi akışıyla sinematik modun ilk uçtan uca koşusu.
 - %60 ölçek netliği artırırdı ama 15 fps'e düşüyor; %45 kaldı.
 - Sinematik modların hiçbirinin pilde gücü henüz ölçülmedi (sıradaki lab oturumu).
+
+## 0.2.0 · Grafik kalitesi, Vulkan 1.1 (kablo takılı, güç geçersiz)
+
+2026-10-02. Gölgelendiriciler SPIR-V 1.5'ten 1.3'e (`glslc --target-env=vulkan1.1`), kalite düğmeleri
+specialization constant. Lab koşusu, yalnız sahne (yakıcısız, CPU boşta), 25 sn, GPU zaman damgaları; kare = GPU süresi.
+
+| Sahne | Düşük (%30) | Orta (%45) | Yüksek |
+|---|---|---|---|
+| Havuz | 20,8 ms (48 fps) | 39,6 ms (25 fps) | %65 + 2 ışın/piksel: **295 ms (3,4 fps)** · %55: 251 ms |
+| Beyaz | 19,7 ms (51 fps) | 38,0 ms (26 fps) | %65 + 2 ışın/piksel: **200 ms (5,0 fps)** |
+| Orman | 25,1 ms (40 fps) | 39,2 ms (26 fps) | %65: 73 ms · %85: 114 ms · **%100: 147-151 ms (6,7 fps)** |
+
+- **Orta, eski ayarla aynı iş** (SAMPLES = 1, ofset 0, tohum `frame`): havuz 39,6 ms, 10-01'de sinematik modda (CPU tam
+  yükte) ölçülen 48 ms'nin altında; fark CPU yükünün ve ısının payı, SPIR-V sürümü değil (beyaz 38,0 ≈ 37,6 ms).
+- Orman Yüksek'te %65 ile yalnız 1,9 kat ağırlaşıyordu (üçgen sahnesi; örnek sayısı az etkiler); doğal çözünürlük (%100)
+  + 24 huzme noktası + 16 gölge dokunuşu + 4096 gölge haritası ile 3,7 kat. Karar: Yüksek'te havuz/beyaz %65, orman %100.
+- Yüksek'te tek gönderim 300 ms'ye çıkıyor; Adreno sıfırlamadı (hata 0, `DeviceLost` yok).
+- Tam yük (`fp32_l2+gpu_fp32@preview`, 15 sn): GPU bölgesi **95,6 °C**, CPU 86,0 °C. Çekirdeğin tetik noktaları
+  (`thermal_zone*/trip_point_*`): CPU ve GPU bölgelerinde 95 °C kısma, 110-115 °C daha sert, 125 °C kritik. Cihaz
+  güvenliğinin çip sınırı bu yüzden 105 °C (95'te durdursa Tam yük birkaç saniyede kesilirdi).
+- 19 cihaz testi yeşil: her sahne her kalitede çalışıyor (`GpuEngineDeviceTest.everySceneRunsAtEveryQuality`).
+
+## 0.2.0 · Cihaz güvenliği, telefonda ilk gerçek durdurma
+
+Sinematik · Orman, Orta, **şarj kablosu takılı** (ısıyı artırıyor), cihaz güvenliği açık: **2:36'da durdu**, neden
+**Android termal durumu SEVERE** (pil 46 °C, gövde 42 °C, GPU 93 °C). Uyarı 44 °C'de (pil) HUD'da göründü.
+
+Özcan'ın 1 Ekim 34:38'lik Tam yük koşusu (0.1.0, koruma yoktu; kayıt 0.2.0'da açıldı): pil **43 → 55 °C**, GPU 101 °C,
+CPU kümeleri ~10. dakikadan sonra ~500 MHz'e kısılmış, kararlılık %24. Yeni sınırlarla bu koşu pil 47 °C'de dururdu.

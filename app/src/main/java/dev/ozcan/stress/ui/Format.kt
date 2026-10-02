@@ -24,11 +24,12 @@ object Format {
 
     fun mhz(khz: Long?): String = khz?.let { "${it / 1000} MHz" } ?: MISSING
 
-    /** 0.452 -> "%45" in Turkish, "45%" elsewhere. */
+    /** 0.452 -> "%45" in Turkish, "45%" elsewhere; a minus goes before the sign: "-%6". */
     fun percent(fraction: Double?, decimals: Int = 0): String {
-        val text = number(fraction?.times(100), decimals)
-        if (fraction == null) return text
-        return if (percentFirst) "%$text" else "$text%"
+        if (fraction == null || !fraction.isFinite()) return MISSING
+        val text = number(kotlin.math.abs(fraction) * 100, decimals)
+        val sign = if (fraction < 0 && text.any { it in '1'..'9' }) "-" else ""
+        return sign + if (percentFirst) "%$text" else "$text%"
     }
 
     /** A whole percentage: 45 -> "%45" / "45%". */

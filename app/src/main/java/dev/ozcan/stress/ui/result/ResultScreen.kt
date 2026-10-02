@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BatteryStd
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.ErrorOutline
@@ -44,6 +45,8 @@ import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -121,17 +124,20 @@ class ResultViewModel(private val graph: AppGraph, private val runId: String) : 
     }
 
     suspend fun delete() = withContext(Dispatchers.IO) { graph.runs.delete(runId) }
+
+    /** Every other stored run, newest first: what this one can be compared with. */
+    suspend fun others(): List<RunRecord> = withContext(Dispatchers.IO) { graph.runs.list().filter { it.id != runId } }
 }
 
 @Composable
-fun ResultScreen(runId: String, onBack: () -> Unit) {
+fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit) {
     val graph = context().graph
     val model: ResultViewModel = viewModel { ResultViewModel(graph, runId) }
     val loaded by model.loaded.collectAsStateWithLifecycle()
     val record = loaded?.record
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(record, onBack, onDeleted = onBack, model = model)
+        TopBar(record, onBack, onDeleted = onBack, model = model, onCompare = onCompare)
         when {
             loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
@@ -140,10 +146,13 @@ fun ResultScreen(runId: String, onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit, model: ResultViewModel) {
+private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit, model: ResultViewModel, onCompare: (String) -> Unit) {
+    val context = context()
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
+    var others by remember { mutableStateOf<List<RunRecord>?>(null) }
     Row(
         Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -151,8 +160,47 @@ private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
         Text(stringResource(R.string.result_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         if (record != null) {
+            IconButton(onClick = { scope.launch { others = model.others() } }) {
+                Icon(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), tint = StressColors.TextDim)
+            }
             IconButton(onClick = { confirmDelete = true }) {
                 Icon(Icons.Rounded.Delete, stringResource(R.string.delete), tint = StressColors.TextDim)
+            }
+        }
+    }
+    others?.let { list ->
+        ModalBottomSheet(onDismissRequest = { others = null }, containerColor = StressColors.SurfaceHigh) {
+            Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.compare_pick_title), style = MaterialTheme.typography.titleMedium)
+                if (list.isEmpty()) {
+                    Text(stringResource(R.string.compare_none), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+                }
+                list.take(30).forEach { other ->
+                    GlassCard(
+                        Modifier.fillMaxWidth(),
+                        padding = 12.dp,
+                        onClick = {
+                            others = null
+                            onCompare(other.id)
+                        },
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(Labels.recordModeName(context, other), style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    "${Dates.short(other.startedAtMillis)} · ${Format.clock(other.loadSeconds)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = StressColors.TextDim,
+                                )
+                            }
+                            Text(
+                                if (other.summary.powerValid) Format.watts(other.summary.peakWatts ?: other.summary.meanWatts) else Format.MISSING,
+                                style = NumberStyles.Small,
+                                color = StressColors.Accent,
+                            )
+                        }
+                    }
+                }
             }
         }
     }

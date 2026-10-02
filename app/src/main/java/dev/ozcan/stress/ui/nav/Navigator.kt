@@ -16,6 +16,7 @@ sealed interface Route {
 
     data class Run(val mode: StressMode, val duration: StressDuration) : Route
     data class Result(val runId: String) : Route
+    data class Compare(val first: String, val second: String) : Route
     data object Device : Route
 }
 

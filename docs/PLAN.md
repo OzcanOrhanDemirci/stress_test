@@ -1,16 +1,18 @@
 # stress_test: Plan
 
 > Sürüm 1 · 2026-09-30 · **Özcan onayladı (2026-10-01).** Kararlar §13'te.
+> **2026-10-02:** proje yeniden açıldı; uygulama bütün telefonlara açıldı (0.2.0). Yeni kararlar §13/11 ve §16;
+> aşağıdaki "yalnız Honor 400", "koruma yok", "dışa aktarma yok" kararları **onlarla değişti**.
 
 ## 0 · Tek ölçüt
 
 **Honor 400'de çekilebilen en yüksek güç (watt).** Hedef "kuru %100" değil: Prime95 ile Cinebench'in ikisi de %100 gösterir,
 ama Prime95 çok daha fazla ısıtır. Bu uygulama Prime95 tarafında olacak. Başka her şey ikincil.
 
-Özcan'ın kararları (2026-09-30):
-- Yalnız **Honor 400**. Başka telefon hedeflenmiyor, o çipe özel ayar serbest.
-- **Koruma yok**: sıcaklık eşiği, otomatik durdurma yok.
-- Analiz **uygulamanın içinde**. **Dışa aktarma yok.**
+Özcan'ın kararları (2026-09-30; ilk üçü 2026-10-02'de değişti, §13/11):
+- ~~Yalnız **Honor 400**. Başka telefon hedeflenmiyor, o çipe özel ayar serbest.~~ → bütün telefonlar.
+- ~~**Koruma yok**: sıcaklık eşiği, otomatik durdurma yok.~~ → Cihaz güvenliği, varsayılan açık.
+- Analiz **uygulamanın içinde**. ~~**Dışa aktarma yok.**~~ → PDF rapor ve CSV.
 - Ekranda **gerçek 3D sahne** (3DMark / FurMark tadında). Isının asıl kaynağı görüntü olmak zorunda değil ama görüntü güç kaybettirmemeli.
 - Dil ve araç seçimi serbest.
 
@@ -281,3 +283,38 @@ tema Çerenkov mavisi yerine grafit + turuncu (güç ve ısı) + camgöbeği (ik
     sinematik modların pilde gücü (yalnız havuzlu olan ölçüldü), 30 dk'lık uzun koşu (Faz 5), ADPF ile `core_ctl`
     denemesi, G2 FP16'nın FP32'den yavaş olmasının nedeni, 10 dk'lık şarj sayacı çapraz kontrolü. Depo private kalır;
     proje README'si (İngilizce + Türkçe) kapanışta yazıldı.
+11. **Proje yeniden açıldı: bütün telefonlar (Özcan, 2026-10-02).** "Honor 400 değil, tüm mobil cihazlar için uygun olsun.
+    Tespitlerimizi değiştirmemize gerek yok: benim telefonum için en ağır olan testler diğer cihazlar için de benzer sonuçları
+    üretecektir." Ayrıca: profesyonel, animasyonlu arayüz; işleyişteki hata ve eksiklerin düzeltilmesi; **Ayarlar** sayfası ve
+    vurgulu, **varsayılan açık "Cihaz güvenliği"** (kapatırken onay sorar, kapalıyken korumasız çalışır); daha iyi grafik ve
+    analiz, **rapor çıktısı**; sahnelere **grafik ayarı Düşük / Orta / Yüksek** (Orta = bugünkü ayar; Yüksek Honor'da çok düşük
+    fps, en güçlü telefonları zorlar; Düşük giriş seviyesini zorlar). Özcan uyurken otonom yapıldı (§16). Böylece §0'daki
+    "yalnız Honor", "koruma yok", "dışa aktarma yok" kararları değişti; tek ölçüt (en yüksek watt) ve tarifler aynen kaldı.
+
+## 16 · Bütün telefonlar (0.2.0)
+
+**Genel cihaz.** minSdk 29 (Android 10: 64-bit telefonlarda Vulkan 1.1 zorunlu; termal durum API'si). CPU sayısı
+`cpu/possible`'dan (yerel tarafta 32 yuva). Çekirdek adları MIDR'den (`regs/identification/midr_el1`, yoksa `/proc/cpuinfo`):
+Cortex-A510 ×4 gibi; kümeler en yüksek frekansa göre Küçük / Orta / Büyük / Prime. bf16, i8mm, dotprod isteyen yükler
+`getauxval(AT_HWCAP/2)`'ye bakılarak yalnız destekleyen işlemcide başlar. Sıcaklık bölgeleri ada göre gruplanır (Qualcomm,
+MediaTek, Exynos/Tensor, Unisoc adları; `ibat`, `vbat`, `bcl` gibi sıcaklık olmayan bölgeler dışarıda; °C/0,1 °C/m°C).
+GPU yükü kgsl, `kernel/gpu`, MediaTek `ged` ve Mali `utilization` adaylarından; yoksa uygulamanın kendi kare sürelerinden.
+Vulkan: SPIR-V 1.3, 1.2 özellik yapısı yalnız 1.2 cihazda, FP16 1.1'de eklentisiyle; `largePoints`, D32 derinlik ve
+zaman damgası isteğe bağlı (yedekleri var). Vulkan 1.1 yoksa GPU ve sinematik modlar kapalı, CPU modları çalışır.
+
+**Grafik kalitesi.** Ölçek ve örnek: Düşük %30, gölge 4 dokunuş, huzme 6 nokta · Orta %45 (eski ayar) · Yüksek havuz ve
+beyaz %65 + piksel başına 2 ışın, orman %100 + 16 dokunuş + 24 nokta + 4096 gölge haritası. Ölçümler OLCUMLER "0.2.0".
+
+**Cihaz güvenliği** (`safety/SafetyPolicy.kt`). Durdurur: pil 47 °C, CPU/GPU 105 °C, gövde 48 °C, Android termal durumu
+SEVERE, pil %5 (şarjda değilken); koşul 3 sn sürmeli. Uyarır: 44 °C, 100 °C, 45 °C, MODERATE, %10. Başlatmaz: pil 42 °C,
+çip 80 °C, gövde 42 °C, SEVERE, pil %10. Çip sınırı Honor'un tetik noktalarından (95 kısma, 125 kritik): kısma noktasında
+durdurmak Tam yükü saniyeler içinde keserdi. Kapatmak onay ister; kayıt bitiş nedenini ve ölçülen değeri saklar.
+
+**Analiz ve rapor.** Bulgular (`analysis/Insights.kt`): kısılma anı, ilk ve son dakika arası performans düşüşü, kararlılık
+notu (≥95 mükemmel, ≥85 iyi, ≥70 orta), çip ve pil ısınması, saatte pil tüketimi, hesap hatası, sahnede FPS. İki koşu
+karşılaştırma (yan yana tablo, üst üste grafikler). PDF rapor (2 A4, açık tema, aynı sözcükler) ve CSV (sütunlar İngilizce,
+ondalık nokta). Eski (0.1.0) kayıtlar açılır (`RunStoreTest`).
+
+**Arayüz.** Space Grotesk + JetBrains Mono (OFL, `docs/licenses/`), grafit + turuncu-kırmızı degrade, cam kartlar, yay
+animasyonlu gösterge, sekmeler Test / Geçmiş / Ayarlar; metinler İngilizce (varsayılan) ve Türkçe. Gezinme her ekrana kendi
+ViewModelStore'unu verir (aynı testi ikinci kez başlatmak eskiden eski koşunun view model'ini geri getiriyordu).

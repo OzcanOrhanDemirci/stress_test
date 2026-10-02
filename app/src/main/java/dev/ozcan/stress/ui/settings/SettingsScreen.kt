@@ -315,7 +315,15 @@ private fun SafetyCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
                     Limit(Icons.Rounded.Thermostat, stringResource(R.string.safety_limit_skin, Format.celsius(limits.skinStop, 0)))
                     Limit(Icons.Rounded.Warning, stringResource(R.string.safety_limit_thermal, stringResource(Labels.thermalStatus(limits.thermalStop))))
                     Limit(Icons.Rounded.BatteryAlert, stringResource(R.string.safety_limit_level, Format.percentValue(limits.levelStop)))
-                    Limit(Icons.Rounded.Shield, stringResource(R.string.safety_limit_start, Format.celsius(limits.batteryStart, 0)))
+                    Limit(
+                        Icons.Rounded.Shield,
+                        stringResource(
+                            R.string.safety_limit_start,
+                            Format.celsius(limits.batteryStart, 0),
+                            Format.celsius(limits.chipStart, 0),
+                            Format.percentValue(limits.levelStart),
+                        ),
+                    )
                 }
             } else {
                 Text(stringResource(R.string.safety_off_body), style = MaterialTheme.typography.bodySmall, color = StressColors.Text)

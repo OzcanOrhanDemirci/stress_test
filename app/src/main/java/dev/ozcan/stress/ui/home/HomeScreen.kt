@@ -105,6 +105,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -152,6 +154,13 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
         if (!graph.settings.current.deviceSafety) return null
         return graph.sampler.latest.value?.let { SafetyPolicy.startBlock(it) }
     }
+
+    /** [startBlock], kept current, so the home screen can say so before the button is pressed. */
+    val block: StateFlow<SafetyCheck?> = combine(graph.sampler.latest, graph.settings.settings) { sample, settings ->
+        if (settings.deviceSafety) sample?.let { SafetyPolicy.startBlock(it) } else null
+    }
+        .distinctUntilChanged { a, b -> a?.reason == b?.reason && a?.value?.toInt() == b?.value?.toInt() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(1_000), null)
 }
 
 @Composable
@@ -167,6 +176,7 @@ fun HomeScreen(
     val capabilities by model.capabilities.collectAsStateWithLifecycle()
     val device by model.device.collectAsStateWithLifecycle()
     val last by model.last.collectAsStateWithLifecycle()
+    val gate by model.block.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
     var blocked by remember { mutableStateOf<SafetyCheck?>(null) }
     // Back from a run or the history: the newest run may have changed.
@@ -193,6 +203,10 @@ fun HomeScreen(
             }
             if (capabilities?.gpuTests == false) {
                 Notice(Icons.Rounded.Info, stringResource(R.string.home_no_vulkan), StressColors.Cool)
+            }
+            gate?.let { check ->
+                val context = context()
+                Notice(Icons.Rounded.Shield, stringResource(R.string.home_cooling, Labels.safetyFinding(context, check)), StressColors.Warn)
             }
 
             SectionHeader(stringResource(R.string.home_section_mode))

@@ -2,20 +2,20 @@
 
 # Stres
 
-**A stress test and benchmark for one phone, built to find the most power it can really draw, and to look good while it does.**
+**A stress test and benchmark for Android phones, built to find the most power a phone can really draw, and to look good while it does.**
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](app/src/main/cpp)
 [![AArch64 assembly](https://img.shields.io/badge/AArch64-assembly-555555)](app/src/main/cpp/cpu)
-[![Vulkan](https://img.shields.io/badge/Vulkan-1.2-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
-[![Min SDK](https://img.shields.io/badge/minSdk-36-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
-[![Device](https://img.shields.io/badge/device-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#the-device)
-[![Status](https://img.shields.io/badge/status-complete-success)](#status)
+[![Vulkan](https://img.shields.io/badge/Vulkan-1.1%2B-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
+[![Min SDK](https://img.shields.io/badge/minSdk-29-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
+[![Tuned on](https://img.shields.io/badge/tuned%20on-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#the-device-it-was-tuned-on)
+[![Version](https://img.shields.io/badge/version-0.2.0-success)](#status)
 
-**10.1 W** at full load · **2.6×** the power of an "idle 100 %" on the same cores · three cinematic scenes · everything analysed on the phone
+**10.1 W** at full load on the phone it was tuned on · **2.6×** the power of an "idle 100 %" on the same cores · three cinematic scenes at three quality levels · device safety · a PDF report
 
-[The question](#the-question) · [Results](#results) · [Modes](#modes) · [Scenes](#the-cinematic-scenes) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
+[The question](#the-question) · [Results](#results) · [Modes](#modes) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
 
 *[Türkçe](README.tr.md)*
 
@@ -27,11 +27,14 @@
 
 ---
 
-A private, single-device project: it targets one **Honor 400** and nothing else,
-is never published, and lives as an APK on that phone. That narrowness is the
-point. Every number below was measured on the device the code was written for,
-and every choice in the code was made against those measurements rather than
-against a generic phone.
+A private project that began with one phone. Version 0.1.0 targeted a single
+**Honor 400**; since 0.2.0 (2 October 2026) it runs on any 64-bit phone with
+Android 10 or later. Every number below was measured on the Honor, and every
+load was chosen against those measurements rather than against a generic phone.
+The choices travel: a load that keeps a core's multiply-add units, load path and
+caches busy at once draws the most on the next core design too, so the recipes
+stayed as they were and the app learned to find its way round other phones:
+their core count and names, their thermal sensors, their GPU drivers.
 
 ## The question
 
@@ -56,9 +59,11 @@ it. On this phone:
 more power; in that session `fp32_l2` alone drew 7.10 W.</sub>
 
 So the single criterion here is **power drawn from the battery, in watts**. A
-load is only "the maximum" if nothing measured draws more. There are no thermal
-cut-offs and no protective throttling of its own: the phone's own governors do
-whatever they do, and the result screen shows when and how much.
+load is only "the maximum" if nothing measured draws more. The phone's own
+governors do whatever they do, and the result screen shows when and how much.
+Since 0.2.0 the app also guards the phone by default ([device safety](#device-safety)):
+it stops a test before the battery, the case or the chip gets dangerously hot.
+Switched off, it steps aside entirely.
 
 The same lesson turned up on the GPU later. A ray-marched scene keeps the GPU
 100 % busy yet draws 2.95 W; an FP32 multiply-add burner on the same GPU draws
@@ -115,7 +120,7 @@ frequency to the shared budget (A510 / A715 / prime settle near
 
 <sub>Measured with the phone on a metal plate in front of a fan unless marked uncooled.</sub>
 
-A run lasts 5, 15 or 30 minutes, or until stopped. It starts with 10 seconds at
+A run lasts 1, 5, 15 or 30 minutes, or until stopped. It starts with 10 seconds at
 rest to measure what the phone draws doing nothing, then drives the display at
 full brightness and its highest refresh rate, the same way every time, so runs
 compare.
@@ -129,8 +134,8 @@ before the measurement was 97 %, so the scenes became their own mode
 ## The cinematic scenes
 
 The second goal of the project, added halfway: *the most impressive picture this
-phone can show*. Each scene is rendered at 45 % of the screen's resolution and
-built up to full resolution over time: every frame moves its samples by a
+phone can show*. At Medium quality each scene is rendered at 45 % of the screen's
+resolution and built up to full resolution over time: every frame moves its samples by a
 sub-pixel jitter and reseeds its random effects, a temporal pass reprojects the
 previous frames with the camera and clips them against the new one, and a
 Catmull-Rom filter scales the result to the screen. The phone's GPU has about
@@ -177,21 +182,67 @@ white world stays in view through it. No depth of field, no colour fringing, no
 grain, almost no bloom, and a light sharpening on top of the upscale.
 **~38 ms a frame, ~27 fps.**
 
+### Graphics quality
+
+Every phone gets a level that loads its GPU fully and still draws something worth
+watching. Medium is the scenes as they were tuned on the Honor 400, a mid-range
+phone; High is for the newest flagships and drops a mid-range phone to a few
+frames a second; Low is for entry-level phones.
+
+| Level | Resolution | Sampling | Honor 400 GPU time a frame |
+| --- | --- | --- | --- |
+| **Low** | 30 % | half the shadow taps and sunbeam samples | pool 20.8 ms · white 19.7 ms · forest 25.1 ms |
+| **Medium** | 45 % | as tuned | pool 39.6 ms · white 38.0 ms · forest 39.2 ms |
+| **High** | 65 % (forest: 100 %) | two rays a pixel; forest: 16 shadow taps, 24 sunbeam samples, a 4096² shadow map | pool 295 ms · white 200 ms · forest 147 ms |
+
+<sub>Scenes alone, CPU idle, GPU timestamps. The sampling counts are Vulkan specialization constants, so Medium compiles to the same work as before.</sub>
+
 ## The app
 
-<img src="docs/images/app.jpg" alt="The home screen with the scene chooser, a cinematic run with its readout, the result screen, the load gauge of Full load" width="100%" />
+<img src="docs/images/app.jpg" alt="The home screen with the mode cards and the start button, a cinematic run with its readout, the result screen with its analysis, the settings screen with device safety" width="100%" />
 
-Everything is analysed on the phone, and nothing is exported. The result of a
-run shows peak and sustained power, average, idle, energy used, the battery's
-percentage before and after, how long a full battery would last at this load,
-computation errors, maximum temperatures per cluster, GPU, memory and battery,
-when each cluster first throttled and how stable the CPU's work rate stayed, and
-charts of power, temperature, frequency and work over time. A history keeps
-every run; a diagnostics screen shows what the app can read on this phone.
+A home screen with the test modes, the scene chooser and its quality, a live
+readout of the battery, the chip and the power; a run screen that keeps the scene
+or the gauge in the middle and the numbers at the edges; a result screen; a
+history; settings. The result of a run shows peak and sustained power, average,
+idle, energy used, the battery before and after, how long a full battery would
+last at this load, the hottest chip, the CPU and GPU work rates, the scene's frame
+rate, stability and computation errors, then an **analysis** in plain words (when
+the phone first throttled, how much speed it gave up between the first minute and
+the last, how hot the chip and the battery got, how fast the battery drained) and
+charts of power, temperature, clocks, work and frame rate that read out their
+values under a finger. Any two runs can be **compared** side by side, and a run
+leaves the phone as a two-page **PDF report** or its curves as **CSV**. The device
+screen names the phone's processor, cores and GPU and shows what the app may read
+on it. The text is in English and Turkish.
 
 The screenshots above were taken with the charger connected, which is why the
-power fields read *invalid*: while charging, the battery's current says nothing
+power fields read *charging*: while charging, the battery's current says nothing
 about what the phone draws, and the app refuses to show it.
+
+## Device safety
+
+On by default, and the first thing on the settings screen. While a test runs the
+app watches the phone and stops the test when a reading stays past its limit for
+three seconds; the run is kept, with the reason and the reading.
+
+| Stops at | Warns at | Does not start above |
+| --- | --- | --- |
+| battery 47 °C | 44 °C | 42 °C |
+| CPU or GPU 105 °C | 100 °C | 80 °C |
+| case 48 °C | 45 °C | 42 °C |
+| Android thermal status *severe* | *moderate* | *severe* |
+| battery 5 % (on battery) | 10 % | 10 % |
+
+The chip limit sits above the throttling point on purpose: the Honor's kernel
+starts throttling its CPU and GPU zones at 95 °C and holds them there under full
+load (its harder limits are 110 to 115 °C, critical 125 °C), so stopping at 95 °C
+would end every full-load test within seconds. The limit is for a phone whose own
+protection is no longer keeping up. Turning device safety off asks first; off,
+the app never steps in and only the phone's own protection remains. In the first
+real stop, a forest run on the charger ended at 2:36 when Android reported a
+*severe* thermal status; the owner's own 34-minute full-load run, made before the
+feature existed, had taken the battery from 43 to 55 °C.
 
 ## How power is measured
 
@@ -235,7 +286,7 @@ the same signature and the same discipline:
 - A workload is written as text, `0-3:i8_mmla,4-7:fp32_l2+gpu_fp32`, so the same
   string drives the app's modes, the lab sessions and the tests.
 
-**GPU.** A Vulkan 1.2 engine with five burners: FP32 and FP16 arithmetic,
+**GPU.** A Vulkan 1.1 engine (with 1.2 features where present) and five burners: FP32 and FP16 arithmetic,
 texture sampling, memory bandwidth and blending. Three frames are kept in
 flight; three timestamps split every frame into burner time and visible-pass
 time, and the number of burner dispatches is sized each frame so that burner
@@ -250,12 +301,16 @@ every pipeline that fails to build is now named in the log.
 ```
 app/src/main
 ├── java/dev/ozcan/stress
-│   ├── engine/      CPU and GPU engines, the workload grammar, the kernel and burner catalogues
-│   ├── telemetry/   the 10 Hz sampler, battery and thermal readers, sysfs layout
-│   ├── analysis/    power from current and voltage, windowed statistics, work rates
+│   ├── engine/      CPU and GPU engines, the workload grammar, scene quality
+│   ├── telemetry/   the 10 Hz sampler, battery and thermal readers, sysfs layout, core names
+│   ├── device/      what the phone is: chipset, clusters, GPU, Vulkan version
+│   ├── analysis/    power, windowed statistics, work rates, findings, comparisons
+│   ├── safety/      device safety: limits, findings, the monitor
+│   ├── settings/    the user's choices
 │   ├── run/         a stress run: modes, the controller, analysis, records and their store
+│   ├── report/      the PDF report and the CSV
 │   ├── lab/         self-running comparison sessions: specs, runner, analysis, CSV
-│   └── ui/          Compose screens: home, run, result, history, diagnostics, lab; charts
+│   └── ui/          Compose: navigation, components, home, run, result, compare, history, settings, device
 └── cpp
     ├── cpu/         the kernels (generated AArch64 assembly), their table, the worker threads
     ├── gpu/         the Vulkan helpers, the burner engine, the cinematic scene renderer
@@ -287,8 +342,9 @@ measurement that settled it.
 | | |
 | --- | --- |
 | **One criterion: watts** | Not "100 %", not a score. A load wins only by drawing more measured power from the battery. |
-| **No protections** | No temperature cut-off and no automatic stop. The phone's own governors act; the result shows when. |
-| **Analysis on the phone, no export** | The phone that ran the test is where its result is read. |
+| **One phone, then every phone (0.2.0)** | The recipes measured on one phone stay; the app finds its way round the others. |
+| **Device safety, on by default (0.2.0)** | Replaced "no protections". Limits above the phone's throttling point; off is a choice, confirmed. |
+| **A report to take away (0.2.0)** | Replaced "no export": the analysis stays on the phone, and a PDF or CSV can leave it. |
 | **Scenes are their own mode** | A scene drew 88.5 % of full load against a 97 % rule written before the measurement. |
 | **Compute-heavy, memory-light effects** | Measured ~1 TFLOPS against ~16 GB/s: ray marching, procedural geometry and a shadow map drawn once, not big textures. |
 | **A gauge, not a trefoil** | With three scenes the app reads as a benchmark, not a reactor. |
@@ -297,17 +353,20 @@ measurement that settled it.
 ## What is verified
 
 ```bash
-./gradlew testDebugUnitTest            # 55 JVM tests
-./gradlew connectedDebugAndroidTest    # 15 tests on the phone
+./gradlew testDebugUnitTest            # 99 JVM tests
+./gradlew connectedDebugAndroidTest    # 19 tests on the phone
 ```
 
 The JVM tests cover the power arithmetic (unit and sign inference, windowed
-statistics), the workload grammar, the lab specification, sample logs and
-formatting. The tests on the phone check what only the phone can: that every
+statistics, voltage units, power from the charge counter), the workload grammar
+on any CPU count, the lab specification, sample logs, core names and cluster
+roles, other vendors' thermal zone names, device safety's limits and timing, the
+findings and comparisons, the CSV, that runs stored by 0.1.0 still load, that
+both languages have the same strings with the same arguments, and formatting. The tests on the phone check what only the phone can: that every
 kernel's digest repeats exactly across runs and core types and changes with the
 work done, that every core burns pinned and without errors, that every GPU
-burner runs without errors and fills its frame, that **every scene** starts and
-draws frames, that the sensor layout is discoverable, and that every mode's
+burner runs without errors and fills its frame, that **every scene at every
+quality** starts and draws frames, that the sensor layout is discoverable, and that every mode's
 recipe is a valid workload on the phone's real kernel and burner tables.
 
 Warnings are errors throughout: Kotlin, C++ (`-Wall -Wextra -Wshadow
@@ -324,10 +383,11 @@ cd stress_test
 Requires JDK 17 or newer to run Gradle (the one bundled with Android Studio
 works), Android SDK Platform 36, NDK 29.0.14206865 and CMake 4.1.2; the
 shaders are compiled with the NDK's `glslc`. The build targets `arm64-v8a`
-only, and `minSdk` is 36: this is built for one phone running Android 16. The
-release build is signed with the debug key; it is never distributed.
+only, and `minSdk` is 29 (Android 10, where every 64-bit phone has Vulkan 1.1;
+without it the GPU and cinematic modes are switched off and the CPU modes still
+run). The release build is signed with the debug key; it is never distributed.
 
-### The device
+### The device it was tuned on
 
 | | |
 | --- | --- |
@@ -349,18 +409,19 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 | Concern | Choice |
 | --- | --- |
-| App | Kotlin 2.4.20, Jetpack Compose with Material 3, coroutines, kotlinx.serialization |
+| App | Kotlin 2.4.20, Jetpack Compose with Material 3, coroutines, kotlinx.serialization; Space Grotesk and JetBrains Mono (SIL OFL 1.1) |
 | Native | C++20 and AArch64 assembly through the NDK and CMake, JNI |
-| Graphics | Vulkan 1.2, GLSL compiled to SPIR-V at build time and embedded |
+| Graphics | Vulkan 1.1 (1.2 features where present), GLSL compiled to SPIR-V 1.3 at build time and embedded |
 | Build | Gradle 9.8.0, Android Gradle Plugin 9.4.1 |
-| SDK | compile, target and minimum 36 (Android 16) |
+| SDK | compile and target 36 (Android 16), minimum 29 (Android 10) |
 | Tools | Node.js (lab sessions), Python with moderngl (scene preview, kernel generator) |
 
 ## Status
 
-**Complete.** A hobby project, built between 30 September and 1 October 2026,
-and kept here as a record. It is not maintained, it accepts no
-contributions, and it stays private.
+**Version 0.2.0.** A hobby project, built for one phone between 30 September
+and 1 October 2026 and reopened on 2 October 2026 to run on every phone, with
+device safety, a report, comparisons and graphics quality levels. It accepts no
+contributions and stays private.
 
 ## Licence
 

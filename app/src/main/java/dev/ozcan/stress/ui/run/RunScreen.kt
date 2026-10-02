@@ -89,6 +89,7 @@ import dev.ozcan.stress.safety.SafetyLevel
 import dev.ozcan.stress.telemetry.ThermalGroup
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.GpuSurface
+import dev.ozcan.stress.ui.KeepScreenOnEffect
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
 import dev.ozcan.stress.ui.MaxDisplayEffect
@@ -120,6 +121,7 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
     var overlay by remember { mutableStateOf(true) }
     var confirmStop by remember { mutableStateOf(false) }
 
+    KeepScreenOnEffect()
     if (model.settings.maxDisplay) MaxDisplayEffect()
     // Off screen the load loses the big cores and the GPU its surface: end the
     // run there and keep what it measured, marked as interrupted.
@@ -157,7 +159,7 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
         if (mode.usesGpu) {
             GpuSurface(graph.gpu, Modifier.fillMaxSize())
         } else {
-            CpuInstrument(live, peak, model.cpuCount, Modifier.align(Alignment.Center))
+            CpuInstrument(live, peak, model.cpuCount, showCores = !overlay, Modifier.align(Alignment.Center))
         }
 
         Column(
@@ -433,14 +435,19 @@ private fun SafetyChip(safety: SafetyCheck, enabled: Boolean) {
         safety.level == SafetyLevel.Ok -> Triple(StressColors.Good, Icons.Rounded.Shield, stringResource(R.string.run_safety_ok))
         else -> Triple(StressColors.Warn, Icons.Rounded.Warning, Labels.safetyFinding(context, safety))
     }
-    val pulse by rememberInfiniteTransition(label = "safety").animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-        label = "pulse",
-    )
     val animated by animateColorAsState(color, label = "safetyColor")
-    Pill(text, if (safety.level == SafetyLevel.Warn) animated.copy(alpha = pulse) else animated, icon = icon)
+    if (enabled && safety.level == SafetyLevel.Warn) {
+        // A warning pulses; a quiet chip stays still, so the overlay is not redrawn every frame.
+        val pulse by rememberInfiniteTransition(label = "safety").animateFloat(
+            initialValue = 0.6f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+            label = "pulse",
+        )
+        Pill(text, animated.copy(alpha = pulse), icon = icon)
+    } else {
+        Pill(text, animated, icon = icon)
+    }
 }
 
 /** Temperatures, clocks, rates: small at the bottom, so the middle of the screen belongs to the scene. */
@@ -520,39 +527,46 @@ private fun Metric(label: String, value: String) {
 
 /**
  * What CPU-only runs show instead of a scene: the power gauge (its scale
- * grows with the highest reading), and a cell for every core, glowing with
- * its cluster's clock.
+ * grows with the highest reading), and, with the HUD hidden (its clock bars
+ * say the same), a cell for every core glowing with its cluster's clock.
  */
 @Composable
-private fun CpuInstrument(live: LiveView?, peak: Double?, cpuCount: Int, modifier: Modifier) {
+private fun CpuInstrument(live: LiveView?, peak: Double?, cpuCount: Int, showCores: Boolean, modifier: Modifier) {
     val context = context()
     val scale = maxOf(8.0, (peak ?: 0.0) * 1.25)
     val watts = live?.watts?.takeIf { live.plugged.not() }
     val chip = live?.chipCelsius
-    Column(modifier.fillMaxWidth().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        if (watts != null) {
-            HeroGauge(
-                fraction = (watts / scale).toFloat(),
-                value = Format.number(watts, 2),
-                unit = "W",
-                caption = stringResource(R.string.run_gauge_power),
-            )
-        } else {
-            HeroGauge(
-                fraction = chip?.let { ((it - 25) / 80).toFloat() },
-                value = chip?.let { Format.number(it, 0) } ?: Format.MISSING,
-                unit = "°C",
-                caption = stringResource(R.string.run_gauge_chip),
-                valueColor = StressColors.Accent,
-            )
+    Box(modifier.fillMaxWidth().padding(horizontal = 28.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (watts != null) {
+                HeroGauge(
+                    fraction = (watts / scale).toFloat(),
+                    value = Format.number(watts, 2),
+                    unit = "W",
+                    caption = stringResource(R.string.run_gauge_power),
+                )
+            } else {
+                HeroGauge(
+                    fraction = chip?.let { ((it - 25) / 80).toFloat() },
+                    value = chip?.let { Format.number(it, 0) } ?: Format.MISSING,
+                    unit = "°C",
+                    caption = stringResource(R.string.run_gauge_chip),
+                    valueColor = StressColors.Accent,
+                )
+            }
+            AnimatedVisibility(showCores, enter = fadeIn(), exit = fadeOut()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CoreGrid(live, cpuCount)
+                    Text(
+                        context.getString(R.string.run_cores, cpuCount),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = StressColors.TextFaint,
+                        letterSpacing = 1.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
         }
-        CoreGrid(live, cpuCount)
-        Text(
-            context.getString(R.string.run_cores, cpuCount),
-            style = MaterialTheme.typography.labelSmall,
-            color = StressColors.TextFaint,
-            letterSpacing = 1.sp,
-        )
     }
 }
 

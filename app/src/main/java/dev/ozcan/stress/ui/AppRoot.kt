@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.R
+import dev.ozcan.stress.ui.compare.CompareScreen
 import dev.ozcan.stress.ui.components.AppBackground
 import dev.ozcan.stress.ui.device.DeviceScreen
 import dev.ozcan.stress.ui.history.HistoryScreen
@@ -135,7 +136,12 @@ private fun Screen(entry: NavEntry, navigator: Navigator) {
             onFinished = { navigator.replace(Route.Result(it)) },
             onLeave = { navigator.back() },
         )
-        is Route.Result -> ResultScreen(route.runId, onBack = { navigator.back() })
+        is Route.Result -> ResultScreen(
+            route.runId,
+            onBack = { navigator.back() },
+            onCompare = { other -> navigator.push(Route.Compare(route.runId, other)) },
+        )
+        is Route.Compare -> CompareScreen(route.first, route.second, onBack = { navigator.back() })
         Route.Device -> DeviceScreen(onBack = { navigator.back() })
     }
 }

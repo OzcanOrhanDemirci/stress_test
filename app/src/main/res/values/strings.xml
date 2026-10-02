@@ -28,7 +28,7 @@
     <string name="mode_cpu_detail">Every core with the load that draws the most power: FMA streaming through the caches.</string>
     <string name="mode_gpu">GPU</string>
     <string name="mode_gpu_detail">The GPU alone, with the burner that draws the most power.</string>
-    <string name="mode_dry">Dry 100</string>
+    <string name="mode_dry">Dry 100%</string>
     <string name="mode_dry_detail">Cores look fully busy while their units idle: the Prime95 versus Cinebench difference, measured.</string>
     <string name="scene_pool">Pool</string>
     <string name="scene_pool_detail">A pool reactor glowing blue under water: simulated waves, reflections, particles, depth of field.</string>
@@ -68,6 +68,7 @@
     <string name="home_plugged">The charger is connected: the test runs, but the power drawn from the battery cannot be measured.</string>
     <string name="home_no_vulkan">This phone has no Vulkan 1.1 GPU driver, so the GPU and cinematic tests are off. The CPU tests work.</string>
     <string name="home_blocked_title">Not yet</string>
+    <string name="home_cooling">Device safety: %1$s. The test can start once the phone has cooled down.</string>
     <string name="home_blocked_text">Device safety holds the test: %1$s. Let the phone cool down (or charge it) and try again.</string>
 
     <!-- Safety -->
@@ -81,7 +82,7 @@
     <string name="safety_limit_skin">Stops when the case reaches %1$s</string>
     <string name="safety_limit_thermal">Stops when Android reports %1$s thermal status</string>
     <string name="safety_limit_level">Stops when the battery falls to %1$s</string>
-    <string name="safety_limit_start">Will not start while the battery is above %1$s</string>
+    <string name="safety_limit_start">Will not start while the phone is hot (battery %1$s, chip %2$s) or the battery is below %3$s</string>
     <string name="safety_off_body">Tests run without the app\'s limits, until you stop them. The phone\'s own thermal protection still works, but the app will not step in.</string>
     <string name="safety_off_title">Turn off device safety?</string>
     <string name="safety_off_text">Without it the app will not stop a test when the battery, the case or the chip gets too hot, or when the battery runs low. Long tests can make the phone very hot. Only the phone\'s own protection remains.</string>
@@ -319,4 +320,16 @@
     <string name="device_gpu_state">State</string>
     <string name="device_frame">Frame</string>
     <string name="device_work">Work</string>
+    <!-- Compare -->
+    <string name="compare_title">Compare</string>
+    <string name="compare_button">Compare with another run</string>
+    <string name="compare_pick_title">Compare with</string>
+    <string name="compare_none">There is no other run to compare with yet.</string>
+    <string name="compare_metrics">Side by side</string>
+    <string name="compare_hint">Δ is B against A. Green: more power and work, a cooler phone, a later throttle; amber: the opposite.</string>
+    <string name="compare_chart_chip">Hottest chip</string>
+    <string name="compare_chart_battery">Battery temperature</string>
+    <string name="compare_chart_cpu">CPU performance</string>
+    <string name="compare_battery_max">Hottest battery</string>
+    <string name="compare_first_throttle">First throttle</string>
 </resources>

@@ -28,7 +28,7 @@
     <string name="mode_cpu_detail">Bütün çekirdekler, en çok güç çeken yükle: önbellekten akan FMA.</string>
     <string name="mode_gpu">GPU</string>
     <string name="mode_gpu_detail">Yalnız GPU, en çok güç çeken yakıcıyla.</string>
-    <string name="mode_dry">Kuru 100</string>
+    <string name="mode_dry">Kuru %100</string>
     <string name="mode_dry_detail">Çekirdekler tam dolu görünür ama birimleri boştadır: Prime95 ile Cinebench farkını ölçerek görmek için.</string>
     <string name="scene_pool">Havuz</string>
     <string name="scene_pool_detail">Suyun altında mavi parlayan bir havuz reaktörü: simüle dalgalar, yansımalar, parçacıklar, alan derinliği.</string>
@@ -68,6 +68,7 @@
     <string name="home_plugged">Şarj kablosu takılı: test çalışır ama pilden çekilen güç ölçülemez.</string>
     <string name="home_no_vulkan">Bu telefonda Vulkan 1.1 GPU sürücüsü yok; GPU ve sinematik testler kapalı. CPU testleri çalışır.</string>
     <string name="home_blocked_title">Henüz değil</string>
+    <string name="home_cooling">Cihaz güvenliği: %1$s. Telefon soğuyunca test başlayabilir.</string>
     <string name="home_blocked_text">Cihaz güvenliği testi bekletiyor: %1$s. Telefonun soğumasını bekle (ya da şarj et) ve yeniden dene.</string>
 
     <!-- Güvenlik -->
@@ -81,7 +82,7 @@
     <string name="safety_limit_skin">Gövde %1$s olunca durur</string>
     <string name="safety_limit_thermal">Android termal durumu “%1$s” olunca durur</string>
     <string name="safety_limit_level">Pil %1$s seviyesine inince durur</string>
-    <string name="safety_limit_start">Pil %1$s üstündeyken test başlamaz</string>
+    <string name="safety_limit_start">Telefon sıcakken (pil %1$s, çip %2$s) ya da pil %3$s altındayken test başlamaz</string>
     <string name="safety_off_body">Testler, sen durdurana kadar uygulamanın sınırları olmadan çalışır. Telefonun kendi termal koruması yine çalışır ama uygulama araya girmez.</string>
     <string name="safety_off_title">Cihaz güvenliği kapatılsın mı?</string>
     <string name="safety_off_text">Kapalıyken uygulama; pil, gövde ya da çip çok ısındığında veya pil azaldığında testi durdurmaz. Uzun testler telefonu çok ısıtabilir. Geriye yalnız telefonun kendi koruması kalır.</string>
@@ -319,4 +320,16 @@
     <string name="device_gpu_state">Durum</string>
     <string name="device_frame">Kare</string>
     <string name="device_work">İş</string>
+    <!-- Karşılaştırma -->
+    <string name="compare_title">Karşılaştır</string>
+    <string name="compare_button">Başka bir koşuyla karşılaştır</string>
+    <string name="compare_pick_title">Karşılaştırılacak koşu</string>
+    <string name="compare_none">Karşılaştırılacak başka bir koşu henüz yok.</string>
+    <string name="compare_metrics">Yan yana</string>
+    <string name="compare_hint">Δ, B\'nin A\'ya göre farkı. Yeşil: daha çok güç ve iş, daha serin telefon, daha geç kısılma; sarı: tersi.</string>
+    <string name="compare_chart_chip">En sıcak çip</string>
+    <string name="compare_chart_battery">Pil sıcaklığı</string>
+    <string name="compare_chart_cpu">CPU performansı</string>
+    <string name="compare_battery_max">En sıcak pil</string>
+    <string name="compare_first_throttle">İlk kısılma</string>
 </resources>

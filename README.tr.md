@@ -2,20 +2,20 @@
 
 # Stres
 
-**Tek bir telefon için stres testi ve benchmark: telefonun gerçekten çekebildiği en yüksek gücü bulmak, bunu yaparken de göze iyi görünmek için.**
+**Android telefonlar için stres testi ve benchmark: bir telefonun gerçekten çekebildiği en yüksek gücü bulmak, bunu yaparken de göze iyi görünmek için.**
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](app/src/main/cpp)
 [![AArch64 assembly](https://img.shields.io/badge/AArch64-assembly-555555)](app/src/main/cpp/cpu)
-[![Vulkan](https://img.shields.io/badge/Vulkan-1.2-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
-[![Min SDK](https://img.shields.io/badge/minSdk-36-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
-[![Cihaz](https://img.shields.io/badge/cihaz-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#cihaz)
-[![Durum](https://img.shields.io/badge/durum-tamamland%C4%B1-success)](#durum)
+[![Vulkan](https://img.shields.io/badge/Vulkan-1.1%2B-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
+[![Min SDK](https://img.shields.io/badge/minSdk-29-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
+[![Ayarland%C4%B1%C4%9F%C4%B1 cihaz](https://img.shields.io/badge/ayarland%C4%B1%C4%9F%C4%B1%20cihaz-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#ayarlandığı-cihaz)
+[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-0.2.0-success)](#durum)
 
-Tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç sinematik sahne · bütün analiz telefonda
+Ayarlandığı telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede üç sinematik sahne · cihaz güvenliği · PDF rapor
 
-[Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Sahneler](#sinematik-sahneler) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
+[Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
 
 *[English](README.md)*
 
@@ -27,10 +27,14 @@ Tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç
 
 ---
 
-Kişisel ve tek cihazlık bir proje: yalnız bir **Honor 400**'ü hedefler, hiçbir
-yerde yayınlanmaz, o telefonda bir APK olarak yaşar. Bu darlık bilerek seçildi.
-Aşağıdaki her sayı, kodun yazıldığı cihazın kendisinde ölçüldü; koddaki her
-seçim de genel bir telefona göre değil, bu ölçümlere göre yapıldı.
+Tek bir telefonla başlamış kişisel bir proje. 0.1.0 yalnız bir **Honor 400**'ü
+hedefliyordu; 0.2.0'dan beri (2 Ekim 2026) Android 10 ve üstü her 64-bit telefonda
+çalışıyor. Aşağıdaki her sayı Honor'da ölçüldü; her yük de genel bir telefona göre
+değil, bu ölçümlere göre seçildi. Seçimler taşınıyor: bir çekirdeğin çarp-topla
+birimlerini, yükleme yolunu ve önbelleklerini aynı anda meşgul eden yük, bir
+sonraki çekirdek tasarımında da en çok gücü çeker. Bu yüzden tarifler aynen kaldı;
+uygulama da öbür telefonlarda yolunu bulmayı öğrendi: çekirdek sayıları ve adları,
+sıcaklık sensörleri, GPU sürücüleri.
 
 ## Soru
 
@@ -55,9 +59,11 @@ Bu, Cinebench ile Prime95 arasındaki farktır ve bu proje onu ölçer. Bu telef
 soğutma sürdürülebilen gücü artırır. O oturumda `fp32_l2` tek başına 7,10 W çekti.</sub>
 
 Bu yüzden buradaki tek ölçüt **pilden çekilen güç, watt cinsinden**. Bir yük
-ancak ölçülen hiçbir şey ondan fazla çekmiyorsa "en yüksek"tir. Sıcaklık eşiği
-de, kendi koruyucu kısması da yok: telefonun kendi denetleyicileri ne yaparsa
-onu yapar, sonuç ekranı ne zaman ve ne kadar yaptıklarını gösterir.
+ancak ölçülen hiçbir şey ondan fazla çekmiyorsa "en yüksek"tir. Telefonun kendi
+denetleyicileri ne yaparsa onu yapar, sonuç ekranı ne zaman ve ne kadar
+yaptıklarını gösterir. 0.2.0'dan beri uygulama telefonu varsayılan olarak da
+korur ([cihaz güvenliği](#cihaz-güvenliği)): pil, gövde ya da çip tehlikeli ölçüde
+ısınmadan testi durdurur. Kapatılınca tamamen kenara çekilir.
 
 Aynı ders sonradan GPU'da da çıktı. Işın yürüten bir sahne GPU'yu %100 meşgul
 eder ama 2,95 W çeker; aynı GPU'da FP32 çarp-topla yakıcısı 5,45 W çeker.
@@ -114,7 +120,7 @@ en yüksek kalıyor.
 
 <sub>"Soğutmasız" yazmayanlar telefon metal yüzeyde ve vantilatör önündeyken ölçüldü.</sub>
 
-Bir koşu 5, 15 ya da 30 dakika sürer, ya da durdurulana kadar. Önce 10 saniye
+Bir koşu 1, 5, 15 ya da 30 dakika sürer, ya da durdurulana kadar. Önce 10 saniye
 dinlenir ve telefonun hiçbir şey yapmazken çektiği gücü ölçer; ardından ekranı
 her seferinde aynı biçimde, tam parlaklık ve en yüksek yenileme hızında sürer ki
 koşular karşılaştırılabilsin.
@@ -127,7 +133,7 @@ yüzden sahneler kendi modlarına taşındı ([docs/PLAN.md](docs/PLAN.md), §13
 ## Sinematik sahneler
 
 Projenin yarısında eklenen ikinci hedef: *bu telefonun gösterebileceği en
-etkileyici görüntü.* Her sahne ekran çözünürlüğünün %45'inde çizilir ve zamanla
+etkileyici görüntü.* Orta kalitede her sahne ekran çözünürlüğünün %45'inde çizilir ve zamanla
 tam çözünürlüğe kurulur: her kare örneklerini piksel altı bir kaymayla oynatır
 ve rastgele etkilerini yeniden tohumlar; zamansal geçiş önceki kareleri kamerayla
 yeniden hizalar ve yeni kareye göre kırpar; Catmull-Rom süzgeci sonucu ekrana
@@ -175,21 +181,66 @@ arkadaki devasa beyaz dünya hep görünür kalır. Alan derinliği, renk saçı
 gren yok, bloom neredeyse yok; büyütmenin üstüne hafif bir keskinleştirme var.
 **Kare ~38 ms, ~27 fps.**
 
+### Grafik kalitesi
+
+Her telefon, GPU'sunu tamamen yükleyen ve yine de izlemeye değer bir şey çizen bir
+seviye bulur. Orta, sahnelerin orta seviye bir telefon olan Honor 400'de
+ayarlandığı hâli; Yüksek en yeni amiral gemileri için ve orta seviye bir telefonu
+saniyede birkaç kareye düşürür; Düşük giriş seviyesi telefonlar için.
+
+| Seviye | Çözünürlük | Örnekleme | Honor 400'de karenin GPU süresi |
+| --- | --- | --- | --- |
+| **Düşük** | %30 | gölge dokunuşu ve huzme örneği yarıya | havuz 20,8 ms · beyaz 19,7 ms · orman 25,1 ms |
+| **Orta** | %45 | ayarlandığı gibi | havuz 39,6 ms · beyaz 38,0 ms · orman 39,2 ms |
+| **Yüksek** | %65 (orman: %100) | pikselde iki ışın; orman: 16 gölge dokunuşu, 24 huzme örneği, 4096² gölge haritası | havuz 295 ms · beyaz 200 ms · orman 147 ms |
+
+<sub>Yalnız sahne, CPU boşta, GPU zaman damgaları. Örnek sayıları Vulkan specialization constant'ı; Orta, öncekiyle aynı işe derlenir.</sub>
+
 ## Uygulama
 
-<img src="docs/images/app.jpg" alt="Sahne seçicili ana ekran, göstergeleriyle sinematik bir koşu, sonuç ekranı, Tam yükün yük kadranı" width="100%" />
+<img src="docs/images/app.jpg" alt="Mod kartları ve başlat düğmesiyle ana ekran, göstergeleriyle sinematik bir koşu, analiziyle sonuç ekranı, cihaz güvenliğiyle ayarlar" width="100%" />
 
-Her şey telefonda analiz edilir, hiçbir şey dışa aktarılmaz. Bir koşunun sonucu
-şunları gösterir: tepe ve sürekli güç, ortalama, boştaki güç, harcanan enerji,
-pilin başta ve sondaki yüzdesi, bu yükte tam bir pilin ne kadar dayanacağı, hesap
-hataları, küme, GPU, bellek ve pil başına en yüksek sıcaklıklar, her kümenin ilk
-ne zaman kısıldığı ve CPU'nun iş hızının ne kadar kararlı kaldığı; bir de güç,
-sıcaklık, frekans ve işin zaman içindeki grafikleri. Geçmiş ekranı her koşuyu
-saklar; tanılama ekranı uygulamanın bu telefonda neleri okuyabildiğini gösterir.
+Test modları, sahne seçici ve kalitesi, pilin, çipin ve gücün canlı değerleriyle
+bir ana ekran; sahneyi ya da kadranı ortada, sayıları kenarlarda tutan bir koşu
+ekranı; bir sonuç ekranı; geçmiş; ayarlar. Bir koşunun sonucu tepe ve sürekli
+gücü, ortalamayı, boştaki gücü, harcanan enerjiyi, pilin başını ve sonunu, bu
+yükte tam bir pilin ne kadar dayanacağını, en sıcak çipi, CPU ve GPU iş hızlarını,
+sahnenin kare hızını, kararlılığı ve hesap hatalarını gösterir; ardından düz
+sözcüklerle bir **analiz** (telefon ilk ne zaman kısıldı, ilk dakikayla son dakika
+arasında ne kadar hız verdi, çip ve pil ne kadar ısındı, pil ne hızla tükendi) ve
+parmağın altında değerlerini okuyan güç, sıcaklık, frekans, iş ve kare hızı
+grafikleri gelir. Herhangi iki koşu yan yana **karşılaştırılabilir**; bir koşu
+telefondan iki sayfalık bir **PDF rapor** ya da eğrileri **CSV** olarak çıkabilir.
+Cihaz ekranı telefonun işlemcisini, çekirdeklerini ve GPU'sunu adlandırır ve
+uygulamanın onda neleri okuyabildiğini gösterir. Metinler İngilizce ve Türkçe.
 
 Yukarıdaki ekran görüntüleri şarj kablosu takılıyken alındı; güç alanlarının
-*geçersiz* yazması bu yüzden. Şarj olurken pilin akımı telefonun ne çektiği
+*şarjda* yazması bu yüzden. Şarj olurken pilin akımı telefonun ne çektiği
 hakkında bir şey söylemez ve uygulama onu göstermeyi reddeder.
+
+## Cihaz güvenliği
+
+Varsayılan olarak açık ve ayarlar ekranındaki ilk şey. Test sürerken uygulama
+telefonu izler; bir değer üç saniye boyunca sınırının ötesinde kalırsa testi
+durdurur. Koşu, nedeni ve ölçülen değerle birlikte saklanır.
+
+| Durdurur | Uyarır | Şunun üstündeyken başlamaz |
+| --- | --- | --- |
+| pil 47 °C | 44 °C | 42 °C |
+| CPU ya da GPU 105 °C | 100 °C | 80 °C |
+| gövde 48 °C | 45 °C | 42 °C |
+| Android termal durumu *ciddi* | *orta* | *ciddi* |
+| pil %5 (pildeyken) | %10 | %10 |
+
+Çip sınırı bilerek kısma noktasının üstünde: Honor'un çekirdeği CPU ve GPU
+bölgelerini 95 °C'de kısmaya başlıyor ve tam yükte orada tutuyor (daha sert
+sınırları 110-115 °C, kritik 125 °C); 95 °C'de durdurmak her tam yük testini
+saniyeler içinde keserdi. Sınır, kendi koruması artık yetişemeyen bir telefon
+için. Cihaz güvenliğini kapatmak önce sorar; kapalıyken uygulama hiç araya girmez
+ve yalnız telefonun kendi koruması kalır. İlk gerçek durdurmada, şarjdaki bir
+orman koşusu Android *ciddi* termal durum bildirince 2:36'da bitti; sahibinin bu
+özellik yokken yaptığı 34 dakikalık tam yük koşusu pili 43 °C'den 55 °C'ye
+çıkarmıştı.
 
 ## Güç nasıl ölçülüyor
 
@@ -233,7 +284,7 @@ her birinin imzası ve disiplini aynı:
 - Bir yük metin olarak yazılır, `0-3:i8_mmla,4-7:fp32_l2+gpu_fp32`; aynı metin
   uygulamanın modlarını, lab oturumlarını ve testleri sürer.
 
-**GPU.** Beş yakıcılı bir Vulkan 1.2 motoru: FP32 ve FP16 aritmetik, doku
+**GPU.** Beş yakıcılı bir Vulkan 1.1 motoru (varsa 1.2 özellikleriyle): FP32 ve FP16 aritmetik, doku
 örnekleme, bellek bant genişliği ve harmanlama. Aynı anda üç kare uçuşta tutulur;
 üç zaman damgası her kareyi yakıcı süresi ve görünen geçiş süresi olarak böler ve
 yakıcının gönderim sayısı her karede, yakıcı ile sahne birlikte hedef kare
@@ -249,12 +300,16 @@ kayıtta adıyla görünüyor.
 ```
 app/src/main
 ├── java/dev/ozcan/stress
-│   ├── engine/      CPU ve GPU motorları, yük dili, çekirdek ve yakıcı katalogları
-│   ├── telemetry/   10 Hz örnekleyici, pil ve termal okuyucular, sysfs düzeni
-│   ├── analysis/    akım ve voltajdan güç, pencereli istatistik, iş hızları
+│   ├── engine/      CPU ve GPU motorları, yük dili, sahne kalitesi
+│   ├── telemetry/   10 Hz örnekleyici, pil ve termal okuyucular, sysfs düzeni, çekirdek adları
+│   ├── device/      telefonun ne olduğu: yonga seti, kümeler, GPU, Vulkan sürümü
+│   ├── analysis/    güç, pencereli istatistik, iş hızları, bulgular, karşılaştırmalar
+│   ├── safety/      cihaz güvenliği: sınırlar, bulgular, izleyici
+│   ├── settings/    kullanıcının seçimleri
 │   ├── run/         bir stres koşusu: modlar, denetleyici, analiz, kayıtlar ve depoları
+│   ├── report/      PDF rapor ve CSV
 │   ├── lab/         kendi kendine koşan karşılaştırma oturumları: tarif, koşucu, analiz, CSV
-│   └── ui/          Compose ekranları: ana, koşu, sonuç, geçmiş, tanılama, lab; grafikler
+│   └── ui/          Compose: gezinme, bileşenler, ana, koşu, sonuç, karşılaştırma, geçmiş, ayarlar, cihaz
 └── cpp
     ├── cpu/         yükler (üretilmiş AArch64 assembly), tabloları, işçi iş parçacıkları
     ├── gpu/         Vulkan yardımcıları, yakıcı motoru, sinematik sahne çizicisi
@@ -287,8 +342,9 @@ bölümünde tam olarak yazılı.
 | | |
 | --- | --- |
 | **Tek ölçüt: watt** | "%100" değil, puan değil. Bir yük ancak pilden ölçülen daha fazla güç çekerek kazanır. |
-| **Koruma yok** | Sıcaklık eşiği yok, otomatik durdurma yok. Telefonun kendi denetleyicileri devreye girer; sonuç ne zaman girdiğini gösterir. |
-| **Analiz telefonda, dışa aktarma yok** | Testi koşturan telefon, sonucunun okunduğu yerdir. |
+| **Önce bir telefon, sonra her telefon (0.2.0)** | Bir telefonda ölçülen tarifler kalır; uygulama öbürlerinde yolunu bulur. |
+| **Cihaz güvenliği, varsayılan açık (0.2.0)** | "Koruma yok"un yerini aldı. Sınırlar telefonun kısma noktasının üstünde; kapatmak onaylanan bir seçim. |
+| **Yanında götürülen rapor (0.2.0)** | "Dışa aktarma yok"un yerini aldı: analiz telefonda kalır, PDF ya da CSV dışarı çıkabilir. |
 | **Sahneler ayrı mod** | Sahne, ölçümden önce yazılan %97 kuralına karşı tam yükün %88,5'ini çekti. |
 | **Hesap ağır, bellek hafif etkiler** | Ölçülen ~1 TFLOPS'a karşı ~16 GB/s: büyük dokular değil; ışın yürütme, prosedürel geometri, bir kez çizilen gölge haritası. |
 | **Yonca değil kadran** | Üç sahneyle uygulama bir reaktör değil bir benchmark gibi okunuyor. |
@@ -297,16 +353,21 @@ bölümünde tam olarak yazılı.
 ## Neler doğrulandı
 
 ```bash
-./gradlew testDebugUnitTest            # 55 JVM testi
-./gradlew connectedDebugAndroidTest    # telefonda 15 test
+./gradlew testDebugUnitTest            # 99 JVM testi
+./gradlew connectedDebugAndroidTest    # telefonda 19 test
 ```
 
-JVM testleri güç aritmetiğini (birim ve işaret çıkarımı, pencereli istatistik),
-yük dilini, lab tarifini, örnek kayıtlarını ve biçimlendirmeyi kapsıyor.
+JVM testleri güç aritmetiğini (birim ve işaret çıkarımı, pencereli istatistik,
+gerilim birimleri, şarj sayacından güç), her CPU sayısında yük dilini, lab
+tarifini, örnek kayıtlarını, çekirdek adlarını ve küme rollerini, öbür
+üreticilerin sıcaklık bölgesi adlarını, cihaz güvenliğinin sınırlarını ve
+süresini, bulguları ve karşılaştırmaları, CSV'yi, 0.1.0'ın kaydettiği koşuların
+hâlâ açıldığını, iki dilin aynı metinleri aynı argümanlarla taşıdığını ve
+biçimlendirmeyi kapsıyor.
 Telefondaki testler yalnız telefonun sınayabileceğini sınıyor: her yükün özetinin
 koşular ve çekirdek türleri arasında birebir tekrarlandığını ve yapılan işle
 değiştiğini, her çekirdeğin sabitlenmiş ve hatasız yandığını, her GPU yakıcısının
-hatasız koşup karesini doldurduğunu, **her sahnenin** başlayıp kare ürettiğini,
+hatasız koşup karesini doldurduğunu, **her sahnenin her kalitede** başlayıp kare ürettiğini,
 sensör düzeninin bulunabildiğini ve her modun tarifinin telefonun gerçek yük ve
 yakıcı tablolarında geçerli bir yük olduğunu.
 
@@ -324,10 +385,11 @@ cd stress_test
 Gradle için JDK 17 ya da daha yenisi (Android Studio ile gelen yeterli), Android
 SDK Platform 36, NDK 29.0.14206865 ve CMake 4.1.2 gerekir; gölgelendiriciler
 NDK'nın `glslc`'siyle derlenir. Derleme yalnız `arm64-v8a` içindir ve `minSdk`
-36'dır: bu, Android 16 çalıştıran tek bir telefon için yapıldı. Sürüm derlemesi
-debug anahtarıyla imzalanır; hiçbir yere dağıtılmaz.
+29'dur (Android 10: her 64-bit telefonda Vulkan 1.1 var; yoksa GPU ve sinematik
+modlar kapanır, CPU modları yine çalışır). Sürüm derlemesi debug anahtarıyla
+imzalanır; hiçbir yere dağıtılmaz.
 
-### Cihaz
+### Ayarlandığı cihaz
 
 | | |
 | --- | --- |
@@ -349,17 +411,18 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 | Konu | Seçim |
 | --- | --- |
-| Uygulama | Kotlin 2.4.20, Material 3 ile Jetpack Compose, coroutines, kotlinx.serialization |
+| Uygulama | Kotlin 2.4.20, Material 3 ile Jetpack Compose, coroutines, kotlinx.serialization; Space Grotesk ve JetBrains Mono (SIL OFL 1.1) |
 | Yerel kod | NDK ve CMake üzerinden C++20 ve AArch64 assembly, JNI |
-| Grafik | Vulkan 1.2, derleme sırasında SPIR-V'ye derlenip gömülen GLSL |
+| Grafik | Vulkan 1.1 (varsa 1.2 özellikleri), derleme sırasında SPIR-V 1.3'e derlenip gömülen GLSL |
 | Derleme | Gradle 9.8.0, Android Gradle Plugin 9.4.1 |
-| SDK | derleme, hedef ve en düşük 36 (Android 16) |
+| SDK | derleme ve hedef 36 (Android 16), en düşük 29 (Android 10) |
 | Araçlar | Node.js (lab oturumları), moderngl ile Python (sahne önizlemesi, yük üretici) |
 
 ## Durum
 
-**Tamamlandı.** 30 Eylül ile 1 Ekim 2026 arasında yapılmış bir hobi projesi;
-burada bir kayıt olarak duruyor. Bakımı yapılmıyor, katkı kabul etmiyor ve
+**Sürüm 0.2.0.** 30 Eylül ile 1 Ekim 2026 arasında tek bir telefon için yapılmış,
+2 Ekim 2026'da cihaz güvenliği, rapor, karşılaştırma ve grafik kalitesiyle her
+telefonda çalışmak üzere yeniden açılmış bir hobi projesi. Katkı kabul etmiyor ve
 private kalıyor.
 
 ## Lisans
