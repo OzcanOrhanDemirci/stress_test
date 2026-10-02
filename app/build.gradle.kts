@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -6,6 +7,25 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+/**
+ * Release signing details, taken from a file that is never committed or, on a
+ * build server, from the environment (docs/RELEASE.md).
+ *
+ * When neither is present the release build is signed with the debug key, so
+ * that anyone can clone this repository and produce a working package. What
+ * they cannot produce is a package that updates an installation of the
+ * released one, which is the only thing the key protects.
+ */
+val signing = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+
+fun signingDetail(property: String, variable: String): String? =
+    signing.getProperty(property) ?: System.getenv(variable)
+
+val releaseStore = signingDetail("storeFile", "STRESS_KEYSTORE_FILE")
 
 android {
     namespace = "dev.ozcan.stress"
@@ -33,6 +53,17 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseStore != null) {
+                storeFile = file(releaseStore)
+                storePassword = signingDetail("storePassword", "STRESS_KEYSTORE_PASSWORD")
+                keyAlias = signingDetail("keyAlias", "STRESS_KEY_ALIAS")
+                keyPassword = signingDetail("keyPassword", "STRESS_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // A separate package, so instrumented tests never replace or wipe
@@ -43,8 +74,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // A personal build that is never published: the debug key is enough.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (releaseStore != null) "release" else "debug")
         }
     }
 
@@ -67,6 +97,14 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // The language can be changed inside the app, so an app bundle must keep
+    // every language in the base package rather than split them by device.
+    bundle {
+        language {
+            enableSplit = false
         }
     }
 }

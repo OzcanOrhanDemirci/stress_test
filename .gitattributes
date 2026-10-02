@@ -8,3 +8,6 @@ gradlew text eol=lf
 *.webp binary
 *.apk binary
 *.spv binary
+*.jpg binary
+*.ttf binary
+*.jks binary
