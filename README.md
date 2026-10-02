@@ -231,16 +231,19 @@ three seconds; the run is kept, with the reason and the reading.
 | Stops at | Warns at | Does not start above |
 | --- | --- | --- |
 | battery 47 °C | 44 °C | 42 °C |
-| CPU or GPU 105 °C | 100 °C | 80 °C |
+| CPU or GPU 110 °C | 105 °C | 80 °C |
 | case 48 °C | 45 °C | 42 °C |
 | Android thermal status *severe* | *moderate* | *severe* |
 | battery 5 % (on battery) | 10 % | 10 % |
 
 The chip limit sits above the throttling point on purpose: the Honor's kernel
-starts throttling its CPU and GPU zones at 95 °C and holds them there under full
-load (its harder limits are 110 to 115 °C, critical 125 °C), so stopping at 95 °C
-would end every full-load test within seconds. The limit is for a phone whose own
-protection is no longer keeping up. Turning device safety off asks first; off,
+starts throttling its CPU and GPU zones at 95 °C (its harder limits are 110 to
+115 °C, critical 125 °C), so stopping at 95 °C would end every full-load test
+within seconds. It does not always hold them there either: in one full-load run
+it released the GPU's throttling after 37 seconds and let it reach 107 °C, and the
+first limit, 105 °C, ended that run at 43 seconds. The stop is now at 110 °C,
+where the phone's own harder stage begins, with a warning from 105 °C: it is for a
+phone whose own protection is no longer keeping up. Turning device safety off asks first; off,
 the app never steps in and only the phone's own protection remains. In the first
 real stop, a forest run on the charger ended at 2:36 when Android reported a
 *severe* thermal status; the owner's own 34-minute full-load run, made before the

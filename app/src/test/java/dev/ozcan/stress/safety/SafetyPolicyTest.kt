@@ -41,8 +41,8 @@ class SafetyPolicyTest {
         fun level(sample: Sample, reason: SafetyReason) = SafetyPolicy.findings(sample).first { it.reason == reason }.level
         assertEquals(SafetyLevel.Warn, level(at(battery = 44.0), SafetyReason.BatteryHot))
         assertEquals(SafetyLevel.Stop, level(at(battery = 47.0), SafetyReason.BatteryHot))
-        assertEquals(SafetyLevel.Warn, level(at(gpu = 100.0), SafetyReason.ChipHot))
-        assertEquals(SafetyLevel.Stop, level(at(cpu = 105.5), SafetyReason.ChipHot))
+        assertEquals(SafetyLevel.Warn, level(at(gpu = 105.0), SafetyReason.ChipHot))
+        assertEquals(SafetyLevel.Stop, level(at(cpu = 110.5), SafetyReason.ChipHot))
         assertEquals(SafetyLevel.Warn, level(at(skin = 45.0), SafetyReason.SkinHot))
         assertEquals(SafetyLevel.Stop, level(at(skin = 48.0), SafetyReason.SkinHot))
         assertEquals(SafetyLevel.Warn, level(at(status = 2), SafetyReason.ThermalStatus))
@@ -52,11 +52,18 @@ class SafetyPolicyTest {
     }
 
     @Test
+    fun `the GPU the phone let up to 107 degrees only warns`() {
+        // 2 October, full load: the Honor released its GPU throttling at 0:37 and the GPU reached 107.2 °C.
+        assertEquals(listOf(SafetyLevel.Warn), SafetyPolicy.findings(at(cpu = 86.0, gpu = 107.2)).map { it.level })
+        assertEquals(emptyList<SafetyCheck>(), SafetyPolicy.findings(at(cpu = 86.0, gpu = 101.0)))
+    }
+
+    @Test
     fun `stops come before warnings and a charging phone is never low`() {
-        val findings = SafetyPolicy.findings(at(battery = 45.0, cpu = 106.0))
+        val findings = SafetyPolicy.findings(at(battery = 45.0, cpu = 111.0))
         assertEquals(listOf(SafetyLevel.Stop, SafetyLevel.Warn), findings.map { it.level })
         assertEquals(SafetyReason.ChipHot, findings.first().reason)
-        assertEquals(106.0, findings.first().value!!, 0.0)
+        assertEquals(111.0, findings.first().value!!, 0.0)
         assertEquals(emptyList<SafetyCheck>(), SafetyPolicy.findings(at(level = 3, plugged = true)))
     }
 
@@ -82,11 +89,11 @@ class SafetyPolicyTest {
     @Test
     fun `a spike that falls back restarts the clock`() {
         val monitor = SafetyMonitor(limits)
-        monitor.update(at(0.0, cpu = 106.0))
+        monitor.update(at(0.0, cpu = 111.0))
         monitor.update(at(2.0, cpu = 90.0))
-        assertEquals(SafetyLevel.Warn, monitor.update(at(4.0, cpu = 106.0)).level)
-        assertEquals(SafetyLevel.Warn, monitor.update(at(6.5, cpu = 106.0)).level)
-        assertEquals(SafetyLevel.Stop, monitor.update(at(7.0, cpu = 106.0)).level)
+        assertEquals(SafetyLevel.Warn, monitor.update(at(4.0, cpu = 111.0)).level)
+        assertEquals(SafetyLevel.Warn, monitor.update(at(6.5, cpu = 111.0)).level)
+        assertEquals(SafetyLevel.Stop, monitor.update(at(7.0, cpu = 111.0)).level)
     }
 
     @Test

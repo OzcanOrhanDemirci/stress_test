@@ -229,15 +229,18 @@ durdurur. Koşu, nedeni ve ölçülen değerle birlikte saklanır.
 | Durdurur | Uyarır | Şunun üstündeyken başlamaz |
 | --- | --- | --- |
 | pil 47 °C | 44 °C | 42 °C |
-| CPU ya da GPU 105 °C | 100 °C | 80 °C |
+| CPU ya da GPU 110 °C | 105 °C | 80 °C |
 | gövde 48 °C | 45 °C | 42 °C |
 | Android termal durumu *ciddi* | *orta* | *ciddi* |
 | pil %5 (pildeyken) | %10 | %10 |
 
 Çip sınırı bilerek kısma noktasının üstünde: Honor'un çekirdeği CPU ve GPU
-bölgelerini 95 °C'de kısmaya başlıyor ve tam yükte orada tutuyor (daha sert
-sınırları 110-115 °C, kritik 125 °C); 95 °C'de durdurmak her tam yük testini
-saniyeler içinde keserdi. Sınır, kendi koruması artık yetişemeyen bir telefon
+bölgelerini 95 °C'de kısmaya başlıyor (daha sert sınırları 110-115 °C, kritik
+125 °C); 95 °C'de durdurmak her tam yük testini saniyeler içinde keserdi. Orada
+her zaman tutmuyor da: bir tam yük koşusunda 37. saniyede GPU'nun kısmasını
+kaldırıp 107 °C'ye çıkmasına izin verdi ve ilk sınır olan 105 °C o koşuyu 43.
+saniyede kesti. Durdurma artık telefonun kendi sert kademesinin başladığı 110 °C'de,
+uyarı 105 °C'den itibaren: sınır, kendi koruması artık yetişemeyen bir telefon
 için. Cihaz güvenliğini kapatmak önce sorar; kapalıyken uygulama hiç araya girmez
 ve yalnız telefonun kendi koruması kalır. İlk gerçek durdurmada, şarjdaki bir
 orman koşusu Android *ciddi* termal durum bildirince 2:36'da bitti; sahibinin bu

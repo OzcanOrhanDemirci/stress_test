@@ -23,19 +23,21 @@ data class SafetyCheck(val level: SafetyLevel, val reason: SafetyReason? = null,
 /**
  * The limits device safety keeps. A stress test is meant to reach the
  * phone's own throttling: the Honor 400's kernel starts it at 95 °C on the
- * CPU and GPU zones and holds them there under full load (its trip points:
- * 95 °C throttling, 110-115 °C harder, 125 °C critical; read 2026-10-02).
- * So the chip limits sit above the throttling point, where the phone's own
- * protection is no longer keeping up; the battery and case limits are where
- * a cell starts to age fast and a hand gets uncomfortable; Android's own
- * SEVERE thermal status ("UX largely impacted") also ends a test.
+ * CPU and GPU zones (its trip points: 95 °C throttling, 110-115 °C harder,
+ * 125 °C critical; read 2026-10-02). It does not always hold them there: in a
+ * full-load run it let the GPU go from 95 to 107 °C after 37 s, and a 105 °C
+ * stop ended that run at 43 s. So the chip stops at 110 °C, where the phone's
+ * harder stage begins, and warns from 105 °C (Özcan's decision, 2026-10-02):
+ * past that its own protection is no longer keeping up. The battery and case
+ * limits are where a cell starts to age fast and a hand gets uncomfortable;
+ * Android's own SEVERE thermal status ("UX largely impacted") also ends a test.
  */
 data class SafetyLimits(
     val batteryWarn: Double = 44.0,
     val batteryStop: Double = 47.0,
     /** CPU and GPU, the hottest zone of each. */
-    val chipWarn: Double = 100.0,
-    val chipStop: Double = 105.0,
+    val chipWarn: Double = 105.0,
+    val chipStop: Double = 110.0,
     val skinWarn: Double = 45.0,
     val skinStop: Double = 48.0,
     val thermalWarn: Int = PowerManager.THERMAL_STATUS_MODERATE,

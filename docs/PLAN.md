@@ -305,8 +305,8 @@ zaman damgası isteğe bağlı (yedekleri var). Vulkan 1.1 yoksa GPU ve sinemati
 **Grafik kalitesi.** Ölçek ve örnek: Düşük %30, gölge 4 dokunuş, huzme 6 nokta · Orta %45 (eski ayar) · Yüksek havuz ve
 beyaz %65 + piksel başına 2 ışın, orman %100 + 16 dokunuş + 24 nokta + 4096 gölge haritası. Ölçümler OLCUMLER "0.2.0".
 
-**Cihaz güvenliği** (`safety/SafetyPolicy.kt`). Durdurur: pil 47 °C, CPU/GPU 105 °C, gövde 48 °C, Android termal durumu
-SEVERE, pil %5 (şarjda değilken); koşul 3 sn sürmeli. Uyarır: 44 °C, 100 °C, 45 °C, MODERATE, %10. Başlatmaz: pil 42 °C,
+**Cihaz güvenliği** (`safety/SafetyPolicy.kt`). Durdurur: pil 47 °C, CPU/GPU 110 °C, gövde 48 °C, Android termal durumu
+SEVERE, pil %5 (şarjda değilken); koşul 3 sn sürmeli. Uyarır: 44 °C, 105 °C, 45 °C, MODERATE, %10. Başlatmaz: pil 42 °C,
 çip 80 °C, gövde 42 °C, SEVERE, pil %10. Çip sınırı Honor'un tetik noktalarından (95 kısma, 125 kritik): kısma noktasında
 durdurmak Tam yükü saniyeler içinde keserdi. Kapatmak onay ister; kayıt bitiş nedenini ve ölçülen değeri saklar.
 
@@ -327,4 +327,7 @@ değişince yeniden çıkmaz). Ayarlarda dil: Sistem / Türkçe / English; Andro
 zorlanarak). Hakkında: geliştiren ve tanıtım metni. Boştaki güç cümlesi; Kuru %100 açıklaması PC programı örneği vermeden.
 CPU kadranı yalnız yük sırasında görünür (boştaki güç kartının arkasında sayısıyla karışıyordu). Telefonda görülenler:
 uyarı 782 dp'lik ekrana sığmıyordu (yalnız metin kayar, seçim ve düğme altta sabit); geçmişte güvenlik etiketi kesiliyordu
-(kalkanlı "Güvenlik"); 100 °C ve üstü çip bulgusu artık "kısılma noktasında tutuyor" demiyor (OLCUMLER: 107 °C'lik koşu).
+(kalkanlı "Güvenlik"); cihaz güvenliğinin uyarı eşiği ve üstündeki çip bulgusu artık "kısılma noktasında tutuyor"
+demiyor (OLCUMLER: 107 °C'lik koşu). **Çip sınırı 105 → 110 °C, uyarı 100 → 105 °C** (Özcan: "güvenli modda çok hızlı
+kapandı, yine güvenliği sağlasın ama aşırı hızlı değil"): Honor GPU kısmasını bırakıp 107 °C'ye izin verdi, 105 Tam yükü
+43 sn'de kesti; 110 telefonun sert kademesinin başı, kritik 125'in 15 °C altı.

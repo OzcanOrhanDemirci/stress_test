@@ -225,7 +225,8 @@ specialization constant. Lab koşusu, yalnız sahne (yakıcısız, CPU boşta), 
 - Yüksek'te tek gönderim 300 ms'ye çıkıyor; Adreno sıfırlamadı (hata 0, `DeviceLost` yok).
 - Tam yük (`fp32_l2+gpu_fp32@preview`, 15 sn): GPU bölgesi **95,6 °C**, CPU 86,0 °C. Çekirdeğin tetik noktaları
   (`thermal_zone*/trip_point_*`): CPU ve GPU bölgelerinde 95 °C kısma, 110-115 °C daha sert, 125 °C kritik. Cihaz
-  güvenliğinin çip sınırı bu yüzden 105 °C (95'te durdursa Tam yük birkaç saniyede kesilirdi).
+  güvenliğinin çip sınırı bu yüzden 105 °C (95'te durdursa Tam yük birkaç saniyede kesilirdi); 2 Ekim'de 110 °C'ye çıktı
+  (aşağıda).
 - 19 cihaz testi yeşil: her sahne her kalitede çalışıyor (`GpuEngineDeviceTest.everySceneRunsAtEveryQuality`).
 
 ## 0.2.0 · Cihaz güvenliği, telefonda ilk gerçek durdurma
@@ -241,4 +242,4 @@ sonra): tepe 11,01 W, sürekli 9,45 W, pil 38 °C'de sabit. GPU bölgesi ~35 sn 
 kısması kalktı** (GPU performansı %85 → %100'e çıktı, hemen ardından A715 çekirdekleri ~1,85-2,1 GHz'ten ~1,7 GHz'e indi) ve GPU
 sıcaklığı birkaç saniyede **~106 °C'ye** çıktı; güvenlik 0:43'te durdurdu (ölçülen 106,0, en yüksek 107,2 °C). Yani bu
 telefon GPU'yu 95 °C'de her zaman tutmuyor: bu koşuda termal yönetimi 105 °C'nin üstüne izin verdi (sert tetik 110-115).
-1 Ekim'deki 34 dakikalık koşu en çok 101 °C görmüştü. Sınırın 105'te kalıp kalmayacağı Özcan'ın kararı (açık).
+1 Ekim'deki 34 dakikalık koşu en çok 101 °C görmüştü. **Özcan'ın kararı (2 Ekim): çip durdurma 110 °C, uyarı 105 °C.**
