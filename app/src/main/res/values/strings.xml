@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Stress</string>
+    <string name="app_name">Stress Test</string>
 
     <!-- Common -->
     <string name="ok">OK</string>
@@ -51,7 +51,7 @@
     <string name="quality_high_detail">For the newest flagships: more pixels and twice the rays. A mid-range phone drops to a few frames a second.</string>
 
     <!-- Home -->
-    <string name="home_tagline">Stress test · benchmark</string>
+    <string name="home_tagline">CPU, GPU and power benchmark</string>
     <string name="home_section_mode">Test mode</string>
     <string name="home_section_duration">Duration</string>
     <string name="home_section_last">Last run</string>
@@ -238,7 +238,7 @@
     <string name="export_share_title">Share</string>
     <string name="export_saved">Report saved</string>
     <string name="export_failed">The report could not be written</string>
-    <string name="report_title">Stress test report</string>
+    <string name="report_title">Run report</string>
     <string name="report_run_id">Run %1$s</string>
     <string name="report_section_test">Test</string>
     <string name="report_section_device">Device</string>
@@ -248,7 +248,7 @@
     <string name="report_end">Ending</string>
     <string name="report_workload">Workload</string>
     <string name="report_device">Model</string>
-    <string name="report_footer">Stress %1$s · stress test and benchmark</string>
+    <string name="report_footer">Stress Test %1$s · CPU, GPU and power benchmark</string>
     <string name="report_page">Page %1$d / %2$d</string>
 
     <!-- History -->
@@ -291,7 +291,7 @@
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_about_tagline">The stress test that finds your phone\'s real limits.</string>
-    <string name="settings_about_text">Stress does not settle for the 100% on the screen. It truly works the processor\'s arithmetic units, its memory path and the graphics chip all at once, and measures the most power your phone can draw, how hot it gets and how it slows down as it heats up.</string>
+    <string name="settings_about_text">Stress Test does not settle for the 100% on the screen. It truly works the processor\'s arithmetic units, its memory path and the graphics chip all at once, and measures the most power your phone can draw, how hot it gets and how it slows down as it heats up.</string>
     <string name="settings_about_cpu">CPU loads written in ARM assembly; each one checks its own results, so a calculation error is caught at once.</string>
     <string name="settings_about_gpu">Vulkan GPU burners and three real-time cinematic 3D scenes.</string>
     <string name="settings_about_analysis">Power, temperatures, clocks and throttling followed second by second, then a clear analysis and a PDF report.</string>

@@ -64,7 +64,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -92,6 +91,7 @@ import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
 import dev.ozcan.stress.ui.components.GaugeMark
 import dev.ozcan.stress.ui.components.GlassCard
+import dev.ozcan.stress.ui.components.Wordmark
 import dev.ozcan.stress.ui.components.IconBadge
 import dev.ozcan.stress.ui.components.Pill
 import dev.ozcan.stress.ui.components.PrimaryButton
@@ -290,12 +290,7 @@ private fun Header(device: DeviceInfo?, safety: Boolean, onOpenSettings: () -> U
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         GaugeMark(Modifier.size(42.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                stringResource(R.string.app_name).upper(),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 6.sp,
-            )
+            Wordmark(letterSpacing = 5.sp)
             Text(
                 device?.let { d -> listOfNotNull(d.title, d.soc).joinToString(" · ") } ?: stringResource(R.string.home_tagline),
                 style = MaterialTheme.typography.bodySmall,

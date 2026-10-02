@@ -13,7 +13,7 @@ import java.util.Locale
  */
 object ReportCsv {
 
-    fun fileName(record: RunRecord): String = "stres-veri-${record.id}.csv"
+    fun fileName(record: RunRecord): String = "stress-test-data-${record.id}.csv"
 
     fun write(record: RunRecord, dir: File): File {
         dir.mkdirs()

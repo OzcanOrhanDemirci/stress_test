@@ -92,6 +92,7 @@ import dev.ozcan.stress.ui.components.NavigationRow
 import dev.ozcan.stress.ui.components.SectionHeader
 import dev.ozcan.stress.ui.components.SegmentedControl
 import dev.ozcan.stress.ui.components.SwitchRow
+import dev.ozcan.stress.ui.components.Wordmark
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.upper
@@ -409,7 +410,7 @@ private fun AboutCard(version: String) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             GaugeMark(Modifier.size(44.dp))
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.app_name).upper(), style = MaterialTheme.typography.titleLarge, letterSpacing = 4.sp)
+                Wordmark(fontSize = 22.sp)
                 Text(stringResource(R.string.settings_version, version), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
             }
         }

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Stres
+# Stress Test
 
 **Android telefonlar için stres testi ve benchmark: bir telefonun gerçekten çekebildiği en yüksek gücü bulmak, bunu yaparken de göze iyi görünmek için.**
 

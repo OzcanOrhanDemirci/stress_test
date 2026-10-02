@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Stres</string>
+    <string name="app_name">Stress Test</string>
 
     <!-- Ortak -->
     <string name="ok">Tamam</string>
@@ -51,7 +51,7 @@
     <string name="quality_high_detail">En yeni amiral gemileri için: daha çok piksel ve iki kat ışın. Orta seviye bir telefon saniyede birkaç kareye düşer.</string>
 
     <!-- Ana ekran -->
-    <string name="home_tagline">Stres testi · benchmark</string>
+    <string name="home_tagline">CPU, GPU ve güç ölçümü</string>
     <string name="home_section_mode">Test modu</string>
     <string name="home_section_duration">Süre</string>
     <string name="home_section_last">Son koşu</string>
@@ -238,7 +238,7 @@
     <string name="export_share_title">Paylaş</string>
     <string name="export_saved">Rapor kaydedildi</string>
     <string name="export_failed">Rapor yazılamadı</string>
-    <string name="report_title">Stres testi raporu</string>
+    <string name="report_title">Koşu raporu</string>
     <string name="report_run_id">Koşu %1$s</string>
     <string name="report_section_test">Test</string>
     <string name="report_section_device">Cihaz</string>
@@ -248,7 +248,7 @@
     <string name="report_end">Bitiş</string>
     <string name="report_workload">İş yükü</string>
     <string name="report_device">Model</string>
-    <string name="report_footer">Stres %1$s · stres testi ve benchmark</string>
+    <string name="report_footer">Stress Test %1$s · CPU, GPU ve güç ölçümü</string>
     <string name="report_page">Sayfa %1$d / %2$d</string>
 
     <!-- Geçmiş -->
@@ -291,7 +291,7 @@
     <string name="settings_section_about">Hakkında</string>
     <string name="settings_version">Sürüm %1$s</string>
     <string name="settings_about_tagline">Telefonunun gerçek sınırlarını ölçen stres testi.</string>
-    <string name="settings_about_text">Stres, ekranda görünen %100 ile yetinmez. İşlemcinin hesap birimlerini, bellek yolunu ve ekran kartını aynı anda gerçekten çalıştırır; telefonunun çekebildiği en yüksek gücü, ne kadar ısındığını ve ısındıkça nasıl yavaşladığını ölçer.</string>
+    <string name="settings_about_text">Stress Test, ekranda görünen %100 ile yetinmez. İşlemcinin hesap birimlerini, bellek yolunu ve ekran kartını aynı anda gerçekten çalıştırır; telefonunun çekebildiği en yüksek gücü, ne kadar ısındığını ve ısındıkça nasıl yavaşladığını ölçer.</string>
     <string name="settings_about_cpu">ARM assembly ile yazılmış CPU yükleri; her biri kendi sonucunu denetler, hesap hatası anında yakalanır.</string>
     <string name="settings_about_gpu">Vulkan GPU yakıcıları ve gerçek zamanlı üç sinematik 3D sahne.</string>
     <string name="settings_about_analysis">Güç, sıcaklık, frekans ve kısılma saniye saniye izlenir; sonunda anlaşılır bir analiz ve PDF rapor.</string>

@@ -58,7 +58,7 @@ object ReportPdf {
     private val VIOLET = Color.rgb(0x93, 0x4F, 0xE0)
     private val HEADER = Color.rgb(0x0B, 0x0D, 0x12)
 
-    fun fileName(record: RunRecord): String = "stres-rapor-${record.id}.pdf"
+    fun fileName(record: RunRecord): String = "stress-test-report-${record.id}.pdf"
 
     /** Writes the report into [dir] and returns the file. */
     fun write(context: Context, record: RunRecord, insights: List<Insight>, dir: File): File {
@@ -120,7 +120,15 @@ object ReportPdf {
             Paint().apply { shader = LinearGradient(0f, 0f, PAGE_W.toFloat(), 0f, ACCENT, HOT, Shader.TileMode.CLAMP) },
         )
         gauge(canvas, MARGIN + 22f, 50f, 22f)
-        canvas.drawText(context.getString(R.string.app_name).upper(), MARGIN + 56f, 44f, paint(fonts.text(700), 22f, Color.WHITE).apply { letterSpacing = 0.25f })
+        // The wordmark as on screen: the first word white, the rest in the accent.
+        val name = context.getString(R.string.app_name).upper()
+        val split = name.indexOf(' ').takeIf { it > 0 } ?: name.length
+        val title = paint(fonts.text(700), 22f, Color.WHITE).apply { letterSpacing = 0.25f }
+        canvas.drawText(name, 0, split, MARGIN + 56f, 44f, title)
+        if (split < name.length) {
+            val x = MARGIN + 56f + title.measureText(name, 0, split)
+            canvas.drawText(name, split, name.length, x, 44f, title.apply { color = ACCENT })
+        }
         canvas.drawText(context.getString(R.string.report_title), MARGIN + 56f, 62f, paint(fonts.text(400), 11f, Color.rgb(0xB8, 0xBE, 0xC8)))
         val right = PAGE_W - MARGIN
         val mode = paint(fonts.text(600), 15f, Color.WHITE).apply { textAlign = Paint.Align.RIGHT }

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Stres
+# Stress Test
 
 **A stress test and benchmark for Android phones, built to find the most power a phone can really draw, and to look good while it does.**
 

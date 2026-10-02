@@ -331,3 +331,8 @@ uyarı 782 dp'lik ekrana sığmıyordu (yalnız metin kayar, seçim ve düğme a
 demiyor (OLCUMLER: 107 °C'lik koşu). **Çip sınırı 105 → 110 °C, uyarı 100 → 105 °C** (Özcan: "güvenli modda çok hızlı
 kapandı, yine güvenliği sağlasın ama aşırı hızlı değil"): Honor GPU kısmasını bırakıp 107 °C'ye izin verdi, 105 Tam yükü
 43 sn'de kesti; 110 telefonun sert kademesinin başı, kritik 125'in 15 °C altı.
+
+**Ad: Stress Test** (Özcan, 2026-10-02: evrensel, İngilizce, her yerde aynı). İki dilde de `app_name` "Stress Test";
+ekranda ve PDF'te yazı-logo "STRESS" beyaz + "TEST" turuncu (`ui/components/Wordmark.kt`, dar yerde tek satıra küçülür);
+rapor dosyaları `stress-test-report-<id>.pdf`, `stress-test-data-<id>.csv`; README başlıkları. `applicationId` ve Kotlin
+paketi `dev.ozcan.stress` bilerek aynı: kimlik değişirse telefondaki uygulama ve geçmişi ayrı bir uygulama olarak kalırdı.
