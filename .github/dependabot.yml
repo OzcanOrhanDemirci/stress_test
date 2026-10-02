@@ -1,0 +1,58 @@
+# Keeps dependencies and workflow actions current.
+#
+# Updates are grouped so that a week of small bumps arrives as one pull request
+# rather than a dozen. A pull request nobody reads is not maintenance, and a
+# queue of them trains you to merge without looking.
+#
+# Every update still has to pass the verification pipeline before it can land.
+# The NDK and CMake are not here: they are pinned in app/build.gradle.kts and
+# the workflows on purpose, because the NDK's assembler builds the kernels whose
+# power was measured, and changing it is a decision rather than a bump.
+version: 2
+
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      androidx-and-compose:
+        patterns:
+          - "androidx.*"
+      kotlin-and-build-tools:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlinx*"
+          - "com.android.*"
+          - "org.gradle.*"
+      testing:
+        patterns:
+          - "junit*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - "*"

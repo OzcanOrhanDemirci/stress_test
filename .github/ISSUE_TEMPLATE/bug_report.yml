@@ -1,0 +1,99 @@
+name: Defect
+description: Something behaves differently from how it is meant to
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. The most useful report is one that can be
+        reproduced, and on this app that depends on the phone more than usual:
+        everything below exists to get to that.
+
+        If **device safety did not stop a test it should have**, or another app
+        could start a load, that is a **security** problem: please close this and
+        follow [SECURITY.md](../blob/main/SECURITY.md) instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, in the order you saw it.
+      placeholder: |
+        I started Cinematic · Forest at High quality. After about a minute the
+        scene froze, and the run screen said "The GPU failed".
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reach it
+      description: >
+        Numbered steps, starting from a fresh launch. If it only happens
+        sometimes, say how often and what seems to make the difference.
+      placeholder: |
+        1. Open the app
+        2. Choose Cinematic, then Forest
+        3. Set the scene quality to High in Settings
+        4. Start a 5 minute test
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: >
+        Shown in Settings, under About; or the commit if you built it yourself.
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Phone and Android version
+      placeholder: "Honor 400 (DNY-NX9), Android 16"
+    validations:
+      required: true
+
+  - type: input
+    id: chipset
+    attributes:
+      label: Chipset
+      description: >
+        Shown in Settings, under Device info and sensors. Several defects here
+        depend on the chipset rather than the phone.
+      placeholder: "Snapdragon 7 Gen 3 (SM7550)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: conditions
+    attributes:
+      label: Conditions
+      description: Tick any that applied.
+      multiple: true
+      options:
+        - Device safety was off
+        - The charger was connected
+        - The phone was already warm when the test started
+        - High scene quality
+        - Low scene quality
+        - The app's language differs from the phone's
+        - None of these
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: >
+        A screenshot, the run's PDF report or CSV (Result screen, Report), or a
+        logcat extract. Please remove anything personal first.

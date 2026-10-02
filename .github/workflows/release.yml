@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # A dry run: everything a release does, signing and the certificate check
+  # included, except publishing. The package is kept as an artifact instead.
+  # A pipeline that publishes can only be trusted once it has been seen to work
+  # without publishing.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build, sign and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Install the pinned NDK and CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "ndk;29.0.14206865" "cmake;4.1.2" > /dev/null
+
+      # The tag is what people will quote, and the version inside the package is
+      # what a phone will compare against. A release where the two disagree is
+      # worse than no release, so the pipeline refuses to publish one.
+      - name: Check the tag against the declared version
+        id: version
+        run: |
+          declared=$(grep '^stress.versionName=' gradle.properties | cut -d= -f2)
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            tagged="${GITHUB_REF_NAME#v}"
+            if [ "$declared" != "$tagged" ]; then
+              echo "Tag $GITHUB_REF_NAME does not match stress.versionName=$declared" >&2
+              exit 1
+            fi
+          fi
+          echo "version=$declared" >> "$GITHUB_OUTPUT"
+          echo "Building $declared"
+
+      # Without the key the build would quietly fall back to the debug key, and
+      # the certificate check below would catch it late. Stopping here says why.
+      - name: Restore the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.STRESS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "The STRESS_KEYSTORE_BASE64 secret is not set" >&2
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/stress-test-release.jks"
+
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Assemble the signed release
+        env:
+          STRESS_KEYSTORE_FILE: ${{ runner.temp }}/stress-test-release.jks
+          STRESS_KEYSTORE_PASSWORD: ${{ secrets.STRESS_KEYSTORE_PASSWORD }}
+          STRESS_KEY_ALIAS: ${{ secrets.STRESS_KEY_ALIAS }}
+          STRESS_KEY_PASSWORD: ${{ secrets.STRESS_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      # A package signed with any other key would install and run, and would
+      # quietly be the wrong package. The certificate's digest is compared
+      # rather than its name, because a name can be typed into any key.
+      - name: Confirm the release key was used
+        run: |
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -1)
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk \
+            | tee signing.txt
+          grep -q "certificate SHA-256 digest: b1dbd74228412c2fb79ce71cb36e735c975c4664fa0851527be2b3889b06d9a5" signing.txt
+
+      - name: Name the package after its version
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk "stress-test-${{ steps.version.outputs.version }}.apk"
+          ls -l "stress-test-${{ steps.version.outputs.version }}.apk"
+
+      # The notes on a release should be the ones written for that version by
+      # hand, not a list of commit subjects assembled afterwards. They are in
+      # the changelog already, so the pipeline reads them out of it, and a
+      # version nobody wrote up there is not published at all.
+      - name: Take the notes out of the changelog
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## / { exit }
+            found && /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no section for $version" >&2
+            exit 1
+          fi
+          cat notes.md
+
+      - name: Publish the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          gh release create "$GITHUB_REF_NAME" "stress-test-$version.apk" \
+            --title "Stress Test $version" \
+            --notes-file notes.md \
+            --verify-tag \
+            --latest
+
+      - name: Keep the package of a dry run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: stress-test-${{ steps.version.outputs.version }}-dry-run
+          path: stress-test-${{ steps.version.outputs.version }}.apk
+          retention-days: 7
+
+      - name: Keep the mapping file
+        uses: actions/upload-artifact@v7
+        with:
+          name: mapping-${{ steps.version.outputs.version }}-${{ github.run_number }}
+          path: app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/stress-test-release.jks"

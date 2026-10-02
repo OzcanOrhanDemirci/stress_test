@@ -1,0 +1,15 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/OzcanOrhanDemirci/stress_test/security/advisories/new
+    about: >
+      Report privately, including device safety failing to stop a test. Please
+      do not describe a vulnerability in a public issue.
+  - name: How this repository is worked in
+    url: https://github.com/OzcanOrhanDemirci/stress_test/blob/main/CONTRIBUTING.md
+    about: Commit style, measurements, what a pull request has to say.
+  - name: Why something is the way it is
+    url: https://github.com/OzcanOrhanDemirci/stress_test/blob/main/README.md#decisions-worth-reading
+    about: >
+      The decisions behind the parts of this app that look unusual, each with
+      the measurement that settled it.

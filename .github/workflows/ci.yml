@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Run on demand as well: a pipeline that can only be started by changing
+  # something cannot be used to check that it still passes without one.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build and verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # The NDK is pinned because its assembler builds the CPU kernels and its
+      # glslc compiles the shaders: a different NDK is a different measurement.
+      # Installing both here rather than leaving it to the build makes a missing
+      # version fail as itself, not as a confusing native build error.
+      - name: Install the pinned NDK and CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "ndk;29.0.14206865" "cmake;4.1.2" > /dev/null
+
+      # The tools run on a developer's machine, not in the build, so nothing
+      # else would notice if one of them stopped parsing.
+      - name: Check the tools parse
+        run: |
+          node --check tools/lab.mjs
+          python3 -m py_compile tools/gen_kernels.py tools/scene_preview.py
+
+      - name: Assemble debug build
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Run Android Lint
+        run: ./gradlew :app:lintDebug --stacktrace
+
+      # Kept whatever the outcome, because the run worth reading is the one
+      # that failed.
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-*.html
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            app/build/reports/tests/**
+            app/build/test-results/**/*.xml
+          if-no-files-found: ignore
+          retention-days: 7

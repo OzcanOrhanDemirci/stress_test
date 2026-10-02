@@ -1,0 +1,91 @@
+name: Measurement from your phone
+description: Share what Stress Test measured on a phone other than the reference one
+labels: ["measurement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every number in the README was measured on one phone, an Honor 400. The
+        loads were chosen so that they should draw the most on other phones too;
+        a measurement from yours is how that gets checked. A run on battery, with
+        the charger unplugged, is the one that says something about power.
+
+  - type: input
+    id: device
+    attributes:
+      label: Phone and Android version
+      placeholder: "Pixel 8, Android 16"
+    validations:
+      required: true
+
+  - type: input
+    id: chipset
+    attributes:
+      label: Chipset
+      description: Shown in Settings, under Device info and sensors.
+      placeholder: "Tensor G3"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Full load
+        - Cinematic · Pool
+        - Cinematic · Forest
+        - Cinematic · White
+        - CPU
+        - GPU
+        - Dry 100 %
+    validations:
+      required: true
+
+  - type: dropdown
+    id: quality
+    attributes:
+      label: Scene quality
+      description: Only for the cinematic modes.
+      options:
+        - Not a cinematic mode
+        - Low
+        - Medium
+        - High
+
+  - type: textarea
+    id: results
+    attributes:
+      label: What it measured
+      description: >
+        Peak and sustained power, the hottest chip and the battery, when it first
+        throttled and the frame rate for a scene. The run's PDF report or CSV
+        says all of it; attach one if you can.
+      placeholder: |
+        Peak 12.4 W, sustained 8.1 W, chip 98 °C, battery 41 °C.
+        First throttled at 0:12. Pool at Medium: 31 FPS.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: conditions
+    attributes:
+      label: Conditions
+      options:
+        - label: The charger was unplugged for the whole run
+        - label: The phone started the run cool, after resting
+        - label: The phone was out of its case
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: The room temperature, a fan, a cooler, anything that made a difference.

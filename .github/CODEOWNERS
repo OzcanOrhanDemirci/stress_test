@@ -1,0 +1,19 @@
+# Every file in this repository is reviewed by its author.
+#
+# A single owner is not a formality here: it is what makes the protection on
+# main mean something. A pull request that changes the build, the pipeline or
+# the signing arrangements cannot land without the person who holds the key
+# having looked at it.
+
+*                                               @OzcanOrhanDemirci
+
+# The parts where a mistake is expensive rather than merely wrong: the release
+# pipeline can publish, the build decides how the package is signed, the
+# manifest decides what other apps can reach, and the safety limits decide when
+# a hot phone is stopped.
+/.github/workflows/                             @OzcanOrhanDemirci
+/gradle/                                        @OzcanOrhanDemirci
+/gradle.properties                              @OzcanOrhanDemirci
+/app/build.gradle.kts                           @OzcanOrhanDemirci
+/app/src/main/AndroidManifest.xml               @OzcanOrhanDemirci
+/app/src/main/java/dev/ozcan/stress/safety/     @OzcanOrhanDemirci

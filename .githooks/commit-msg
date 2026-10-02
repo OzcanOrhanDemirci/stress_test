@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+#
+# Holds the message being written to the same rule the pipeline enforces.
+#
+# Finding out that a subject is wrong after it has been pushed means rewriting
+# history. Finding out here means retyping a line, so the check belongs at both
+# ends and the rule belongs in one file.
+#
+# Opt in once, in your checkout:
+#
+#   git config core.hooksPath .githooks
+#
+# `git commit --no-verify` skips it for a single commit.
+set -eu
+
+root=$(git rev-parse --show-toplevel)
+
+# shellcheck source=.github/scripts/commit-subject-rule.sh
+. "$root/.github/scripts/commit-subject-rule.sh"
+
+# The comment lines git adds are not part of the message, and neither is the
+# diff it appends under --verbose. What is left is the message; its first line
+# is the subject.
+subject=$(sed -e '/^#/d' -e '/^diff --git/,$d' "$1" | sed -e '/./,$!d' | head -n 1)
+
+if [ -z "$subject" ]; then
+  exit 0
+fi
+
+# Written by git rather than by a person.
+case "$subject" in
+  "Merge "* | "Revert "*) exit 0 ;;
+esac
+
+if ! check_subject "$subject"; then
+  subject_convention_help
+  exit 1
+fi

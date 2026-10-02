@@ -1,0 +1,52 @@
+name: Proposal
+description: Something the app should do, or should do differently
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposals are welcome. The ones that get built are the ones that arrive
+        with the reason attached, so the questions below ask for that rather
+        than for a specification.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What is difficult, misleading or impossible today. Describe the
+        situation rather than the feature: the feature is the answer, and there
+        may be a better one.
+      placeholder: >
+        I test the same phone every week and cannot see at a glance whether it
+        draws less power than it did a month ago.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What else you considered
+      description: >
+        Including doing nothing. If an existing part of the app almost solves
+        it, say what stops it.
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints this project holds to
+      description: >
+        These are settled decisions rather than preferences, and a proposal that
+        needs one of them lifted needs to say why it is worth it.
+      options:
+        - label: This needs no permission, and no network
+        - label: A load that claims to draw more power comes with a measurement in watts
+        - label: Device safety stays on by default
+        - label: I have read the decisions in docs/PLAN.md, section 13
