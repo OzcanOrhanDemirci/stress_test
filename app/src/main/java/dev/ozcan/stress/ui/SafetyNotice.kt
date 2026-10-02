@@ -102,7 +102,7 @@ fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) 
         SideEffect { window?.setDimAmount(0.8f) }
         Column(
             Modifier
-                .padding(horizontal = 18.dp, vertical = 24.dp)
+                .padding(horizontal = 14.dp, vertical = 16.dp)
                 .widthIn(max = 440.dp)
                 .graphicsLayer {
                     val t = appear.value.coerceIn(0f, 1.2f)
@@ -123,8 +123,7 @@ fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) 
                     )
                 }
                 .border(1.5.dp, Brush.linearGradient(listOf(color.copy(alpha = 0.85f), color.copy(alpha = 0.15f))), shape)
-                .verticalScroll(rememberScrollState())
-                .padding(22.dp),
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -142,13 +141,28 @@ fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) 
                     Text(stringResource(R.string.notice_subtitle), style = MaterialTheme.typography.labelLarge, color = color)
                 }
             }
-            Line(Icons.Rounded.LocalFireDepartment, StressColors.AccentHot, stringResource(R.string.notice_load))
-            Line(Icons.Rounded.AcUnit, StressColors.Cool, stringResource(R.string.notice_care))
-            Line(Icons.Rounded.Shield, StressColors.Good, stringResource(R.string.notice_protection))
-            if (!safetyOn) {
-                Line(Icons.Rounded.GppBad, StressColors.Bad, stringResource(R.string.notice_safety_off), StressColors.Bad)
+            // On a short screen only the text scrolls: the choice and the button stay in view.
+            val scroll = rememberScrollState()
+            Box(Modifier.weight(1f, fill = false)) {
+                Column(Modifier.verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Line(Icons.Rounded.LocalFireDepartment, StressColors.AccentHot, stringResource(R.string.notice_load))
+                    Line(Icons.Rounded.AcUnit, StressColors.Cool, stringResource(R.string.notice_care))
+                    Line(Icons.Rounded.Shield, StressColors.Good, stringResource(R.string.notice_protection))
+                    if (!safetyOn) {
+                        Line(Icons.Rounded.GppBad, StressColors.Bad, stringResource(R.string.notice_safety_off), StressColors.Bad)
+                    }
+                    Line(Icons.Rounded.Gavel, StressColors.TextDim, stringResource(R.string.notice_responsibility), StressColors.Text)
+                }
+                if (scroll.canScrollForward) {
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(36.dp)
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, StressColors.Surface))),
+                    )
+                }
             }
-            Line(Icons.Rounded.Gavel, StressColors.TextDim, stringResource(R.string.notice_responsibility), StressColors.Text)
 
             Row(
                 Modifier
@@ -169,7 +183,6 @@ fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) 
                 )
                 Text(stringResource(R.string.notice_dont_show), style = MaterialTheme.typography.bodyMedium, color = StressColors.TextDim)
             }
-            Spacer(Modifier.height(2.dp))
             PrimaryButton(
                 text = stringResource(R.string.notice_accept).upper(),
                 onClick = { closing = true },

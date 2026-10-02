@@ -74,6 +74,7 @@ object InsightText {
         is Insight.Stability -> context.getString(R.string.insight_stability_detail)
         is Insight.ChipPeak -> context.getString(
             when (insight.severity) {
+                Severity.Bad -> R.string.insight_chip_detail_over
                 Severity.Warn -> R.string.insight_chip_detail_hot
                 Severity.Info -> R.string.insight_chip_detail_warm
                 else -> R.string.insight_chip_detail_cool

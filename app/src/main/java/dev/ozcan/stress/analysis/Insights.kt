@@ -3,6 +3,7 @@ package dev.ozcan.stress.analysis
 import dev.ozcan.stress.run.EndReason
 import dev.ozcan.stress.run.RunAnalysis
 import dev.ozcan.stress.run.RunRecord
+import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.safety.SafetyReason
 import dev.ozcan.stress.telemetry.ThermalGroup
 
@@ -130,6 +131,8 @@ object Insights {
                 chip.first,
                 chip.second,
                 when {
+                    // Past device safety's warning point the phone is no longer holding the chip at its throttling point.
+                    chip.second >= SafetyLimits().chipWarn -> Severity.Bad
                     chip.second >= 95 -> Severity.Warn
                     chip.second >= 80 -> Severity.Info
                     else -> Severity.Good

@@ -235,3 +235,10 @@ Sinematik · Orman, Orta, **şarj kablosu takılı** (ısıyı artırıyor), cih
 
 Özcan'ın 1 Ekim 34:38'lik Tam yük koşusu (0.1.0, koruma yoktu; kayıt 0.2.0'da açıldı): pil **43 → 55 °C**, GPU 101 °C,
 CPU kümeleri ~10. dakikadan sonra ~500 MHz'e kısılmış, kararlılık %24. Yeni sınırlarla bu koşu pil 47 °C'de dururdu.
+
+**Çip sınırı Tam yükü 43 saniyede kesti** (Özcan'ın 2 Ekim 10:48 koşusu, 0.2.0, pilde, güvenlik açık; önceki koşulardan
+sonra): tepe 11,01 W, sürekli 9,45 W, pil 38 °C'de sabit. GPU bölgesi ~35 sn **95 °C'de tutuldu**, sonra **0:37'de GPU
+kısması kalktı** (GPU performansı %85 → %100'e çıktı, hemen ardından A715 çekirdekleri ~1,85-2,1 GHz'ten ~1,7 GHz'e indi) ve GPU
+sıcaklığı birkaç saniyede **~106 °C'ye** çıktı; güvenlik 0:43'te durdurdu (ölçülen 106,0, en yüksek 107,2 °C). Yani bu
+telefon GPU'yu 95 °C'de her zaman tutmuyor: bu koşuda termal yönetimi 105 °C'nin üstüne izin verdi (sert tetik 110-115).
+1 Ekim'deki 34 dakikalık koşu en çok 101 °C görmüştü. Sınırın 105'te kalıp kalmayacağı Özcan'ın kararı (açık).

@@ -150,7 +150,7 @@
     <string name="end_interrupted">Yarıda kesildi</string>
     <string name="end_completed_short">Tamamlandı</string>
     <string name="end_user_short">Durduruldu</string>
-    <string name="end_safety_short">Güvenlik durdurdu</string>
+    <string name="end_safety_short">Güvenlik</string>
     <string name="end_gpu_failed_short">GPU hatası</string>
     <string name="end_interrupted_short">Kesildi</string>
 
@@ -208,6 +208,7 @@
     <string name="insight_stability_title">Kararlılık %1$s · %2$s</string>
     <string name="insight_stability_detail">En yavaş dakikanın en hızlı dakikaya oranı (3DMark ölçütü). 95 üstü mükemmeldir.</string>
     <string name="insight_chip_title">%1$s en çok %2$s oldu</string>
+    <string name="insight_chip_detail_over">Kısılma noktasının üstüne çıktı: telefon çipi orada tutmadı. Bu sıcaklık uzun sürmemeli.</string>
     <string name="insight_chip_detail_hot">Kısılma noktasında: telefon çipi frekansını düşürerek orada tutuyor.</string>
     <string name="insight_chip_detail_warm">Ilık, çipin çalışma aralığında.</string>
     <string name="insight_chip_detail_cool">Serin: bu yük çipi pek ısıtmadı.</string>

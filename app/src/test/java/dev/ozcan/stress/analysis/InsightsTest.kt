@@ -96,6 +96,14 @@ class InsightsTest {
     }
 
     @Test
+    fun `a chip past device safety's warning point is not read as held at its throttling point`() {
+        val hot = Insights.of(record(summary(maxTemps = mapOf("cpu" to 86.0, "gpu" to 107.2, "battery" to 38.0))))
+        assertTrue(hot.any { it is Insight.ChipPeak && it.celsius == 107.2 && it.severity == Severity.Bad })
+        val held = Insights.of(record(summary(maxTemps = mapOf("cpu" to 86.0, "gpu" to 99.9, "battery" to 38.0))))
+        assertTrue(held.any { it is Insight.ChipPeak && it.celsius == 99.9 && it.severity == Severity.Warn })
+    }
+
+    @Test
     fun `runs stored by the first version, with Honor-specific keys, still read`() {
         val old = summary(maxTemps = mapOf("A715" to 85.6, "A510" to 85.6, "GPU" to 81.6, "DDR" to 72.8, "Pil" to 33.0), startTemps = mapOf("Pil" to 31.0))
         val insights = Insights.of(record(old).copy(endReason = null))

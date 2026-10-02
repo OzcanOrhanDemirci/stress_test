@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
@@ -193,18 +195,25 @@ private fun RunCard(record: RunRecord, onClick: () -> Unit, onDelete: () -> Unit
             Sparkline(watts, StressColors.Accent, Modifier.fillMaxWidth().height(36.dp))
         }
         Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Spaced by hand: a spacedBy arrangement would also put its gap on both sides of the flexible spacer,
+        // and the end-reason pill needs that room.
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Metric(Icons.Rounded.Bolt, if (s.powerValid) Format.watts(s.peakWatts ?: s.meanWatts) else Format.MISSING, stringResource(R.string.result_peak))
+            Spacer(Modifier.width(14.dp))
             Metric(
                 Icons.Rounded.Thermostat,
                 Format.celsius(s.maxTemperatures.filterKeys { it != "battery" && it != "Pil" }.values.maxOrNull(), 0),
                 stringResource(R.string.result_hottest),
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
             if (s.computationErrors > 0) {
                 Pill(stringResource(R.string.run_errors, s.computationErrors), StressColors.Bad, icon = Icons.Rounded.Warning)
             } else if (reason != dev.ozcan.stress.run.EndReason.Completed) {
-                Pill(stringResource(Labels.endReasonShort(reason)), Labels.endReasonColor(reason))
+                Pill(
+                    stringResource(Labels.endReasonShort(reason)),
+                    Labels.endReasonColor(reason),
+                    icon = Icons.Rounded.Shield.takeIf { reason == dev.ozcan.stress.run.EndReason.Safety },
+                )
             }
         }
     }

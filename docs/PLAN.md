@@ -325,4 +325,6 @@ değişince yeniden çıkmaz). Ayarlarda dil: Sistem / Türkçe / English; Andro
 (`LocaleManager`, `locales_config.xml`), öncesinde tercih + etkinliğe yapılandırma bindirme ve varsayılan yerel ayar
 (sayı biçimleri ona uyar; yapılandırma değişince geri konur). İki yol da emülatörde denendi (eski yol geçici olarak
 zorlanarak). Hakkında: geliştiren ve tanıtım metni. Boştaki güç cümlesi; Kuru %100 açıklaması PC programı örneği vermeden.
-CPU kadranı yalnız yük sırasında görünür (boştaki güç kartının arkasında sayısıyla karışıyordu).
+CPU kadranı yalnız yük sırasında görünür (boştaki güç kartının arkasında sayısıyla karışıyordu). Telefonda görülenler:
+uyarı 782 dp'lik ekrana sığmıyordu (yalnız metin kayar, seçim ve düğme altta sabit); geçmişte güvenlik etiketi kesiliyordu
+(kalkanlı "Güvenlik"); 100 °C ve üstü çip bulgusu artık "kısılma noktasında tutuyor" demiyor (OLCUMLER: 107 °C'lik koşu).
