@@ -4,6 +4,8 @@
 
 **Android telefonlar için stres testi ve benchmark: bir telefonun gerçekten çekebildiği en yüksek gücü bulmak, bunu yaparken de göze iyi görünmek için.**
 
+[![Derleme ve doğrulama](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml)
+[![Yayın](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](app/src/main/cpp)
@@ -11,11 +13,14 @@
 [![Vulkan](https://img.shields.io/badge/Vulkan-1.1%2B-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
 [![Min SDK](https://img.shields.io/badge/minSdk-29-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
 [![Referans cihaz](https://img.shields.io/badge/referans%20cihaz-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#referans-cihaz)
-[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-0.2.0-success)](#durum)
+[![Son sürüm](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=s%C3%BCr%C3%BCm&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
+[![Lisans](https://img.shields.io/badge/lisans-MIT-blue)](LICENSE)
 
 Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede üç sinematik sahne · cihaz güvenliği · PDF rapor
 
-[Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
+**[Son paketi indir](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 ve üstü · izin yok, hiçbir şey toplanmaz
+
+[Kurulum](#kurulum) · [Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
 
 *[English](README.md)*
 
@@ -37,6 +42,14 @@ birimlerini, yükleme yolunu ve önbelleklerini aynı anda meşgul eden yük, bi
 sonraki çekirdek tasarımında da en çok gücü çeker. Bu yüzden tarifler aynen kaldı;
 uygulama da öbür telefonlarda yolunu bulmayı öğrendi: çekirdek sayıları ve adları,
 sıcaklık sensörleri, GPU sürücüleri.
+
+> [!WARNING]
+> Stress Test telefonu tam kapasitede çalıştırır ve telefon çok ısınır.
+> Varsayılan olarak açık olan [cihaz güvenliği](#cihaz-güvenliği), pil, gövde ya
+> da çip tehlikeli ölçüde ısınmadan testi durdurur; ama telefonun kendi
+> sensörlerini okur ve koruma garanti edemez. Testi kılıfsız, düz ve serin bir
+> yüzeyde çalıştır; uygulamayı kendi sorumluluğunda kullan: hiçbir garanti
+> verilmez ([lisans](LICENSE)).
 
 ## Soru
 
@@ -222,6 +235,20 @@ Yukarıdaki ekran görüntüleri şarj kablosu takılıyken alındı; güç alan
 *şarjda* yazması bu yüzden. Şarj olurken pilin akımı telefonun ne çektiği
 hakkında bir şey söylemez ve uygulama onu göstermeyi reddeder.
 
+## Kurulum
+
+1. [Son sürümden](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest) `stress-test-<sürüm>.apk` dosyasını
+   indir.
+2. Buradan geldiğinden emin olmak istersen neyle imzalandığına bak
+   (sertifika [SECURITY.md](SECURITY.md#verifying-a-package)'de).
+3. Telefonda aç; Android sorduğunda bu kaynaktan yüklemeye izin ver.
+
+Android 10 ve üstü 64-bit bir telefon gerekir; GPU ve sinematik modlar ayrıca
+Vulkan 1.1 ister, bu telefonların hepsinde vardır. Uygulama hiçbir izin istemez
+ve ağa çıkamaz. Bu kaynaktan yayın anahtarı olmadan derlenen paket debug
+anahtarıyla imzalanır ve ikisi birbirini güncelleyemez: birini kurmadan önce
+öbürünü kaldırmak gerekir, bu da onun koşu geçmişini siler.
+
 ## Cihaz güvenliği
 
 Varsayılan olarak açık ve ayarlar ekranındaki ilk şey. Test sürerken uygulama
@@ -349,7 +376,7 @@ kullanıldı.
 ## Okunmaya değer kararlar
 
 Hepsi, karara varan ölçümle birlikte [docs/PLAN.md](docs/PLAN.md)'nin 13.
-bölümünde tam olarak yazılı.
+bölümünde tam olarak yazılı; ölçümlerin kendisi [docs/OLCUMLER.md](docs/OLCUMLER.md)'de.
 
 | | |
 | --- | --- |
@@ -365,7 +392,8 @@ bölümünde tam olarak yazılı.
 ## Neler doğrulandı
 
 ```bash
-./gradlew testDebugUnitTest            # 101 JVM testi
+./gradlew testDebugUnitTest            # 103 JVM testi
+./gradlew lintDebug                    # Android Lint, hata derlemeyi düşürür
 ./gradlew connectedDebugAndroidTest    # telefonda 19 test
 ```
 
@@ -386,6 +414,12 @@ yakıcı tablolarında geçerli bir yük olduğunu.
 Uyarılar her yerde hata sayılıyor: Kotlin, C++ (`-Wall -Wextra -Wshadow
 -Wconversion -Werror`) ve gölgelendirici derleyicisi (`glslc -Werror`).
 
+Derleme, JVM testleri ve Lint her push'ta ve her pull request'te, aynı sabit NDK
+ile bir derleme sunucusunda koşar ([iş akışı](.github/workflows/ci.yml)).
+Telefondaki testler koşamaz: derleme sunucusunda Vulkan GPU'lu bir ARM telefon
+yok; bu yüzden yerel kodu, gölgelendiricileri ya da motorları değiştiren her
+değişiklikte bir telefonda koşturulurlar.
+
 ## Derleme
 
 ```bash
@@ -398,8 +432,13 @@ Gradle için JDK 17 ya da daha yenisi (Android Studio ile gelen yeterli), Androi
 SDK Platform 36, NDK 29.0.14206865 ve CMake 4.1.2 gerekir; gölgelendiriciler
 NDK'nın `glslc`'siyle derlenir. Derleme yalnız `arm64-v8a` içindir ve `minSdk`
 29'dur (Android 10: her 64-bit telefonda Vulkan 1.1 var; yoksa GPU ve sinematik
-modlar kapanır, CPU modları yine çalışır). Sürüm derlemesi debug anahtarıyla
-imzalanır.
+modlar kapanır, CPU modları yine çalışır).
+
+Sürüm derlemesi, hiç commit edilmeyen bir anahtarla imzalanır; anahtar ya git'in
+yok saydığı `keystore.properties`'ten ya da ortam değişkenlerinden okunur. İkisi de
+yoksa sürüm derlemesi debug anahtarıyla imzalanır; böylece herkes bu depoyu
+klonlayıp çalışan bir paket üretebilir. Üretemeyeceği tek şey, yayınlanmış bir
+kurulumu güncelleyebilen pakettir.
 
 ### Referans cihaz
 
@@ -430,17 +469,48 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 | SDK | derleme ve hedef 36 (Android 16), en düşük 29 (Android 10) |
 | Araçlar | Node.js (lab oturumları), moderngl ile Python (sahne önizlemesi, yük üretici) |
 
+## Yayın
+
+Bir etiket göndermek derler, test eder, imzalar ve yayınlar:
+
+```bash
+git tag -a v0.2.0 -m "Stress Test 0.2.0" && git push origin v0.2.0
+```
+
+İş akışı, `gradle.properties`'te yazılı sürümle uyuşmayan bir etiketi ya da
+değişiklik günlüğünde bölümü olmayan bir sürümü yayınlamaz; bitmiş paketten
+sertifikanın özetini okur ve yayın anahtarınınki değilse durur. Her sürüm
+[CHANGELOG.md](CHANGELOG.md)'de; imzalama anahtarına ne olduğu dahil bütün yol
+[docs/RELEASE.md](docs/RELEASE.md)'de.
+
+## Bu depoda çalışmak
+
+| | |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Commit biçimi, ölçümler, bir pull request'in söylemesi gerekenler ve "bitti demeden telefonda çalıştır" kuralı. |
+| [CHANGELOG.md](CHANGELOG.md) | Yayınlanan her sürüm ve neyin değiştiği. |
+| [SECURITY.md](SECURITY.md) | Uygulamanın nelere erişebildiği ve bir sorunun gizlice nasıl bildirileceği. |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant. |
+| [docs/RELEASE.md](docs/RELEASE.md) | Bir sürümün nasıl çıkarıldığı ve anahtara ne olduğu. |
+| [docs/PLAN.md](docs/PLAN.md) | Plan, referans telefonun ölçülmüş gerçekleri ve her karar. |
+| [docs/OLCUMLER.md](docs/OLCUMLER.md) | Koşullarıyla birlikte her ölçüm. |
+
+Referans telefon dışındaki telefonlardan gelen ölçümler özellikle değerli: onlar
+için bir issue formu var. Katkı belgeleri İngilizcedir.
+
 ## Durum
 
 **Sürüm 0.2.0.** 30 Eylül 2026'da tek bir telefon için kişisel bir test olarak
 başlayan Stress Test, 2 Ekim 2026'daki 0.2.0 ile Android telefonlar için bir stres
 testi ve benchmark uygulaması oldu: Android 10 ve üstü her 64-bit telefonda
 çalışır; cihaz güvenliği, rapor, karşılaştırma, grafik kalitesi ve Türkçe-İngilizce
-arayüz ekledi. Depo gizli (private).
+arayüz ekledi.
 
 ## Lisans
 
-Hiçbir lisans verilmez. Bütün hakları saklıdır.
+MIT. Bkz. [LICENSE](LICENSE). Uygulamadaki Space Grotesk ve JetBrains Mono yazı
+tipleri SIL Open Font License 1.1 ile kullanılıyor; koşulları
+[docs/licenses](docs/licenses)'ta.
 
 ## Yazar
 

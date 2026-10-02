@@ -4,6 +4,8 @@
 
 **A stress test and benchmark for Android phones, built to find the most power a phone can really draw, and to look good while it does.**
 
+[![Build and verify](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml)
+[![Release](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](app/src/main/cpp)
@@ -11,11 +13,14 @@
 [![Vulkan](https://img.shields.io/badge/Vulkan-1.1%2B-AC162C?logo=vulkan&logoColor=white)](app/src/main/cpp/gpu)
 [![Min SDK](https://img.shields.io/badge/minSdk-29-3DDC84?logo=android&logoColor=white)](app/build.gradle.kts)
 [![Reference device](https://img.shields.io/badge/reference%20device-Honor%20400%20%C2%B7%20Snapdragon%207%20Gen%203-FF6A21)](#the-reference-device)
-[![Version](https://img.shields.io/badge/version-0.2.0-success)](#status)
+[![Latest release](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=release&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
+[![Licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
 
 **10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · three cinematic scenes at three quality levels · device safety · a PDF report
 
-[The question](#the-question) · [Results](#results) · [Modes](#modes) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
+**[Download the latest package](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 and above · no permissions, nothing collected
+
+[Install](#install) · [The question](#the-question) · [Results](#results) · [Modes](#modes) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
 
 *[Türkçe](README.tr.md)*
 
@@ -37,6 +42,14 @@ load that keeps a core's multiply-add units, load path and caches busy at once
 draws the most on the next core design too, so the recipes stayed as they were
 and the app learned to find its way round every other phone: their core count
 and names, their thermal sensors, their GPU drivers.
+
+> [!WARNING]
+> Stress Test runs a phone at full capacity, and the phone gets very hot.
+> [Device safety](#device-safety), on by default, stops a test before the
+> battery, the case or the chip gets dangerously hot, but it reads the phone's
+> own sensors and cannot guarantee protection. Run tests out of the case, on a
+> flat, cool surface, and use the app at your own risk: it comes with no
+> warranty ([licence](LICENSE)).
 
 ## The question
 
@@ -224,6 +237,22 @@ The screenshots above were taken with the charger connected, which is why the
 power fields read *charging*: while charging, the battery's current says nothing
 about what the phone draws, and the app refuses to show it.
 
+## Install
+
+1. Download `stress-test-<version>.apk` from the
+   [latest release](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest).
+2. If you want to be sure it came from here, check what signed it
+   ([SECURITY.md](SECURITY.md#verifying-a-package) has the certificate).
+3. Open it on the phone, and allow installing from that source when Android
+   asks.
+
+It needs a 64-bit phone with Android 10 or later; the GPU and cinematic modes
+also need Vulkan 1.1, which every such phone has. The app asks for no
+permissions and cannot reach the network. A package built from this source
+without the release key is signed with a debug key, and the two cannot update
+each other: uninstall one before installing the other, which also removes its
+run history.
+
 ## Device safety
 
 On by default, and the first thing on the settings screen. While a test runs the
@@ -348,8 +377,9 @@ and the phone was used to confirm and to measure.
 
 ## Decisions worth reading
 
-Recorded in full in [docs/PLAN.md](docs/PLAN.md), section 13, each with the
-measurement that settled it.
+Recorded in full, in Turkish, in [docs/PLAN.md](docs/PLAN.md), section 13, each
+with the measurement that settled it; the measurements themselves are in
+[docs/OLCUMLER.md](docs/OLCUMLER.md).
 
 | | |
 | --- | --- |
@@ -365,7 +395,8 @@ measurement that settled it.
 ## What is verified
 
 ```bash
-./gradlew testDebugUnitTest            # 101 JVM tests
+./gradlew testDebugUnitTest            # 103 JVM tests
+./gradlew lintDebug                    # Android Lint, errors fail the build
 ./gradlew connectedDebugAndroidTest    # 19 tests on the phone
 ```
 
@@ -384,6 +415,12 @@ recipe is a valid workload on the phone's real kernel and burner tables.
 Warnings are errors throughout: Kotlin, C++ (`-Wall -Wextra -Wshadow
 -Wconversion -Werror`) and the shader compiler (`glslc -Werror`).
 
+The build, the JVM tests and Lint run on every push and pull request
+([the pipeline](.github/workflows/ci.yml)), on a build server with the same
+pinned NDK. The tests on the phone cannot: a build server has no ARM phone with
+a Vulkan GPU, so they are run on a phone whenever a change touches the native
+code, the shaders or the engines.
+
 ## Building
 
 ```bash
@@ -397,7 +434,13 @@ works), Android SDK Platform 36, NDK 29.0.14206865 and CMake 4.1.2; the
 shaders are compiled with the NDK's `glslc`. The build targets `arm64-v8a`
 only, and `minSdk` is 29 (Android 10, where every 64-bit phone has Vulkan 1.1;
 without it the GPU and cinematic modes are switched off and the CPU modes still
-run). The release build is signed with the debug key.
+run).
+
+A release build is signed with a key that is never committed and is read either
+from an ignored `keystore.properties` or from the environment. When neither is
+present the release is signed with the debug key, so this repository can be
+cloned and built into a working package by anyone. What they cannot produce is a
+package that updates an installation of a released one.
 
 ### The reference device
 
@@ -428,17 +471,49 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 | SDK | compile and target 36 (Android 16), minimum 29 (Android 10) |
 | Tools | Node.js (lab sessions), Python with moderngl (scene preview, kernel generator) |
 
+## Releasing
+
+Pushing a tag builds, tests, signs and publishes:
+
+```bash
+git tag -a v0.2.0 -m "Stress Test 0.2.0" && git push origin v0.2.0
+```
+
+The pipeline refuses to publish a tag that disagrees with the version declared
+in `gradle.properties`, or a version with no section in the changelog, and it
+reads the certificate's digest out of the finished package and stops if it is not
+the release key's. Every version is listed in [CHANGELOG.md](CHANGELOG.md); the
+full procedure, including what happens to the signing key, is in
+[docs/RELEASE.md](docs/RELEASE.md).
+
+## Working in this repository
+
+| | |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Commit style, measurements, what a pull request has to say, and the rule about running it on a phone before calling it done. |
+| [CHANGELOG.md](CHANGELOG.md) | Every released version and what changed in it. |
+| [SECURITY.md](SECURITY.md) | What this app can reach, and how to report a problem privately. |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | The Contributor Covenant. |
+| [docs/RELEASE.md](docs/RELEASE.md) | How a release is cut, and what happens to the key. |
+| [docs/PLAN.md](docs/PLAN.md) | The plan, the reference phone's measured facts and every decision, in Turkish. |
+| [docs/OLCUMLER.md](docs/OLCUMLER.md) | Every measurement with its conditions, in Turkish. |
+
+Measurements from phones other than the reference one are especially welcome:
+there is an issue form for them.
+
 ## Status
 
 **Version 0.2.0.** Begun on 30 September 2026 as a personal test for one phone,
 Stress Test became a stress test and benchmark for Android phones with 0.2.0 on
 2 October 2026: it runs on every 64-bit phone with Android 10 or later and adds
 device safety, a report, comparisons, graphics quality levels and an English and
-Turkish interface. The repository is private.
+Turkish interface.
 
 ## Licence
 
-No licence is granted. All rights reserved.
+MIT. See [LICENSE](LICENSE). The bundled Space Grotesk and JetBrains Mono
+typefaces are used under the SIL Open Font License 1.1; their terms are in
+[docs/licenses](docs/licenses).
 
 ## Author
 
