@@ -1,16 +1,30 @@
 package dev.ozcan.stress
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dev.ozcan.stress.lab.LabSpec
+import dev.ozcan.stress.settings.AppLanguages
 import dev.ozcan.stress.ui.AppRoot
 import dev.ozcan.stress.ui.LabScreen
 import dev.ozcan.stress.ui.theme.StressTheme
 
 class MainActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        // Before Android 13 the app's own language is laid over the activity here.
+        AppLanguages.attach(newBase)?.let(::applyOverrideConfiguration)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        AppLanguages.reapply(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

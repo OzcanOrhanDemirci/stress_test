@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -64,6 +65,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -159,7 +161,15 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
         if (mode.usesGpu) {
             GpuSurface(graph.gpu, Modifier.fillMaxSize())
         } else {
-            CpuInstrument(live, peak, model.cpuCount, showCores = !overlay, Modifier.align(Alignment.Center))
+            // The gauge belongs to the load: before and after it, the phase card has the middle alone.
+            val shown by animateFloatAsState(if (state is RunState.Running) 1f else 0f, tween(450), label = "instrument")
+            CpuInstrument(
+                live,
+                peak,
+                model.cpuCount,
+                showCores = !overlay,
+                Modifier.align(Alignment.Center).graphicsLayer { alpha = shown },
+            )
         }
 
         Column(

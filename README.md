@@ -214,7 +214,9 @@ charts of power, temperature, clocks, work and frame rate that read out their
 values under a finger. Any two runs can be **compared** side by side, and a run
 leaves the phone as a two-page **PDF report** or its curves as **CSV**. The device
 screen names the phone's processor, cores and GPU and shows what the app may read
-on it. The text is in English and Turkish.
+on it. The text is in English and Turkish: the app follows the phone's language
+unless one is picked in the settings (from Android 13 also in the phone's own
+per-app language settings).
 
 The screenshots above were taken with the charger connected, which is why the
 power fields read *charging*: while charging, the battery's current says nothing
@@ -243,6 +245,11 @@ the app never steps in and only the phone's own protection remains. In the first
 real stop, a forest run on the charger ended at 2:36 when Android reported a
 *severe* thermal status; the owner's own 34-minute full-load run, made before the
 feature existed, had taken the battery from 43 to 55 °C.
+
+Each time the app opens, a notice says so plainly: a test runs the phone at full
+capacity and makes it very hot, device safety cannot guarantee protection, and the
+responsibility is the user's. It closes only when accepted; "don't show again"
+turns it off, and the settings turn it back on.
 
 ## How power is measured
 

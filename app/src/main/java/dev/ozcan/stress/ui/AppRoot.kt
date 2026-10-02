@@ -42,8 +42,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,9 +58,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.R
+import dev.ozcan.stress.graph
 import dev.ozcan.stress.ui.compare.CompareScreen
 import dev.ozcan.stress.ui.components.AppBackground
 import dev.ozcan.stress.ui.device.DeviceScreen
@@ -116,6 +121,26 @@ fun AppRoot() {
             exit = slideOutVertically { it } + fadeOut(),
         ) {
             BottomBar(navigator.tab, navigator::select)
+        }
+    }
+
+    StartupNotice()
+}
+
+/**
+ * The safety notice, once each time the app is opened: saved with the
+ * activity, so it does not come back when the activity is recreated (a
+ * language change), and only if it was on when the app opened.
+ */
+@Composable
+private fun StartupNotice() {
+    val store = context().graph.settings
+    val settings by store.settings.collectAsStateWithLifecycle()
+    var done by rememberSaveable { mutableStateOf(!store.current.startupNotice) }
+    if (!done) {
+        SafetyNotice(safetyOn = settings.deviceSafety) { dontShowAgain ->
+            done = true
+            if (dontShowAgain) store.update { it.copy(startupNotice = false) }
         }
     }
 }

@@ -29,7 +29,7 @@
     <string name="mode_gpu">GPU</string>
     <string name="mode_gpu_detail">Yalnız GPU, en çok güç çeken yakıcıyla.</string>
     <string name="mode_dry">Kuru %100</string>
-    <string name="mode_dry_detail">Çekirdekler tam dolu görünür ama birimleri boştadır: Prime95 ile Cinebench farkını ölçerek görmek için.</string>
+    <string name="mode_dry_detail">Her çekirdek %100 meşgul görünür, ama hesap birimlerinin çoğu çalışmaz ve telefon az güç çeker. Bir referans: %100 her zaman gerçek yük demek değildir.</string>
     <string name="scene_pool">Havuz</string>
     <string name="scene_pool_detail">Suyun altında mavi parlayan bir havuz reaktörü: simüle dalgalar, yansımalar, parçacıklar, alan derinliği.</string>
     <string name="scene_forest">Orman</string>
@@ -120,7 +120,7 @@
 
     <!-- Koşu -->
     <string name="run_baseline_title">Boşta ölçüm</string>
-    <string name="run_baseline_text">Telefona dokunma: önce dinlenirken çektiği güç ölçülüyor.</string>
+    <string name="run_baseline_text">Önce telefonun boştaki gücü ölçülüyor; yük hemen ardından başlayacak. Bu sırada telefona dokunma.</string>
     <string name="run_baseline_idle">Boşta: %1$s</string>
     <string name="run_stop">Durdur</string>
     <string name="run_stop_title">Test durdurulsun mu?</string>
@@ -269,7 +269,17 @@
     <string name="settings_display">Testte en yüksek parlaklık</string>
     <string name="settings_display_detail">En yüksek parlaklık ve yenileme hızı: ekran her testte aynı yükü katsın.</string>
     <string name="settings_haptics">Titreşim</string>
+    <string name="settings_notice">Açılışta güvenlik uyarısı</string>
+    <string name="settings_notice_detail">Uygulama her açıldığında dikkatli kullanım uyarısını gösterir.</string>
     <string name="settings_haptics_detail">Test başlarken, biterken ya da durdurulduğunda kısa bir titreşim.</string>
+    <string name="settings_section_language">Dil</string>
+    <string name="settings_language">Uygulama dili</string>
+    <string name="settings_language_system">Telefonun dili kullanılıyor: %1$s</string>
+    <string name="settings_language_unsupported">Telefonun dili (%1$s) uygulamada yok; İngilizce kullanılıyor.</string>
+    <string name="settings_language_fixed">Telefonun dili ne olursa olsun uygulama bu dilde açılır.</string>
+    <string name="language_system">Sistem</string>
+    <string name="language_turkish">Türkçe</string>
+    <string name="language_english">English</string>
     <string name="settings_section_device">Cihaz</string>
     <string name="settings_device">Cihaz bilgisi ve sensörler</string>
     <string name="settings_device_detail">İşlemci, GPU, canlı değerler, uygulamanın okuyabildiği sensörler, elle yük denemeleri.</string>
@@ -279,8 +289,25 @@
     <string name="settings_clear_text">Kayıtlı bütün koşular, sonuç ve grafikleriyle birlikte kalıcı olarak silinecek.</string>
     <string name="settings_section_about">Hakkında</string>
     <string name="settings_version">Sürüm %1$s</string>
-    <string name="settings_about_text">Bir stres testi ve benchmark: kendi sonucunu doğrulayan assembly CPU yükleri, Vulkan GPU yakıcıları ve gerçek zamanlı 3D sahneler; güç pilden ölçülür.</string>
+    <string name="settings_about_tagline">Telefonunun gerçek sınırlarını ölçen stres testi.</string>
+    <string name="settings_about_text">Stres, ekranda görünen %100 ile yetinmez. İşlemcinin hesap birimlerini, bellek yolunu ve ekran kartını aynı anda gerçekten çalıştırır; telefonunun çekebildiği en yüksek gücü, ne kadar ısındığını ve ısındıkça nasıl yavaşladığını ölçer.</string>
+    <string name="settings_about_cpu">ARM assembly ile yazılmış CPU yükleri; her biri kendi sonucunu denetler, hesap hatası anında yakalanır.</string>
+    <string name="settings_about_gpu">Vulkan GPU yakıcıları ve gerçek zamanlı üç sinematik 3D sahne.</string>
+    <string name="settings_about_analysis">Güç, sıcaklık, frekans ve kısılma saniye saniye izlenir; sonunda anlaşılır bir analiz ve PDF rapor.</string>
+    <string name="settings_about_quality">Giriş seviyesinden en yeni amiral gemilerine, her telefona göre grafik kalitesi.</string>
+    <string name="settings_developer">Geliştiren</string>
     <string name="settings_licenses">Yazı tipleri: Space Grotesk, JetBrains Mono (SIL Open Font License 1.1)</string>
+
+    <!-- Açılış uyarısı -->
+    <string name="notice_title">Cihaz güvenliği</string>
+    <string name="notice_subtitle">Başlamadan önce lütfen oku</string>
+    <string name="notice_load">Bu uygulama telefonunu tam kapasitede çalıştırarak test eder. Test sırasında telefon çok ısınır ve pil hızla tükenir.</string>
+    <string name="notice_care">Dikkatli kullan: testi kılıfsız, düz ve serin bir yüzeyde çalıştır; yastık ya da yatak üstünde bırakma. Telefon fazla ısınırsa testi durdur.</string>
+    <string name="notice_protection">Cihaz güvenliği ayarı sıcaklıkları ve pili izler, gerektiğinde testi durdurur; ama koruma garanti edemez: her telefon farklıdır ve her sensör okunamayabilir.</string>
+    <string name="notice_responsibility">Uygulamayı kullanmaktan doğabilecek her türlü sonucun sorumluluğu sana aittir.</string>
+    <string name="notice_safety_off">Cihaz güvenliği şu an kapalı: testler hiçbir sıcaklık sınırında durmaz.</string>
+    <string name="notice_dont_show">Bir daha gösterme</string>
+    <string name="notice_accept">Anladım</string>
 
     <!-- Cihaz -->
     <string name="device_title">Cihaz</string>

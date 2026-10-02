@@ -212,7 +212,9 @@ parmağın altında değerlerini okuyan güç, sıcaklık, frekans, iş ve kare 
 grafikleri gelir. Herhangi iki koşu yan yana **karşılaştırılabilir**; bir koşu
 telefondan iki sayfalık bir **PDF rapor** ya da eğrileri **CSV** olarak çıkabilir.
 Cihaz ekranı telefonun işlemcisini, çekirdeklerini ve GPU'sunu adlandırır ve
-uygulamanın onda neleri okuyabildiğini gösterir. Metinler İngilizce ve Türkçe.
+uygulamanın onda neleri okuyabildiğini gösterir. Metinler İngilizce ve Türkçe:
+uygulama, ayarlardan bir dil seçilmedikçe telefonun dilini izler (Android 13'ten
+itibaren telefonun kendi uygulama dili ayarından da seçilebilir).
 
 Yukarıdaki ekran görüntüleri şarj kablosu takılıyken alındı; güç alanlarının
 *şarjda* yazması bu yüzden. Şarj olurken pilin akımı telefonun ne çektiği
@@ -241,6 +243,11 @@ ve yalnız telefonun kendi koruması kalır. İlk gerçek durdurmada, şarjdaki 
 orman koşusu Android *ciddi* termal durum bildirince 2:36'da bitti; sahibinin bu
 özellik yokken yaptığı 34 dakikalık tam yük koşusu pili 43 °C'den 55 °C'ye
 çıkarmıştı.
+
+Uygulama her açıldığında bir uyarı bunu açıkça söyler: test telefonu tam
+kapasitede çalıştırır ve çok ısıtır, cihaz güvenliği koruma garanti edemez,
+sorumluluk kullanıcınındır. Uyarı ancak onaylanınca kapanır; "Bir daha gösterme"
+onu kapatır, ayarlar yeniden açar.
 
 ## Güç nasıl ölçülüyor
 

@@ -23,6 +23,7 @@ import dev.ozcan.stress.run.StressDuration
 import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.safety.SafetyCheck
 import dev.ozcan.stress.safety.SafetyReason
+import dev.ozcan.stress.settings.AppLanguage
 import dev.ozcan.stress.telemetry.ClusterRole
 import dev.ozcan.stress.telemetry.ThermalGroup
 import dev.ozcan.stress.ui.theme.StressColors
@@ -98,6 +99,14 @@ object Labels {
         SceneQuality.Low -> R.string.quality_low
         SceneQuality.Medium -> R.string.quality_medium
         SceneQuality.High -> R.string.quality_high
+    }
+
+    /** A language by its own name ("Türkçe", "English"); the phone's is "System". */
+    @StringRes
+    fun language(language: AppLanguage): Int = when (language) {
+        AppLanguage.System -> R.string.language_system
+        AppLanguage.Turkish -> R.string.language_turkish
+        AppLanguage.English -> R.string.language_english
     }
 
     @StringRes

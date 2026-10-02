@@ -1,5 +1,8 @@
 package dev.ozcan.stress.ui.settings
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
@@ -30,14 +33,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BrightnessHigh
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.DeveloperBoard
 import androidx.compose.material.icons.rounded.GppBad
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -69,18 +79,25 @@ import dev.ozcan.stress.R
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.safety.SafetyLimits
+import dev.ozcan.stress.settings.AppLanguage
+import dev.ozcan.stress.settings.AppLanguages
 import dev.ozcan.stress.ui.BottomBarSpace
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.components.GaugeMark
 import dev.ozcan.stress.ui.components.GlassCard
+import dev.ozcan.stress.ui.components.Hairline
+import dev.ozcan.stress.ui.components.IconBadge
 import dev.ozcan.stress.ui.components.NavigationRow
 import dev.ozcan.stress.ui.components.SectionHeader
 import dev.ozcan.stress.ui.components.SegmentedControl
 import dev.ozcan.stress.ui.components.SwitchRow
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.upper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -163,7 +180,18 @@ fun SettingsScreen(onOpenDevice: () -> Unit) {
                 icon = Icons.Rounded.Vibration,
                 iconTint = StressColors.Cool,
             )
+            SwitchRow(
+                title = stringResource(R.string.settings_notice),
+                description = stringResource(R.string.settings_notice_detail),
+                checked = settings.startupNotice,
+                onCheckedChange = { on -> graph.settings.update { it.copy(startupNotice = on) } },
+                icon = Icons.Rounded.WarningAmber,
+                iconTint = StressColors.AccentHot,
+            )
         }
+
+        SectionHeader(stringResource(R.string.settings_section_language))
+        LanguageCard()
 
         SectionHeader(stringResource(R.string.settings_section_device))
         GlassCard(Modifier.fillMaxWidth(), padding = 12.dp) {
@@ -185,22 +213,7 @@ fun SettingsScreen(onOpenDevice: () -> Unit) {
         }
 
         SectionHeader(stringResource(R.string.settings_section_about))
-        GlassCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                GaugeMark(Modifier.size(36.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.settings_version, graph.appVersion), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(stringResource(R.string.settings_about_text), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Rounded.Info, null, tint = StressColors.TextFaint, modifier = Modifier.size(14.dp))
-                Text(stringResource(R.string.settings_licenses), style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
-            }
-        }
+        AboutCard(graph.appVersion)
     }
 
     if (confirmOff) {
@@ -329,6 +342,118 @@ private fun SafetyCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
                 Text(stringResource(R.string.safety_off_body), style = MaterialTheme.typography.bodySmall, color = StressColors.Text)
             }
         }
+    }
+}
+
+/**
+ * The app's language: the phone's, Turkish or English. Picking one recreates
+ * the activity in it (the screen and the open tab stay where they were).
+ */
+@Composable
+private fun LanguageCard() {
+    val context = context()
+    val scope = rememberCoroutineScope()
+    var language by remember { mutableStateOf(AppLanguages.current(context)) }
+    var pending by remember { mutableStateOf<Job?>(null) }
+    GlassCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            IconBadge(Icons.Rounded.Translate, StressColors.Cool, size = 38.dp)
+            Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(12.dp))
+        SegmentedControl(
+            options = AppLanguage.entries,
+            selected = language,
+            onSelect = { picked ->
+                if (picked != language) {
+                    language = picked
+                    pending?.cancel()
+                    // Let the indicator slide over before the activity is recreated in the new language.
+                    pending = scope.launch {
+                        delay(280)
+                        context.findActivity()?.let { AppLanguages.set(it, picked) }
+                    }
+                }
+            },
+            label = { stringResource(Labels.language(it)) },
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(languageDetail(language), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+    }
+}
+
+@Composable
+private fun languageDetail(language: AppLanguage): String {
+    if (language != AppLanguage.System) return stringResource(R.string.settings_language_fixed)
+    val system = AppLanguages.systemLocale()
+    val name = system.getDisplayLanguage(system).replaceFirstChar { it.titlecase(system) }
+    return if (AppLanguage.of(system.language) != AppLanguage.System) {
+        stringResource(R.string.settings_language_system, name)
+    } else {
+        stringResource(R.string.settings_language_unsupported, name)
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private const val DEVELOPER = "Özcan Orhan Demirci"
+
+/** What the app is, what it does, and who made it. */
+@Composable
+private fun AboutCard(version: String) {
+    GlassCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            GaugeMark(Modifier.size(44.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.app_name).upper(), style = MaterialTheme.typography.titleLarge, letterSpacing = 4.sp)
+                Text(stringResource(R.string.settings_version, version), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(stringResource(R.string.settings_about_tagline), style = MaterialTheme.typography.titleMedium, color = StressColors.Accent)
+        Spacer(Modifier.height(6.dp))
+        Text(stringResource(R.string.settings_about_text), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+        Spacer(Modifier.height(14.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Feature(Icons.Rounded.Memory, StressColors.Accent, stringResource(R.string.settings_about_cpu))
+            Feature(Icons.Rounded.ViewInAr, StressColors.Cool, stringResource(R.string.settings_about_gpu))
+            Feature(Icons.Rounded.Insights, StressColors.Good, stringResource(R.string.settings_about_analysis))
+            Feature(Icons.Rounded.Tune, StressColors.Warn, stringResource(R.string.settings_about_quality))
+        }
+        Spacer(Modifier.height(14.dp))
+        Hairline()
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            IconBadge(Icons.Rounded.Code, StressColors.AccentHot, size = 38.dp)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.settings_developer).upper(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = StressColors.TextFaint,
+                    letterSpacing = 1.5.sp,
+                )
+                Text(DEVELOPER, style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(Icons.Rounded.Info, null, tint = StressColors.TextFaint, modifier = Modifier.size(14.dp))
+            Text(stringResource(R.string.settings_licenses), style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
+        }
+    }
+}
+
+@Composable
+private fun Feature(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, text: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(28.dp).background(tint.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
+        }
+        Text(text, style = MaterialTheme.typography.bodySmall, color = StressColors.Text, modifier = Modifier.weight(1f).padding(top = 5.dp))
     }
 }
 

@@ -318,3 +318,11 @@ ondalık nokta). Eski (0.1.0) kayıtlar açılır (`RunStoreTest`).
 **Arayüz.** Space Grotesk + JetBrains Mono (OFL, `docs/licenses/`), grafit + turuncu-kırmızı degrade, cam kartlar, yay
 animasyonlu gösterge, sekmeler Test / Geçmiş / Ayarlar; metinler İngilizce (varsayılan) ve Türkçe. Gezinme her ekrana kendi
 ViewModelStore'unu verir (aynı testi ikinci kez başlatmak eskiden eski koşunun view model'ini geri getiriyordu).
+
+**Revizeler (Özcan, 2026-10-02).** Her açılışta güvenlik uyarısı (tam kapasite, çok ısınır, koruma garanti değil,
+sorumluluk kullanıcının; yalnız onayla kapanır, "Bir daha gösterme" kapatır, Ayarlar geri açar; etkinlikle saklanır, dil
+değişince yeniden çıkmaz). Ayarlarda dil: Sistem / Türkçe / English; Android 13+ sistemin uygulama başına dili
+(`LocaleManager`, `locales_config.xml`), öncesinde tercih + etkinliğe yapılandırma bindirme ve varsayılan yerel ayar
+(sayı biçimleri ona uyar; yapılandırma değişince geri konur). İki yol da emülatörde denendi (eski yol geçici olarak
+zorlanarak). Hakkında: geliştiren ve tanıtım metni. Boştaki güç cümlesi; Kuru %100 açıklaması PC programı örneği vermeden.
+CPU kadranı yalnız yük sırasında görünür (boştaki güç kartının arkasında sayısıyla karışıyordu).

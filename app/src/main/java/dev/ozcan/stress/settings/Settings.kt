@@ -23,6 +23,8 @@ data class Settings(
     val maxDisplay: Boolean = true,
     /** Vibrate on start, finish and safety stops. */
     val haptics: Boolean = true,
+    /** The use-with-care notice each time the app opens; its "don't show again" turns this off. */
+    val startupNotice: Boolean = true,
     /** The test the home screen offers: the last one started. */
     val lastMode: StressMode = StressMode.Full,
     val lastDuration: StressDuration = StressDuration.Fifteen,
@@ -47,6 +49,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_QUALITY, next.quality.name)
             .putBoolean(KEY_DISPLAY, next.maxDisplay)
             .putBoolean(KEY_HAPTICS, next.haptics)
+            .putBoolean(KEY_NOTICE, next.startupNotice)
             .putString(KEY_MODE, next.lastMode.name)
             .putString(KEY_DURATION, next.lastDuration.name)
             .apply()
@@ -60,6 +63,7 @@ class SettingsStore(context: Context) {
             quality = enumOr(prefs.getString(KEY_QUALITY, null), defaults.quality),
             maxDisplay = prefs.getBoolean(KEY_DISPLAY, defaults.maxDisplay),
             haptics = prefs.getBoolean(KEY_HAPTICS, defaults.haptics),
+            startupNotice = prefs.getBoolean(KEY_NOTICE, defaults.startupNotice),
             lastMode = enumOr(prefs.getString(KEY_MODE, null), defaults.lastMode),
             lastDuration = enumOr(prefs.getString(KEY_DURATION, null), defaults.lastDuration),
         )
@@ -74,6 +78,7 @@ class SettingsStore(context: Context) {
         const val KEY_QUALITY = "scene_quality"
         const val KEY_DISPLAY = "max_display"
         const val KEY_HAPTICS = "haptics"
+        const val KEY_NOTICE = "startup_notice"
         const val KEY_MODE = "last_mode"
         const val KEY_DURATION = "last_duration"
     }
