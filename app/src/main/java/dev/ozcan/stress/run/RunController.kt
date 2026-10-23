@@ -1,6 +1,7 @@
 package dev.ozcan.stress.run
 
 import android.os.SystemClock
+import android.util.Log
 import dev.ozcan.stress.device.DeviceInfo
 import dev.ozcan.stress.engine.CpuEngine
 import dev.ozcan.stress.engine.GpuEngine
@@ -19,6 +20,7 @@ import dev.ozcan.stress.telemetry.label
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -43,6 +45,8 @@ sealed interface RunState {
         data class StoppedBeforeLoad(val reason: EndReason, val check: SafetyCheck?) : Failed
         /** A part of the load did not start: "cpu=…", "gpu=…". */
         data class LoadFailed(val detail: String) : Failed
+        /** The load finished, but its numbers could not be worked out. */
+        data class AnalysisFailed(val detail: String) : Failed
     }
 }
 
@@ -131,35 +135,52 @@ class RunController(
         watcher.cancel()
 
         _state.value = RunState.Analysing
-        val info = device()
-        val record = withContext(Dispatchers.Default) {
-            val (summary, series) = RunAnalysis.analyze(
-                baseline = sampler.log.between(baselineStart, baselineEnd),
-                load = sampler.log.between(loadStart, loadEnd),
-                clusters = layout.clusters,
-                clusterName = { it.label() },
-            )
-            val safetyCheck = safetyStop.takeIf { reason == EndReason.Safety }
-            RunRecord(
-                id = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date(startedAtMillis)),
-                startedAtMillis = startedAtMillis,
-                mode = mode.name,
-                workload = workload.describe(),
-                plannedSeconds = duration.seconds,
-                loadSeconds = (loadEnd - loadStart) / 1e9,
-                stoppedEarly = reason != EndReason.Completed && duration.seconds != null,
-                summary = summary,
-                series = series,
-                device = info,
-                quality = options.quality.name.takeIf { mode.scene != null },
-                safetyEnabled = options.deviceSafety,
-                endReason = reason.name,
-                safetyReason = safetyCheck?.reason?.name,
-                safetyValue = safetyCheck?.value,
-                appVersion = options.appVersion,
-            )
+        val info = runCatching { device() }.getOrNull()
+        // The run is over; neither the analysis nor the store may kill the
+        // process and take the numbers with them. The record stays on the
+        // screen even when it could not be written to disk.
+        val record = try {
+            withContext(Dispatchers.Default) {
+                val (summary, series) = RunAnalysis.analyze(
+                    baseline = sampler.log.between(baselineStart, baselineEnd),
+                    load = sampler.log.between(loadStart, loadEnd),
+                    clusters = layout.clusters,
+                    clusterName = { it.label() },
+                )
+                val safetyCheck = safetyStop.takeIf { reason == EndReason.Safety }
+                RunRecord(
+                    id = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date(startedAtMillis)),
+                    startedAtMillis = startedAtMillis,
+                    mode = mode.name,
+                    workload = workload.describe(),
+                    plannedSeconds = duration.seconds,
+                    loadSeconds = (loadEnd - loadStart) / 1e9,
+                    stoppedEarly = reason != EndReason.Completed && duration.seconds != null,
+                    summary = summary,
+                    series = series,
+                    device = info,
+                    quality = options.quality.name.takeIf { mode.scene != null },
+                    safetyEnabled = options.deviceSafety,
+                    endReason = reason.name,
+                    safetyReason = safetyCheck?.reason?.name,
+                    safetyValue = safetyCheck?.value,
+                    appVersion = options.appVersion,
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "the load finished but its analysis failed", e)
+            _state.value = RunState.Failed.AnalysisFailed(e.message ?: e.toString())
+            return@coroutineScope
         }
-        withContext(Dispatchers.IO) { store.save(record) }
+        try {
+            withContext(Dispatchers.IO) { store.save(record) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "run ${record.id} finished but could not be stored", e)
+        }
         _state.value = RunState.Finished(record)
     }
 
@@ -206,6 +227,7 @@ class RunController(
 
     companion object {
         const val BASELINE_SECONDS = 10L
+        private const val TAG = "stress-run"
         private const val NANOS = 1_000_000_000L
         private const val WATCH_MILLIS = 500L
     }
