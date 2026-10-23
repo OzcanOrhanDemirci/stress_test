@@ -77,6 +77,10 @@ class RunController(
     val safety: StateFlow<SafetyCheck> = _safety.asStateFlow()
 
     private val stop = CompletableDeferred<EndReason>()
+    // Written by the watch coroutine, read by the run coroutine: without
+    // volatile the reader may see a stale null and record a safety stop
+    // without its reason.
+    @Volatile
     private var safetyStop: SafetyCheck? = null
 
     /** Ends the run early: by the user, or [EndReason.Interrupted] when the app leaves the screen. */
