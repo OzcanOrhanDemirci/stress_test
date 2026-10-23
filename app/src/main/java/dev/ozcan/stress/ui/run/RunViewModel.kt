@@ -27,8 +27,9 @@ class RunViewModel(graph: AppGraph, mode: StressMode, duration: StressDuration) 
     private val controller = RunController(
         graph.sampler,
         graph.driver,
-        graph.cpu,
-        graph.gpu,
+        graph.cpu.kernels,
+        graph.gpu.burners,
+        graph.cpu.cpuCount,
         graph.layout,
         graph.runs,
         device = { graph.device.await() },

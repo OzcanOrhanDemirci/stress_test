@@ -94,6 +94,12 @@ android {
         compose = true
     }
 
+    testOptions {
+        // The JVM tests touch android.util.Log (the run controller reports a
+        // store failure there); the stubs answer instead of throwing.
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
