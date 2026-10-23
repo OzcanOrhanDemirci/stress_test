@@ -3,10 +3,10 @@ package dev.ozcan.stress.run
 import android.os.SystemClock
 import android.util.Log
 import dev.ozcan.stress.device.DeviceInfo
-import dev.ozcan.stress.engine.CpuEngine
-import dev.ozcan.stress.engine.GpuEngine
+import dev.ozcan.stress.engine.CpuKernel
+import dev.ozcan.stress.engine.GpuBurner
 import dev.ozcan.stress.engine.GpuState
-import dev.ozcan.stress.engine.LoadDriver
+import dev.ozcan.stress.engine.LoadControl
 import dev.ozcan.stress.engine.LoadSettings
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.engine.Workload
@@ -66,9 +66,10 @@ data class RunOptions(
  */
 class RunController(
     private val sampler: SampleSource,
-    private val driver: LoadDriver,
-    private val cpu: CpuEngine,
-    private val gpu: GpuEngine,
+    private val driver: LoadControl,
+    private val kernels: List<CpuKernel>,
+    private val burners: List<GpuBurner>,
+    private val cpuCount: Int,
     private val layout: SysfsLayout,
     private val store: RunStore,
     private val device: suspend () -> DeviceInfo?,
@@ -96,7 +97,7 @@ class RunController(
     }
 
     suspend fun run(mode: StressMode, duration: StressDuration, options: RunOptions) = coroutineScope {
-        val workload = Workload.parse(mode.recipe, cpu.kernels, gpu.burners, cpu.cpuCount)
+        val workload = Workload.parse(mode.recipe, kernels, burners, cpuCount)
         val startedAtMillis = System.currentTimeMillis()
 
         if (options.deviceSafety) {
@@ -124,7 +125,7 @@ class RunController(
         var loadEnd = loadStart
         var reason = EndReason.Completed
         try {
-            if (outcome != LoadDriver.STARTED) {
+            if (outcome != LoadControl.STARTED) {
                 watcher.cancel()
                 _state.value = RunState.Failed.LoadFailed(outcome)
                 return@coroutineScope

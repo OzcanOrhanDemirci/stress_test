@@ -19,15 +19,35 @@ data class LoadSettings(
     val sceneScalePercent: Int? = null,
 )
 
+/**
+ * The start/stop surface a run drives, apart from what it runs. [LoadDriver]
+ * is the real one; tests stand in with their own.
+ */
+interface LoadControl {
+    /**
+     * Starts every part of [workload]. Returns [STARTED], or what failed; the
+     * parts that did start keep running until [stop], which the caller owes
+     * either way.
+     */
+    suspend fun start(workload: Workload, settings: LoadSettings): String
+
+    /** Stops everything [start] left running. */
+    suspend fun stop()
+
+    companion object {
+        const val STARTED = "Started"
+    }
+}
+
 /** Starts and stops both halves of a [Workload], the same way for lab sessions and for the app's runs. */
-class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) {
+class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) : LoadControl {
 
     /**
      * Starts every part of [workload]. Returns [STARTED], or what failed; the
      * parts that did start keep running until [stop], which the caller owes
      * either way.
      */
-    suspend fun start(workload: Workload, settings: LoadSettings): String {
+    override suspend fun start(workload: Workload, settings: LoadSettings): String {
         val problems = mutableListOf<String>()
         workload.gpu?.let { part ->
             // The renderer draws on the screen's surface, which the screen provides.
@@ -57,14 +77,14 @@ class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) {
      * before the caller closed its measuring window must not see the load
      * already stopped. Runs even when the caller is being cancelled.
      */
-    suspend fun stop() = withContext(NonCancellable + Dispatchers.Default) {
+    override suspend fun stop() = withContext(NonCancellable + Dispatchers.Default) {
         delay(STOP_GRACE_MILLIS)
         cpu.stop()
         gpu.request(null)
     }
 
     companion object {
-        const val STARTED = "Started"
+        const val STARTED = LoadControl.STARTED
         private const val SURFACE_TIMEOUT_MILLIS = 10_000L
 
         /** Three periods of the 10 Hz sampler. */
