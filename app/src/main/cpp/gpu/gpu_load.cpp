@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstdio>
@@ -173,6 +174,14 @@ struct GpuLoad::Renderer {
     pthread_t thread{};
     bool threadStarted = false;
     std::atomic<bool> stopRequested{false};
+    // A frame wait that ran past its budget means a hung driver: the device
+    // is treated as lost, and even a wait-idle is skipped on the way out,
+    // for it may never answer.
+    bool deviceTimedOut = false;
+    // A frame takes at most a few hundred milliseconds even at High quality
+    // on a slow phone; two seconds of silence means the driver stopped
+    // answering.
+    static constexpr int64_t kFrameWaitNanos = 2'000'000'000;
 
     // Initialisation runs on the render thread; start() waits for its outcome.
     std::mutex initMutex;
@@ -216,7 +225,7 @@ struct GpuLoad::Renderer {
         while (!stopRequested.load(std::memory_order_relaxed)) {
             if (!frame()) break;
         }
-        if (device != VK_NULL_HANDLE) vkDeviceWaitIdle(device);
+        if (device != VK_NULL_HANDLE && !deviceTimedOut) vkDeviceWaitIdle(device);
     }
 
     // ---- setup ----------------------------------------------------------------
@@ -758,15 +767,17 @@ struct GpuLoad::Renderer {
     bool frame() {
         const uint32_t slot = static_cast<uint32_t>(frameIndex % kFramesInFlight);
         if (submitted[slot]) {
-            const VkResult waited = vkWaitForFences(device, 1, &fences[slot], VK_TRUE, UINT64_MAX);
+            const VkResult waited = vkWaitForFences(device, 1, &fences[slot], VK_TRUE, kFrameWaitNanos);
+            if (waited == VK_TIMEOUT) return timedOut("vkWaitForFences");
             if (waited != VK_SUCCESS) return lost("vkWaitForFences", waited);
             collect(slot);
             submitted[slot] = false;
         }
 
         uint32_t image = 0;
-        VkResult acquiredResult = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquired[slot], VK_NULL_HANDLE, &image);
+        VkResult acquiredResult = vkAcquireNextImageKHR(device, swapchain, kFrameWaitNanos, acquired[slot], VK_NULL_HANDLE, &image);
         if (acquiredResult == VK_ERROR_OUT_OF_DATE_KHR) return recreateSwapchain();
+        if (acquiredResult == VK_TIMEOUT) return timedOut("vkAcquireNextImageKHR");
         if (acquiredResult != VK_SUCCESS && acquiredResult != VK_SUBOPTIMAL_KHR) return lost("vkAcquireNextImageKHR", acquiredResult);
 
         const uint32_t count = burner >= 0 ? perFrame : 0;
@@ -810,6 +821,16 @@ struct GpuLoad::Renderer {
     bool lost(const char* where, VkResult result) {
         LOGE("%s: %d", where, static_cast<int>(result));
         state.store(result == VK_ERROR_DEVICE_LOST ? kStateDeviceLost : kStateFailed);
+        return false;
+    }
+
+    // A bounded wait that came back empty: the driver stopped answering and
+    // no Vulkan call will return. Report the device lost, so the run ends
+    // as a GPU failure instead of stop() hanging in its join.
+    bool timedOut(const char* where) {
+        LOGE("%s: no completion within the frame budget; treating the device as lost", where);
+        deviceTimedOut = true;
+        state.store(kStateDeviceLost);
         return false;
     }
 
@@ -1042,7 +1063,19 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->threadStarted = true;
     {
         std::unique_lock wait(renderer->initMutex);
-        renderer->initDone.wait(wait, [&] { return renderer->initResult >= 0; });
+        // Setup normally takes a few hundred milliseconds. A driver wedged
+        // before it finished will never report an outcome: after a generous
+        // budget give up rather than block the caller forever. The renderer
+        // is released on purpose — the thread may still be inside a driver
+        // call, so neither a join nor a destroy is safe on it.
+        if (!renderer->initDone.wait_for(wait, std::chrono::seconds(10),
+                                         [&] { return renderer->initResult >= 0; })) {
+            LOGE("GPU setup did not report an outcome within ten seconds; abandoning it");
+            renderer->stopRequested.store(true);
+            lastState_.store(kStateFailed);
+            renderer.release();
+            return kSetupFailed;
+        }
     }
     const bool ok = renderer->initResult == 0;
     renderer_ = std::move(renderer);
