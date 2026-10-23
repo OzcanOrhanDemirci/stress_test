@@ -62,13 +62,16 @@ JNIEXPORT jobjectArray JNICALL
 Java_dev_ozcan_stress_engine_NativeBridge_kernelTable(JNIEnv* env, jclass) {
     const auto table = stress::kernelTable();
     jclass stringClass = env->FindClass("java/lang/String");
+    if (stringClass == nullptr) return nullptr;
     jobjectArray result = env->NewObjectArray(static_cast<jsize>(table.size()), stringClass, nullptr);
+    if (result == nullptr) return nullptr;
     for (size_t i = 0; i < table.size(); ++i) {
         const auto& k = table[i];
         char line[160];
         std::snprintf(line, sizeof(line), "%s|%s|%s|%.17g|%u|%d", k.key, k.code, k.unit, k.opsPerIteration(),
                       k.bufferBytes, stress::kernelSupported(k) ? 1 : 0);
         jstring s = env->NewStringUTF(line);
+        if (s == nullptr) return nullptr;
         env->SetObjectArrayElement(result, static_cast<jsize>(i), s);
         env->DeleteLocalRef(s);
     }
@@ -130,6 +133,7 @@ Java_dev_ozcan_stress_engine_NativeBridge_kernelDigest(JNIEnv* env, jclass, jint
     const std::array<jlong, 3> values{static_cast<jlong>(run.digest.lo), static_cast<jlong>(run.digest.hi),
                                       run.pinned ? 1 : 0};
     jlongArray result = env->NewLongArray(3);
+    if (result == nullptr) return nullptr;
     env->SetLongArrayRegion(result, 0, 3, values.data());
     return result;
 }
@@ -142,12 +146,14 @@ Java_dev_ozcan_stress_engine_NativeBridge_sensorsOpen(JNIEnv* env, jclass, jobje
     for (jsize i = 0; i < n; ++i) {
         auto s = static_cast<jstring>(env->GetObjectArrayElement(paths, i));
         const char* chars = env->GetStringUTFChars(s, nullptr);
+        if (chars == nullptr) return nullptr;
         list.emplace_back(chars);
         env->ReleaseStringUTFChars(s, chars);
         env->DeleteLocalRef(s);
     }
     const std::vector<bool> readable = gSensors.open(list);
     jbooleanArray result = env->NewBooleanArray(n);
+    if (result == nullptr) return nullptr;
     std::vector<jboolean> flags(readable.size());
     for (size_t i = 0; i < readable.size(); ++i) flags[i] = readable[i] ? JNI_TRUE : JNI_FALSE;
     env->SetBooleanArrayRegion(result, 0, n, flags.data());
@@ -171,12 +177,15 @@ JNIEXPORT jobjectArray JNICALL
 Java_dev_ozcan_stress_engine_NativeBridge_gpuBurnerTable(JNIEnv* env, jclass) {
     const auto table = stress::gpuBurnerTable();
     jclass stringClass = env->FindClass("java/lang/String");
+    if (stringClass == nullptr) return nullptr;
     jobjectArray result = env->NewObjectArray(static_cast<jsize>(table.size()), stringClass, nullptr);
+    if (result == nullptr) return nullptr;
     for (size_t i = 0; i < table.size(); ++i) {
         const auto& b = table[i];
         char line[96];
         std::snprintf(line, sizeof(line), "%s|%s|%s|%d", b.key, b.code, b.unit, b.verified ? 1 : 0);
         jstring s = env->NewStringUTF(line);
+        if (s == nullptr) return nullptr;
         env->SetObjectArrayElement(result, static_cast<jsize>(i), s);
         env->DeleteLocalRef(s);
     }
