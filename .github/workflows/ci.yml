@@ -51,6 +51,14 @@ jobs:
           node --check tools/lab.mjs
           python3 -m py_compile tools/gen_kernels.py tools/scene_preview.py
 
+      # The kernels are generated; "edit the script, not this file" holds
+      # only if a checkout that differs from what the script writes fails
+      # the build rather than shipping as long as it assembles.
+      - name: Verify the generated kernels are current
+        run: |
+          python3 tools/gen_kernels.py
+          git diff --exit-code -- app/src/main/cpp/cpu
+
       - name: Assemble debug build
         run: ./gradlew :app:assembleDebug --stacktrace
 
