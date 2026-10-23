@@ -38,7 +38,16 @@ jobs:
       # The NDK is pinned because its assembler builds the CPU kernels and its
       # glslc compiles the shaders: a different NDK is a different measurement.
       # Installing both here rather than leaving it to the build makes a missing
-      # version fail as itself, not as a confusing native build error.
+      # version fail as itself, not as a confusing native build error. The
+      # install is cached by version, so a hit only confirms what is there.
+      - name: Restore the pinned NDK and CMake
+        uses: actions/cache@v7
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/29.0.14206865
+            /usr/local/lib/android/sdk/cmake/4.1.2
+          key: android-ndk-29.0.14206865-cmake-4.1.2
+
       - name: Install the pinned NDK and CMake
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
