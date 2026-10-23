@@ -14,7 +14,7 @@ import dev.ozcan.stress.safety.SafetyCheck
 import dev.ozcan.stress.safety.SafetyLevel
 import dev.ozcan.stress.safety.SafetyMonitor
 import dev.ozcan.stress.safety.SafetyPolicy
-import dev.ozcan.stress.telemetry.Sampler
+import dev.ozcan.stress.telemetry.SampleSource
 import dev.ozcan.stress.telemetry.SysfsLayout
 import dev.ozcan.stress.telemetry.label
 import java.text.SimpleDateFormat
@@ -65,13 +65,16 @@ data class RunOptions(
  * and the GPU its surface.
  */
 class RunController(
-    private val sampler: Sampler,
+    private val sampler: SampleSource,
     private val driver: LoadDriver,
     private val cpu: CpuEngine,
     private val gpu: GpuEngine,
     private val layout: SysfsLayout,
     private val store: RunStore,
     private val device: suspend () -> DeviceInfo?,
+    private val now: () -> Long = { SystemClock.elapsedRealtimeNanos() },
+    private val baselineSeconds: Long = BASELINE_SECONDS,
+    private val samplerLostAfterNanos: Long = SAMPLER_LOST_NANOS,
 ) {
     private val _state = MutableStateFlow<RunState>(RunState.Preparing)
     val state: StateFlow<RunState> = _state.asStateFlow()
@@ -107,8 +110,8 @@ class RunController(
         val watcher = launch { watch(options.deviceSafety, watchGpu = mode.usesGpu) }
 
         val baselineStart = now()
-        _state.value = RunState.Baseline(baselineStart, baselineStart + BASELINE_SECONDS * NANOS)
-        waitOrStop(BASELINE_SECONDS * 1000L)?.let { early ->
+        _state.value = RunState.Baseline(baselineStart, baselineStart + baselineSeconds * NANOS)
+        waitOrStop(baselineSeconds * 1000L)?.let { early ->
             watcher.cancel()
             _state.value = RunState.Failed.StoppedBeforeLoad(early, safetyStop.takeIf { early == EndReason.Safety })
             return@coroutineScope
@@ -192,11 +195,14 @@ class RunController(
     private suspend fun watch(deviceSafety: Boolean, watchGpu: Boolean) {
         val monitor = SafetyMonitor()
         var lastSample = -1L
+        var lastChangeNanos = now()
         var gpuRan = false
         while (true) {
             val sample = sampler.latest.value
+            val active = _state.value is RunState.Baseline || _state.value is RunState.Running
             if (sample != null && sample.timeNanos != lastSample) {
                 lastSample = sample.timeNanos
+                lastChangeNanos = now()
                 if (deviceSafety) {
                     val check = monitor.update(sample)
                     _safety.value = check
@@ -212,6 +218,10 @@ class RunController(
                         stop.complete(EndReason.GpuFailed)
                     }
                 }
+            } else if (active && now() - lastChangeNanos > samplerLostAfterNanos) {
+                // The sampler stopped refreshing: the run would go on on
+                // frozen numbers while device safety watched nothing.
+                stop.complete(EndReason.SamplerLost)
             }
             delay(WATCH_MILLIS)
         }
@@ -223,12 +233,11 @@ class RunController(
         return withTimeoutOrNull(millis) { stop.await() }
     }
 
-    private fun now() = SystemClock.elapsedRealtimeNanos()
-
     companion object {
         const val BASELINE_SECONDS = 10L
         private const val TAG = "stress-run"
         private const val NANOS = 1_000_000_000L
         private const val WATCH_MILLIS = 500L
+        private const val SAMPLER_LOST_NANOS = 3_000_000_000L
     }
 }

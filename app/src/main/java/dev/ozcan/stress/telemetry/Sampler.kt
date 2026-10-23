@@ -81,11 +81,11 @@ class Sampler(
     private val cpu: CpuEngine,
     private val gpu: GpuEngine,
     private val periodMillis: Long = DEFAULT_PERIOD_MILLIS,
-) {
+) : SampleSource {
     private val _latest = MutableStateFlow<Sample?>(null)
-    val latest: StateFlow<Sample?> = _latest.asStateFlow()
+    override val latest: StateFlow<Sample?> = _latest.asStateFlow()
 
-    val log = SampleLog()
+    override val log = SampleLog()
 
     private var executor: ScheduledExecutorService? = null
     private var headroom: Float? = null
@@ -107,17 +107,21 @@ class Sampler(
     fun stop() {
         val running = executor ?: return
         running.shutdown()
-        running.awaitTermination(1, TimeUnit.SECONDS)
+        if (!running.awaitTermination(1, TimeUnit.SECONDS)) {
+            Log.w(TAG, "the sampler thread did not stop within a second")
+        }
         executor = null
         battery.stop()
     }
 
-    // An exception escaping a periodic task cancels every later run, so one bad
-    // read must not end the sampling.
+    // An exception escaping a periodic task cancels every later run, so one
+    // bad read must not end the sampling. Catch everything: an Error here
+    // would end the sampling while the run kept going on frozen numbers (the
+    // run controller ends a run whose samples stop refreshing).
     private fun tick() {
         try {
             takeSample()
-        } catch (e: RuntimeException) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Sample failed", e)
         }
     }

@@ -155,6 +155,8 @@
     <string name="end_safety_short">Güvenlik</string>
     <string name="end_gpu_failed_short">GPU hatası</string>
     <string name="end_interrupted_short">Kesildi</string>
+    <string name="end_sampler_lost">Örnekleyici hata verdi</string>
+    <string name="end_sampler_lost_short">Örnekleyici</string>
 
     <!-- Sonuç -->
     <string name="result_title">Sonuç</string>
