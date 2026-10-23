@@ -2,6 +2,8 @@ package dev.ozcan.stress
 
 import android.app.Application
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.os.StrictMode
 import dev.ozcan.stress.device.DeviceInfo
 import dev.ozcan.stress.device.GpuInfo
 import dev.ozcan.stress.engine.CpuEngine
@@ -63,6 +65,24 @@ class AppGraph(context: Context) {
 
 class StressApplication : Application() {
     val graph: AppGraph by lazy { AppGraph(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Debug builds only: the app reads the sysfs layout while the first
+        // frame is composed and stops the sampler's thread on the way to the
+        // background, and a main-thread policy is what makes such work
+        // visible while it is written rather than after a slow phone reports
+        // jank. Logging only, so nothing development does becomes a crash by
+        // itself.
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build(),
+            )
+            StrictMode.setVmPolicy(
+                StrictMode.VmPolicy.Builder().detectActivityLeaks().detectLeakedClosableObjects().penaltyLog().build(),
+            )
+        }
+    }
 }
 
 val Context.graph: AppGraph get() = (applicationContext as StressApplication).graph
