@@ -194,6 +194,7 @@ object Labels {
         EndReason.Safety -> R.string.end_safety
         EndReason.GpuFailed -> R.string.end_gpu_failed
         EndReason.Interrupted -> R.string.end_interrupted
+        EndReason.SamplerLost -> R.string.end_sampler_lost
     }
 
     /** The short form, for list rows. */
@@ -204,13 +205,14 @@ object Labels {
         EndReason.Safety -> R.string.end_safety_short
         EndReason.GpuFailed -> R.string.end_gpu_failed_short
         EndReason.Interrupted -> R.string.end_interrupted_short
+        EndReason.SamplerLost -> R.string.end_sampler_lost_short
     }
 
     fun endReasonColor(reason: EndReason): Color = when (reason) {
         EndReason.Completed -> StressColors.Good
         EndReason.User -> StressColors.TextDim
         EndReason.Safety -> StressColors.Warn
-        EndReason.GpuFailed, EndReason.Interrupted -> StressColors.Bad
+        EndReason.GpuFailed, EndReason.SamplerLost, EndReason.Interrupted -> StressColors.Bad
     }
 
     /** A record's end, also for runs stored before the reason was kept. */

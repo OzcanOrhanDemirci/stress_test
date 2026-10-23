@@ -15,6 +15,8 @@ enum class EndReason {
     GpuFailed,
     /** The app left the screen, which takes the load's cores and surface away. */
     Interrupted,
+    /** The sampler stopped producing samples; the run would go on on frozen numbers. */
+    SamplerLost,
 }
 
 /**

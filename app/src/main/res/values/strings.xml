@@ -155,6 +155,8 @@
     <string name="end_safety_short">Safety</string>
     <string name="end_gpu_failed_short">GPU error</string>
     <string name="end_interrupted_short">Interrupted</string>
+    <string name="end_sampler_lost">The sampler failed</string>
+    <string name="end_sampler_lost_short">Sampler</string>
 
     <!-- Result -->
     <string name="result_title">Result</string>
