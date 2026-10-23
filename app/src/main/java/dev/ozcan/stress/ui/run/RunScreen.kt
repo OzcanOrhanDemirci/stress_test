@@ -352,6 +352,8 @@ private fun FailedCard(state: RunState.Failed?, onLeave: () -> Unit) {
             stringResource(R.string.run_cancelled) to stringResource(R.string.run_cancelled_text)
         }
         is RunState.Failed.LoadFailed -> stringResource(R.string.run_failed) to stringResource(R.string.run_failed_text, state.detail)
+        is RunState.Failed.AnalysisFailed -> stringResource(R.string.run_analysis_failed) to
+            stringResource(R.string.run_analysis_failed_text, state.detail)
         null -> "" to ""
     }
     Column(

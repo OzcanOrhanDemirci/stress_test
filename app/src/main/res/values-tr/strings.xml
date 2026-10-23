@@ -133,6 +133,8 @@
     <string name="run_cancelled_text">Test, yük başlamadan durduruldu; bir şey kaydedilmedi.</string>
     <string name="run_failed">Test başlatılamadı</string>
     <string name="run_failed_text">Yükün bir parçası başlamadı (%1$s).</string>
+    <string name="run_analysis_failed">Sonuç hazırlanamadı</string>
+    <string name="run_analysis_failed_text">Yük bitti ama sayıları hesaplanamadı (%1$s).</string>
     <string name="run_power_caption">boşta %1$s · yük +%2$s</string>
     <string name="run_power_invalid">şarjda: güç ölçülemez</string>
     <string name="run_safety_ok">Güvenli</string>

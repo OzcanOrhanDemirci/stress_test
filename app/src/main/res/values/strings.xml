@@ -133,6 +133,8 @@
     <string name="run_cancelled_text">The test was stopped before the load began; nothing was recorded.</string>
     <string name="run_failed">The test could not start</string>
     <string name="run_failed_text">A part of the load did not start (%1$s).</string>
+    <string name="run_analysis_failed">The result could not be prepared</string>
+    <string name="run_analysis_failed_text">The load finished, but its numbers could not be worked out (%1$s).</string>
     <string name="run_power_caption">idle %1$s · load +%2$s</string>
     <string name="run_power_invalid">charging: power not measurable</string>
     <string name="run_safety_ok">Safe</string>
