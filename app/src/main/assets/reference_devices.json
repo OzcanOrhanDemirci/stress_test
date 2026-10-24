@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Honor 400",
+    "chipset": "Snapdragon 7 Gen 3",
+    "source": "docs/OLCUMLER.md 2026-10-02, cooled sessions",
+    "watts": {
+      "Full": 10.1,
+      "Cinematic": 8.9,
+      "Cpu": 7.1,
+      "Gpu": 5.5,
+      "Dry": 2.5
+    }
+  }
+]
