@@ -1,5 +1,6 @@
 package dev.ozcan.stress.run
 
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -11,6 +12,8 @@ import java.io.File
 class RunStoreTest {
 
     @get:Rule val tmp = TemporaryFolder()
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     /** A run as version 0.1.0 stored it (2026-10-01): Honor-specific temperature keys, no device, no reason. */
     private val firstVersion = """
@@ -28,6 +31,9 @@ class RunStoreTest {
           "cpuRelative":[1.0,null],"gpuRelative":[null,null],"batteryPercent":[76,76]}}
     """.trimIndent()
 
+    private fun aRecord(id: String, startedAtMillis: Long): RunRecord =
+        json.decodeFromString(RunRecord.serializer(), firstVersion).copy(id = id, startedAtMillis = startedAtMillis)
+
     @Test
     fun `runs stored by the first version still load`() {
         val dir = tmp.newFolder("runs")
@@ -40,20 +46,48 @@ class RunStoreTest {
         assertNull(record.device)
         assertNull(record.endReason)
         assertTrue(record.series.fps.isEmpty())
-        assertEquals(record, store.load("20261001-052012"))
+        assertEquals(record.summary, store.load("20261001-052012")?.summary)
     }
 
     @Test
     fun `a run round-trips and is deleted`() {
         val dir = tmp.newFolder("runs")
         val store = RunStore(dir)
-        val record = store.run {
-            File(dir, "a.json").writeText(firstVersion)
-            list().single()
-        }.copy(id = "b", endReason = EndReason.Safety.name, safetyReason = "BatteryHot", safetyValue = 47.1)
+        val record = aRecord("b", 1790821212000)
+            .copy(endReason = EndReason.Safety.name, safetyReason = "BatteryHot", safetyValue = 47.1)
         store.save(record)
         assertEquals(record, store.load("b"))
         store.delete("b")
         assertNull(store.load("b"))
+    }
+
+    @Test
+    fun `the list carries the watts line but not the other curves`() {
+        val dir = tmp.newFolder("runs")
+        val store = RunStore(dir)
+        store.save(aRecord("b", 1))
+
+        val listed = store.list().single()
+        assertEquals(listOf(null, null), listed.series.watts)
+        assertTrue(listed.series.temperatures.isEmpty())
+        assertTrue(listed.series.clocksMhz.isEmpty())
+
+        val stored = store.load("b")!!
+        assertEquals(listed.summary, stored.summary)
+        assertEquals(listed.id, stored.id)
+        assertEquals(4, stored.series.temperatures.size)
+        assertEquals(3, stored.series.clocksMhz.size)
+    }
+
+    @Test
+    fun `saving past the cap removes the oldest runs`() {
+        val store = RunStore(tmp.newFolder("runs"), maxRuns = 3)
+        for (day in 1..5) {
+            store.save(aRecord("2026100$day-000000", day * 86_400_000L))
+        }
+
+        // The list is newest first; the two oldest files are gone.
+        assertEquals(listOf("20261005-000000", "20261004-000000", "20261003-000000"), store.list().map { it.id })
+        assertNull(store.load("20261002-000000"))
     }
 }
