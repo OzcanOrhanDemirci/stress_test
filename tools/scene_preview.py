@@ -57,6 +57,8 @@ POOL_TAIL = ("void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy
              " fragDistance = d; }")
 WHITE_TAIL = ("void main() { float d; fragColor = vec4(renderWhite(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
               " fragDistance = d; }")
+HOLE_TAIL = ("void main() { float d; fragColor = vec4(renderHole(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
+             " fragDistance = d; }")
 
 
 def gl_source(name, defines=()):
@@ -345,6 +347,52 @@ class WhiteScene:
         return None
 
 
+HOLE_QUALITIES = {
+    # HOLE_SAMPLES, HOLE_STEPS, HOLE_OCTAVES, HOLE_SHELLS (scene_renderer.cpp: byQuality)
+    "low": (1, 64, 3, 2),
+    "medium": (1, 104, 3, 2),
+    "high": (2, 224, 5, 3),
+}
+
+
+class HoleScene:
+    """The black hole: one full-screen shader (hole.glsl), nothing simulated.
+    `steps` forces the integration budget the phone gets from its quality."""
+
+    defines = ("SCENE_HOLE",)
+
+    def __init__(self, ctx, quad, size, quality=None, steps=None):
+        self.size = size
+        if quality:
+            s, st, o, sh = HOLE_QUALITIES[quality]
+            forced = (f"#define HOLE_SAMPLES_FORCED {s}\n#define HOLE_STEPS_FORCED {st}\n"
+                      f"#define HOLE_OCTAVES_FORCED {o}\n#define HOLE_SHELLS_FORCED {sh}\n")
+        elif steps:
+            forced = f"#define HOLE_STEPS_FORCED {steps}\n"
+        else:
+            forced = ""
+        self.program = ctx.program(vertex_shader=VERTEX, fragment_shader=HEAD + forced + gl_source("hole.glsl") + HOLE_TAIL)
+        self.vao = ctx.vertex_array(self.program, [(quad, "2f", "position")])
+        self.distance = ctx.texture(size, 1, dtype="f4")
+        self.fbo = ctx.framebuffer(color_attachments=[ctx.texture(size, 4, dtype="f4"), self.distance])
+        self.program["resolution"].value = size
+
+    def prepare(self, t):
+        self.program["time"].value = t
+
+    def draw(self, t, i):
+        if "frame" in self.program:
+            self.program["frame"].value = i
+        if "jitter" in self.program:
+            self.program["jitter"].value = jitter(i)
+        self.fbo.use()
+        self.vao.render(moderngl.TRIANGLES)
+        return read_rgb(self.fbo, self.size)
+
+    def layer(self, t):
+        return None
+
+
 class ForestScene:
     """The forest: the sun's shadow map (drawn once: nothing moves), the sky, then
     the ground, trunks and leaf cards as triangles with a depth buffer, every
@@ -467,7 +515,9 @@ class ForestScene:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scene", default="pool", choices=["pool", "forest", "white"])
+    parser.add_argument("--scene", default="pool", choices=["pool", "forest", "white", "hole"])
+    parser.add_argument("--steps", type=int, help="the black hole's integration budget, in place of its quality's")
+    parser.add_argument("--quality", choices=list(HOLE_QUALITIES), help="force a whole black hole quality level")
     parser.add_argument("--times", default="0,6,12,18")
     parser.add_argument("--width", type=int, default=632)
     parser.add_argument("--height", type=int, default=1368)
@@ -482,6 +532,8 @@ def main():
         scene = ForestScene(ctx, quad, size)
     elif args.scene == "white":
         scene = WhiteScene(ctx, quad, size)
+    elif args.scene == "hole":
+        scene = HoleScene(ctx, quad, size, quality=args.quality, steps=args.steps)
     else:
         scene = PoolScene(ctx, quad, size, particles=not args.no_particles)
     post = Post(ctx, quad, size, (args.width * 2, args.height * 2), scene.defines)

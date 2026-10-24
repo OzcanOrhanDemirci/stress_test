@@ -25,6 +25,7 @@ enum class StressMode(
     Cinematic("fp32_l2+scene", usesCpu = true, usesGpu = true, scene = SceneKind.Pool),
     CinematicForest("fp32_l2+forest", usesCpu = true, usesGpu = true, scene = SceneKind.Forest),
     CinematicWhite("fp32_l2+white", usesCpu = true, usesGpu = true, scene = SceneKind.White),
+    CinematicHole("fp32_l2+hole", usesCpu = true, usesGpu = true, scene = SceneKind.Hole),
     Cpu("fp32_l2", usesCpu = true, usesGpu = false),
     Gpu("gpu_fp32@preview", usesCpu = false, usesGpu = true),
     Dry("dry", usesCpu = true, usesGpu = false);

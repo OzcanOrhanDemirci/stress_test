@@ -36,6 +36,8 @@
     <string name="scene_forest_detail">Hafif yağmurda sık ve sisli bir orman: tepeden süzülen ışık huzmeleri, yumuşak gölgeler.</string>
     <string name="scene_white">Beyaz</string>
     <string name="scene_white_detail">Cam ve ayna yüzeyli koridorlar ve tünellerle bembeyaz bir dünya: net, sade, yansımalarla dolu.</string>
+    <string name="scene_hole">Kara delik</string>
+    <string name="scene_hole_detail">Yığılma diski yanan süper kütleli bir kara delik: her pikselin ışığı gölgenin çevresinde bükülür, yörünge halkası, ikilenen yıldızlar.</string>
 
     <!-- Süre ve kalite -->
     <string name="duration_1">1 dk</string>

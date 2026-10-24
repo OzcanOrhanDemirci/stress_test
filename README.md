@@ -16,7 +16,7 @@
 [![Latest release](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=release&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
 [![Licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
 
-**10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · three cinematic scenes at three quality levels · device safety · a PDF report
+**10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · four cinematic scenes at three quality levels · device safety · a PDF report
 
 **[Download the latest package](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 and above · no permissions, nothing collected
 
@@ -197,6 +197,25 @@ white world stays in view through it. No depth of field, no colour fringing, no
 grain, almost no bloom, and a light sharpening on top of the upscale.
 **~38 ms a frame, ~27 fps.**
 
+### Black hole
+
+<img src="docs/images/scene-hole.jpg" alt="The black hole scene: the shadow ringed by its photon ring, the accretion disk lensed over and under it, stars doubled round the edge" width="100%" />
+
+Where the other scenes march surfaces, this one integrates each ray's fall.
+A supermassive black hole burns an accretion disk in deep space, and every
+pixel steps its own light through the hole's field — bent round it, wound
+round it, lost in it. The bending is the picture: the disk's far side rises
+over and under the shadow, a thin ring of orbits hugs the edge, and the
+starfield doubles around it. Nothing is stored and nothing is sampled; the
+whole scene is the arithmetic of the integration (Runge–Kutta, an adaptive
+step, hashes for the stars and the disk's turbulence). Quality grows the
+fall's step budget, the samples a pixel takes, the disk's turbulence and
+the density of the sky: High winds rays more than twice as long and takes
+two samples a pixel, a few frames a second on a mid-range phone and the
+point. *(The image above is the desktop preview
+running the phone's own shaders; the Honor's frame times for this scene
+await their measurement session.)*
+
 ### Graphics quality
 
 Every phone gets a level that loads its GPU fully and still draws something worth
@@ -355,7 +374,7 @@ app/src/main
 └── cpp
     ├── cpu/         the kernels (generated AArch64 assembly), their table, the worker threads
     ├── gpu/         the Vulkan helpers, the burner engine, the cinematic scene renderer
-    │   └── shaders/ GLSL: burners, the three scenes, TAA, bloom, depth of field, the finish
+    │   └── shaders/ GLSL: burners, the four scenes, TAA, bloom, depth of field, the finish
     ├── sense/       a native reader for thermal zones, frequencies and the GPU's busy counter
     └── jni_bridge.cpp
 tools/

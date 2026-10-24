@@ -10,7 +10,17 @@ signed package through the release pipeline described in
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **A fourth cinematic scene: the black hole.** A supermassive black hole
+  burning an accretion disk in deep space. Where the other scenes march
+  surfaces, this one integrates each pixel's light through the hole's field
+  (Runge–Kutta on the Schwarzschild pull): the disk's far side rises over and
+  under the shadow, a ring of orbits hugs the edge, and the starfield doubles
+  round it. No water, no particles, no textures — the scene is the arithmetic.
+  Quality grows the step budget, the per-pixel samples, the disk's
+  turbulence and the sky's star density. The desktop preview gained
+  `--scene hole` with a `--quality` override.
 
 ## [0.2.0] — 2026-10-02
 

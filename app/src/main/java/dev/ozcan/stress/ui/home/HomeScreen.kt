@@ -508,6 +508,7 @@ private fun SceneThumb(kind: SceneKind, selected: Boolean, modifier: Modifier, o
                     SceneKind.Pool -> R.drawable.scene_pool
                     SceneKind.Forest -> R.drawable.scene_forest
                     SceneKind.White -> R.drawable.scene_white
+                    SceneKind.Hole -> R.drawable.scene_hole
                 },
             ),
             contentDescription = stringResource(Labels.scene(kind)),

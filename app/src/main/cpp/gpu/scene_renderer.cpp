@@ -22,6 +22,10 @@
 #include "shaders/final_white_frag.h"
 #include "shaders/taa_white_frag.h"
 #include "shaders/white_scene_frag.h"
+#include "shaders/dof_hole_frag.h"
+#include "shaders/final_hole_frag.h"
+#include "shaders/taa_hole_frag.h"
+#include "shaders/hole_scene_frag.h"
 #include "shaders/particles_comp.h"
 #include "shaders/particles_frag.h"
 #include "shaders/particles_vert.h"
@@ -418,21 +422,34 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     // The passes that follow the camera are built for the scene drawn (scene.glsl).
     const bool forest = kind_ == Kind::Forest;
     const bool white = kind_ == Kind::White;
+    const bool hole = kind_ == Kind::Hole;
     const std::span<const uint32_t> taa = forest  ? std::span<const uint32_t>(kTaaForestFragSpirv)
                                           : white ? std::span<const uint32_t>(kTaaWhiteFragSpirv)
+                                          : hole  ? std::span<const uint32_t>(kTaaHoleFragSpirv)
                                                   : std::span<const uint32_t>(kTaaFragSpirv);
     const std::span<const uint32_t> dof = forest  ? std::span<const uint32_t>(kDofForestFragSpirv)
                                           : white ? std::span<const uint32_t>(kDofWhiteFragSpirv)
+                                          : hole  ? std::span<const uint32_t>(kDofHoleFragSpirv)
                                                   : std::span<const uint32_t>(kDofFragSpirv);
     const std::span<const uint32_t> final = forest  ? std::span<const uint32_t>(kFinalForestFragSpirv)
                                             : white ? std::span<const uint32_t>(kFinalWhiteFragSpirv)
+                                            : hole  ? std::span<const uint32_t>(kFinalHoleFragSpirv)
                                                     : std::span<const uint32_t>(kFinalFragSpirv);
-    const std::span<const uint32_t> scene = white ? std::span<const uint32_t>(kWhiteSceneFragSpirv) : kPoolSceneFragSpirv;
-    // Rays a pixel traces (pool_scene.frag, white_scene.frag: SAMPLES).
+    const std::span<const uint32_t> scene = white ? std::span<const uint32_t>(kWhiteSceneFragSpirv)
+                                            : hole  ? std::span<const uint32_t>(kHoleSceneFragSpirv)
+                                                    : std::span<const uint32_t>(kPoolSceneFragSpirv);
+    // Rays a pixel traces (pool_scene.frag, white_scene.frag: SAMPLES), or
+    // integrates (hole_scene.frag: HOLE_STEPS, plus its samples, the disk's
+    // turbulence and the sky's shells).
     const vk::Specialization samples(byQuality(quality_, 1, 1, 2));
+    const vk::SpecConstants holeConstants(byQuality<int32_t>(quality_, 1, 1, 2),
+                                          byQuality<int32_t>(quality_, 64, 104, 224),
+                                          byQuality<int32_t>(quality_, 3, 3, 5),
+                                          byQuality<int32_t>(quality_, 2, 2, 3));
+    const VkSpecializationInfo* sceneConstants = hole ? &holeConstants.info : &samples.info;
     return named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, scene, vk::Blend::None,
                                  scenePipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vk::Depth::None,
-                                 &samples.info), "PoolScene") &&
+                                 sceneConstants), "Scene") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, taa, vk::Blend::None, taaPipeline_), "Taa") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kBloomDownFragSpirv, vk::Blend::None,
                                  downPipeline_), "BloomDown") &&
@@ -480,7 +497,9 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
     if (kind_ == Kind::Forest) {
         recordForest(cmd, frame);
         recordRain(cmd, frame);
-    } else if (kind_ == Kind::White) {
+    } else if (kind_ == Kind::White || kind_ == Kind::Hole) {
+        // Nothing simulated: the scene pass alone, and the particle layer
+        // cleared for the passes after the scene that still read it.
         pass(cmd, scenePass_, sceneFramebuffer_, extent_);
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scenePipeline_);
         vkCmdPushConstants(cmd, sceneLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(frame), &frame);

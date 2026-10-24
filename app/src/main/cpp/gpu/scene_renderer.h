@@ -16,6 +16,9 @@ namespace stress {
  *           water and particles below
  *   white   a white world of boxes, rings and glass, one full-screen
  *           ray-marching shader, finished without blur
+ *   hole    a black hole burning an accretion disk, one full-screen shader
+ *           that integrates each ray's fall through the hole's field; no
+ *           water, no particles, finished with the pool's lens
  *   forest  triangles made in the vertex shader (sky, ground, trunks, leaf
  *           cards) with a depth buffer, lit through the sun's shadow map
  *           (drawn once: nothing moves), and sunbeams in the mist added on
@@ -35,7 +38,7 @@ namespace stress {
 class SceneRenderer {
 public:
     /** Which scene is drawn; the passes that follow the camera are built for it. */
-    enum class Kind { Pool = 0, Forest = 1, White = 2 };
+    enum class Kind { Pool = 0, Forest = 1, White = 2, Hole = 3 };
 
     /**
      * How much work a pixel gets: Medium is the scene as it was tuned on the

@@ -16,7 +16,7 @@
 [![Son sürüm](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=s%C3%BCr%C3%BCm&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-blue)](LICENSE)
 
-Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede üç sinematik sahne · cihaz güvenliği · PDF rapor
+Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede dört sinematik sahne · cihaz güvenliği · PDF rapor
 
 **[Son paketi indir](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 ve üstü · izin yok, hiçbir şey toplanmaz
 
@@ -196,6 +196,24 @@ arkadaki devasa beyaz dünya hep görünür kalır. Alan derinliği, renk saçı
 gren yok, bloom neredeyse yok; büyütmenin üstüne hafif bir keskinleştirme var.
 **Kare ~38 ms, ~27 fps.**
 
+### Kara delik
+
+<img src="docs/images/scene-hole.jpg" alt="Kara delik sahnesi: foton halkasıyla çevrili gölge, üstünden ve altından geçen yığılma diski, kenarda ikilenen yıldızlar" width="100%" />
+
+Diğer sahneler yüzeyleri yürütür; bu, her ışının düşüşünü bütünleştirir. Süper
+kütleli bir kara delik derin uzayda yığılma diski yakar ve her piksel kendi
+ışığını kara deliğin alanında adım adım sayar — ona doğru bükülür, çevresinde
+dolanır, içine düşer. Bükülme resmin kendisidir: diskin uzak tarafı gölgenin
+üstünde ve altında yükselir, ince bir yörünge halkası kenara yapışır, yıldızlar
+kenarda ikilenir. Hiçbir şey depolanmaz, hiçbir şey örneklenmez; sahne,
+bütünleştirmenin aritmetiğinden ibarettir (Runge-Kutta, uyarlanabilir adım,
+yıldızlar ve diskin türbülansı için hash'ler). Kalite; düşüşün adım bütçesini,
+piksel başına örnek sayısını, diskin türbülansını ve gökyüzünün yoğunluğunu
+büyütür: High ışınları iki kattan fazla uzun sarmaştır ve piksel başına iki
+örnek alır — orta seviye telefonda birkaç fps, üst modellerde akıcı. *(Yukarıdaki görsel, telefonun kendi shader'larını çalıştıran
+masaüstü önizlemesidir; bu sahnenin Honor kare süreleri ölçüm oturumunu
+bekliyor.)*
+
 ### Grafik kalitesi
 
 Her telefon, GPU'sunu tamamen yükleyen ve yine de izlemeye değer bir şey çizen bir
@@ -352,7 +370,7 @@ app/src/main
 └── cpp
     ├── cpu/         yükler (üretilmiş AArch64 assembly), tabloları, işçi iş parçacıkları
     ├── gpu/         Vulkan yardımcıları, yakıcı motoru, sinematik sahne çizicisi
-    │   └── shaders/ GLSL: yakıcılar, üç sahne, TAA, bloom, alan derinliği, son işlem
+    │   └── shaders/ GLSL: yakıcılar, dört sahne, TAA, bloom, alan derinliği, son işlem
     ├── sense/       termal bölgeler, frekanslar ve GPU meşguliyet sayacı için yerel okuyucu
     └── jni_bridge.cpp
 tools/

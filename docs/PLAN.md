@@ -338,3 +338,41 @@ kapandı, yine güvenliği sağlasın ama aşırı hızlı değil"): Honor GPU k
 ekranda ve PDF'te yazı-logo "STRESS" beyaz + "TEST" turuncu (`ui/components/Wordmark.kt`, dar yerde tek satıra küçülür);
 rapor dosyaları `stress-test-report-<id>.pdf`, `stress-test-data-<id>.csv`; README başlıkları. `applicationId` ve Kotlin
 paketi `dev.ozcan.stress` bilerek aynı: kimlik değişirse telefondaki uygulama ve geçmişi ayrı bir uygulama olarak kalırdı.
+
+## 17 · Dördüncü sahne: kara delik (2026-10-24)
+
+**Karar.** Dördüncü sinematik sahne eklendi: süper kütleli bir kara delik, yanan yığılma diski ve derin uzay. Özcan'ın
+"görevlisin, yaratıcı ol" görevlendirmesiyle ZCode tasarladı ve uyguladı; sahne seçiminde üç aday düşünüldü (fırtınalı
+okyanus — §13'teki aday C, kanyon uçuşu, kara delik) ve kara delik seçildi: tekniği bütün diğer sahnelerden farklı,
+duygunsa hiçbirine benzemiyor (havuzun endüstriyel parıltısına, ormanın yağmuruna, beyazın berraklığına karşı kozmik
+karanlık ve yanan bir halka).
+
+**Teknik: SDF yürütme değil, ışın düşüşünün bütünleştirilmesi.** Her piksel kendi ışınının merkez çekimin alanındaki
+yolunu adım adım sayar: Schwarzschild alanında ışığın ivmesi -1.5 h² p / r⁵ (ufuk yarıçapı 1, h ışının açısal momentumu)
+— foton küresini (r = 1.5) dolaşan ışınlar çoklu disk imgesi ve foton halkasını bedavaya verir. Adımlar Runge-Kutta
+(RK4, adım başına dört alan değerlendirmesi): uzakta büyür (bir adım birkaç yarıçap atlar), diskin yakınında küçülür.
+Disk, düzlem geçişlerinde bulunup gölgelenir (Keplerian kaymış fbm çizgileri, sıcaklık rampası, Doppler parlatması,
+kütleçekim kırmızıya kayması); yıldız alanı ve gökada bandı yönün kendi hash'inden gelir. Hiçbir şey depolanmaz, hiçbir
+doku örneklenmez: sahne neredeyse tamamen aritmetik — "hesap ağır, bellek hafif" kuralının en saf hâli.
+
+**Kalite.** Dört kola specialization constant (64/104/224 adım; piksel başına 1/1/2 örnek; disk türbülansı 3/3/5
+oktav; yıldız kabuğu 2/2/3 — Low/Medium/High). Masaüstü önizlemesi 104 adımın görüntüyü büyük ölçüde yakınsattığını
+gösterdi: daha yüksek bütçe görsel kazancı foton halkasının ince ikinci-üçüncü imgelerinde ve ısıl dolguda bulur; High,
+örnek ve doku kollarıyla birlikte Medium'un yaklaşık 4-5 katı iş yapar, orta seviye telefonda birkaç fps makul
+kalırlar. Su ve parçacık yok; TAA, bloom ve final aynen paylaşılır, kamera sahne kütüphanesinden (hole.glsl:
+framing, shotAt) gelir.
+
+**Telefon dönüşü (Özcan, 2026-10-24): arka planda grenimsi hareketlenme.** Üç kaynağı bulundu ve giderildi: (1) final
+geçişinin animasyonlu film greni, karanlık pürüzsüz gökyüzü degrade çok gösteriyordu — sahnede gren çeyreğe indirildi
+(bantlamaya karşı dither olarak kalır); (2) renk saçılması kara deliğin yıldızlarını kenarlarda RGB üçlülerine ayırıyordu
+— kaydırma sahnede 0.35'e indi; (3) yıldız hücreleri float fract-hash yerine tamsayı pcg hash'i (büyük girdilerde
+hassasiyet kaybı bantlar ve kayma yapıyordu), yıldız noktaları yumuşatıldı (jitter'la pikselden piksele zıplamasın), adım
+bütçesi tükenen ışınların yıldız-gölge sınırı nearest uzaklığıyla sürekli karışıma bağlandı.
+
+**Önizleme ölçümleri** (tools/scene_preview.py, geliştirme makinesi GPU'su, 632×1368, 12 kare ortalaması): 5.7-6.0
+ms/kare (geri okuma dahil, baskın olan odur). Telefonun Adreno 720'si için kare süreleri **ölçümü bekliyor** — ilk
+telefon oturumunda üç kalite için ms OLCUMLER'e yazılacak ve gerekirse HOLE_STEPS kolları oradan ayarlanacak.
+
+**Bekleyen işler.** (1) Telefonda "her sahne her kalite" instrumented testi (SceneKind.entries'den otomatik düşer).
+(2) Ölçüm oturumu: Sinematik · Kara delik'in W'si; §13/7'deki deney anahtarıyla (scene+gpu_fp32) tam yüke yaklaşıp
+yaklaşmadığı ölçülür. (3) README'deki telefon ekran görüntüleri yeni seçim ekranı ve sahne ile yenilenecek.

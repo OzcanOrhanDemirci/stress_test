@@ -36,6 +36,8 @@
     <string name="scene_forest_detail">A dense, misty forest in light rain, with sunbeams through the canopy and soft shadows.</string>
     <string name="scene_white">White</string>
     <string name="scene_white_detail">A white world of glass and mirror corridors and tunnels: crisp, clean, full of reflections.</string>
+    <string name="scene_hole">Black hole</string>
+    <string name="scene_hole_detail">A supermassive black hole burning an accretion disk: every pixel\'s light bent round the shadow, a ring of orbits, the stars doubled.</string>
 
     <!-- Durations and quality -->
     <string name="duration_1">1 min</string>

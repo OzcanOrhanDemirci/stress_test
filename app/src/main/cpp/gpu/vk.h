@@ -63,6 +63,25 @@ struct Specialization {
     Specialization& operator=(const Specialization&) = delete;
 };
 
+/** Four specialization constants (constant ids 0..3) of a shader stage, ints. */
+struct SpecConstants {
+    int32_t values[4] = {0, 0, 0, 0};
+    VkSpecializationMapEntry entries[4] = {{0, 0, sizeof(int32_t)},
+                                           {1, sizeof(int32_t), sizeof(int32_t)},
+                                           {2, 2 * sizeof(int32_t), sizeof(int32_t)},
+                                           {3, 3 * sizeof(int32_t), sizeof(int32_t)}};
+    VkSpecializationInfo info{4, entries, sizeof(values), values};
+
+    SpecConstants(int32_t a, int32_t b, int32_t c, int32_t d) {
+        values[0] = a;
+        values[1] = b;
+        values[2] = c;
+        values[3] = d;
+    }
+    SpecConstants(const SpecConstants&) = delete;
+    SpecConstants& operator=(const SpecConstants&) = delete;
+};
+
 /** Records one image layout transition. */
 void transition(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageLayout to, VkAccessFlags srcAccess,
                 VkAccessFlags dstAccess, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage);

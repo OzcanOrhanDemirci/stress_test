@@ -5,6 +5,7 @@ enum class SceneKind(val key: String, val code: Int) {
     Pool("scene", 0),
     Forest("forest", 1),
     White("white", 2),
+    Hole("hole", 3),
 }
 
 /**

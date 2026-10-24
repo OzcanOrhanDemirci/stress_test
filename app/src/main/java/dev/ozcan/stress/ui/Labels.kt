@@ -37,7 +37,7 @@ object Labels {
     @StringRes
     fun modeTitle(mode: StressMode): Int = when (mode) {
         StressMode.Full -> R.string.mode_full
-        StressMode.Cinematic, StressMode.CinematicForest, StressMode.CinematicWhite -> R.string.mode_cinematic
+        StressMode.Cinematic, StressMode.CinematicForest, StressMode.CinematicWhite, StressMode.CinematicHole -> R.string.mode_cinematic
         StressMode.Cpu -> R.string.mode_cpu
         StressMode.Gpu -> R.string.mode_gpu
         StressMode.Dry -> R.string.mode_dry
@@ -46,7 +46,7 @@ object Labels {
     @StringRes
     fun modeDetail(mode: StressMode): Int = when (mode) {
         StressMode.Full -> R.string.mode_full_detail
-        StressMode.Cinematic, StressMode.CinematicForest, StressMode.CinematicWhite -> R.string.mode_cinematic_detail
+        StressMode.Cinematic, StressMode.CinematicForest, StressMode.CinematicWhite, StressMode.CinematicHole -> R.string.mode_cinematic_detail
         StressMode.Cpu -> R.string.mode_cpu_detail
         StressMode.Gpu -> R.string.mode_gpu_detail
         StressMode.Dry -> R.string.mode_dry_detail
@@ -54,7 +54,7 @@ object Labels {
 
     fun modeIcon(mode: StressMode): ImageVector = when (mode) {
         StressMode.Full -> Icons.Rounded.Bolt
-        StressMode.Cinematic, StressMode.CinematicForest, StressMode.CinematicWhite -> Icons.Rounded.Movie
+        StressMode.Cinematic, StressMode.CinematicForest, StressMode.CinematicWhite, StressMode.CinematicHole -> Icons.Rounded.Movie
         StressMode.Cpu -> Icons.Rounded.Memory
         StressMode.Gpu -> Icons.Rounded.Videocam
         StressMode.Dry -> Icons.Rounded.Speed
@@ -65,6 +65,7 @@ object Labels {
         SceneKind.Pool -> R.string.scene_pool
         SceneKind.Forest -> R.string.scene_forest
         SceneKind.White -> R.string.scene_white
+        SceneKind.Hole -> R.string.scene_hole
     }
 
     @StringRes
@@ -72,6 +73,7 @@ object Labels {
         SceneKind.Pool -> R.string.scene_pool_detail
         SceneKind.Forest -> R.string.scene_forest_detail
         SceneKind.White -> R.string.scene_white_detail
+        SceneKind.Hole -> R.string.scene_hole_detail
     }
 
     /** "Max power", or "Cinematic · Forest" for a scene. */
