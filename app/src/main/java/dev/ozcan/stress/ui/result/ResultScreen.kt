@@ -74,6 +74,7 @@ import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
 import dev.ozcan.stress.analysis.Insight
 import dev.ozcan.stress.analysis.Insights
+import dev.ozcan.stress.analysis.ReferenceDevices
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.report.ReportCsv
@@ -384,6 +385,7 @@ private fun Header(record: RunRecord) {
 @Composable
 private fun Hero(record: RunRecord) {
     val s = record.summary
+    val context = context()
     GlassCard(Modifier.fillMaxWidth(), highlight = true, padding = 20.dp) {
         if (!s.powerValid) {
             Text(stringResource(R.string.result_power_invalid), style = MaterialTheme.typography.titleMedium, color = StressColors.Warn)
@@ -404,6 +406,15 @@ private fun Hero(record: RunRecord) {
                     CountUpNumber(s.sustainedWatts, { Format.number(it, 2) }, style = NumberStyles.Large, color = StressColors.Text, delayMillis = 150)
                     Text(" W", style = MaterialTheme.typography.titleMedium, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 4.dp))
                 }
+            }
+        }
+        StressMode.of(record.mode)?.let { mode ->
+            ReferenceDevices.forMode(context, mode)?.let { (device, watts) ->
+                Text(
+                    stringResource(R.string.result_reference, device.name, device.chipset, Format.watts(watts)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = StressColors.TextDim,
+                )
             }
         }
         if (s.powerFromCounter) {

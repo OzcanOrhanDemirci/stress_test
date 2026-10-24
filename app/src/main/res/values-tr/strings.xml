@@ -161,6 +161,7 @@
     <!-- Sonuç -->
     <string name="result_title">Sonuç</string>
     <string name="result_missing">Bu koşu artık kayıtlı değil.</string>
+    <string name="result_reference">Aynı testte %1$s (%2$s) %3$s çekti.</string>
     <string name="result_peak">Tepe güç</string>
     <string name="result_sustained">Sürekli</string>
     <string name="result_mean">Ortalama güç</string>

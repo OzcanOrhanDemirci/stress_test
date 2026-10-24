@@ -161,6 +161,7 @@
     <!-- Result -->
     <string name="result_title">Result</string>
     <string name="result_missing">This run is no longer stored.</string>
+    <string name="result_reference">On the same test, %1$s (%2$s) drew %3$s.</string>
     <string name="result_peak">Peak power</string>
     <string name="result_sustained">Sustained</string>
     <string name="result_mean">Mean power</string>
