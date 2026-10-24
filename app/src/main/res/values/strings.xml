@@ -123,6 +123,7 @@
     <string name="run_baseline_text">First the phone\'s idle power is measured; the load starts right after. Don\'t touch the phone meanwhile.</string>
     <string name="run_baseline_idle">Idle: %1$s</string>
     <string name="run_stop">Stop</string>
+    <string name="run_toggle_hud">Show or hide the readings</string>
     <string name="run_stop_title">Stop the test?</string>
     <string name="run_stop_text">What has been measured so far is kept and analysed.</string>
     <string name="run_stop_confirm">Stop</string>

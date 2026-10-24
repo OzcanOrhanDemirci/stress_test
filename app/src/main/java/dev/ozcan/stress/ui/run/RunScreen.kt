@@ -59,6 +59,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -156,7 +157,12 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .clickable(remember { MutableInteractionSource() }, indication = null) { overlay = !overlay },
+            .clickable(
+                remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClickLabel = stringResource(R.string.run_toggle_hud),
+            ) { overlay = !overlay },
     ) {
         if (mode.usesGpu) {
             GpuSurface(graph.gpu, Modifier.fillMaxSize())

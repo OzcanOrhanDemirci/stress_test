@@ -123,6 +123,7 @@
     <string name="run_baseline_text">Önce telefonun boştaki gücü ölçülüyor; yük hemen ardından başlayacak. Bu sırada telefona dokunma.</string>
     <string name="run_baseline_idle">Boşta: %1$s</string>
     <string name="run_stop">Durdur</string>
+    <string name="run_toggle_hud">Okumaları göster veya gizle</string>
     <string name="run_stop_title">Test durdurulsun mu?</string>
     <string name="run_stop_text">Şimdiye kadar ölçülenler saklanır ve analiz edilir.</string>
     <string name="run_stop_confirm">Durdur</string>

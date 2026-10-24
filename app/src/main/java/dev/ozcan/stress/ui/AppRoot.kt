@@ -57,6 +57,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -222,7 +224,8 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(
             .weight(1f)
             .fillMaxSize()
             .clip(shape)
-            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Tab, onClick = onClick),
+            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Tab, onClick = onClick)
+            .semantics { this.selected = selected },
         contentAlignment = Alignment.Center,
     ) {
         Box(
