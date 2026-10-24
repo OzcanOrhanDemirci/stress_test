@@ -20,6 +20,12 @@ data class Settings(
     val deviceSafety: Boolean = true,
     /** Quality of the cinematic scenes. Medium is the scene as tuned on a mid-range phone. */
     val quality: SceneQuality = SceneQuality.Medium,
+    /**
+     * The experiment of docs/PLAN.md §13/7: a cinematic scene's spare frame
+     * time goes to the FP32 burner, so the mode draws more. Whether it is
+     * worth it is decided by a measurement on a phone.
+     */
+    val sceneBurner: Boolean = false,
     /** Full brightness and the highest refresh rate while a test runs: the same display load every time. */
     val maxDisplay: Boolean = true,
     /** Vibrate on start, finish and safety stops. */
@@ -48,6 +54,7 @@ class SettingsStore(context: Context) {
         prefs.edit {
             putBoolean(KEY_SAFETY, next.deviceSafety)
             putString(KEY_QUALITY, next.quality.name)
+            putBoolean(KEY_SCENE_BURNER, next.sceneBurner)
             putBoolean(KEY_DISPLAY, next.maxDisplay)
             putBoolean(KEY_HAPTICS, next.haptics)
             putBoolean(KEY_NOTICE, next.startupNotice)
@@ -62,6 +69,7 @@ class SettingsStore(context: Context) {
         return Settings(
             deviceSafety = prefs.getBoolean(KEY_SAFETY, defaults.deviceSafety),
             quality = enumOr(prefs.getString(KEY_QUALITY, null), defaults.quality),
+            sceneBurner = prefs.getBoolean(KEY_SCENE_BURNER, defaults.sceneBurner),
             maxDisplay = prefs.getBoolean(KEY_DISPLAY, defaults.maxDisplay),
             haptics = prefs.getBoolean(KEY_HAPTICS, defaults.haptics),
             startupNotice = prefs.getBoolean(KEY_NOTICE, defaults.startupNotice),
@@ -77,6 +85,7 @@ class SettingsStore(context: Context) {
         const val FILE = "settings"
         const val KEY_SAFETY = "device_safety"
         const val KEY_QUALITY = "scene_quality"
+        const val KEY_SCENE_BURNER = "scene_burner"
         const val KEY_DISPLAY = "max_display"
         const val KEY_HAPTICS = "haptics"
         const val KEY_NOTICE = "startup_notice"

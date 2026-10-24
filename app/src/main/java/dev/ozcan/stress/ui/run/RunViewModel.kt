@@ -59,7 +59,12 @@ class RunViewModel(graph: AppGraph, mode: StressMode, duration: StressDuration) 
             controller.run(
                 mode,
                 duration,
-                RunOptions(deviceSafety = settings.deviceSafety, quality = settings.quality, appVersion = graph.appVersion),
+                RunOptions(
+                    deviceSafety = settings.deviceSafety,
+                    quality = settings.quality,
+                    sceneBurner = settings.sceneBurner,
+                    appVersion = graph.appVersion,
+                ),
             )
         }
         viewModelScope.launch {

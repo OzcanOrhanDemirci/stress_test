@@ -44,10 +44,21 @@ class WorkloadTest {
     }
 
     @Test
+    fun `a scene and a burner join into one gpu part`() {
+        val merged = parse("scene+gpu_fp32").gpu!!
+        assertEquals(TestSamples.gpuFp32, merged.burner)
+        assertEquals(true, merged.scene)
+        // Either order parses to the same part, and the text round-trips.
+        assertEquals(merged, parse("gpu_fp32+scene").gpu)
+        assertEquals("scene+gpu_fp32", parse("scene+gpu_fp32").describe())
+        assertEquals("dry+scene+gpu_fp32", parse("dry+scene+gpu_fp32").describe())
+    }
+
+    @Test
     fun `malformed workloads are rejected`() {
         val bad = listOf(
-            "", "+", "gpu_fp32+gpu_blend", "scene+gpu_fp32", "dry+fp32_gemm", "dry++gpu_fp32", "nope",
-            "gpu_fp32@", "gpu_fp32@fast", "scene@5", "scene@101",
+            "", "+", "gpu_fp32+gpu_blend", "scene+forest", "scene+gpu_fp32+gpu_blend", "dry+fp32_gemm",
+            "dry++gpu_fp32", "nope", "gpu_fp32@", "gpu_fp32@fast", "scene@5", "scene@101",
         )
         for (bad in bad) {
             assertThrows(bad, IllegalArgumentException::class.java) { parse(bad) }
