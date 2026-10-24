@@ -44,6 +44,13 @@ class WorkloadTest {
     }
 
     @Test
+    fun `the black hole is a scene of its own`() {
+        assertEquals(GpuPart(null, scene = true, kind = SceneKind.Hole), parse("hole").gpu)
+        assertEquals("hole", parse("hole").describe())
+        assertEquals("dry+hole", parse("dry+hole").describe())
+    }
+
+    @Test
     fun `a scene and a burner join into one gpu part`() {
         val merged = parse("scene+gpu_fp32").gpu!!
         assertEquals(TestSamples.gpuFp32, merged.burner)

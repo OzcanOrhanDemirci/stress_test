@@ -70,8 +70,14 @@ void main() {
                           texture(scene, uv + vec2(0.0, texel.y)).rgb + texture(scene, uv - vec2(0.0, texel.y)).rgb);
     c = max(c + (c - around) * 0.45, vec3(0.0));
 #else
-    // Colour fringing towards the edges, like a real lens.
-    vec2 shift = (uv - 0.5) * 0.004;
+    // Colour fringing towards the edges, like a real lens. The black hole's
+    // starfield shows it more than the pool's busy picture does: a third of
+    // the shift, or every star at the frame's edge becomes three.
+    vec2 shift = (uv - 0.5) * (0.004
+#ifdef SCENE_HOLE
+        * 0.35
+#endif
+    );
     c.r = mix(c.r, texture(scene, uv + shift).r, 0.6);
     c.b = mix(c.b, texture(scene, uv - shift).b, 0.6);
 #endif
@@ -87,7 +93,14 @@ void main() {
     c *= 0.85 + 0.15 * pow(16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y), 0.3);  // barely a vignette, no grain
 #else
     c *= 0.35 + 0.65 * pow(16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y), 0.22);
-    c += (hash(gl_FragCoord.xy + fract(params.time) * 97.0) - 0.5) * 0.015;
+    // The grain dithers the 8-bit picture against banding, and moves so no
+    // pattern sticks. Deep space's smooth dark gradients show it far more
+    // than the pool's busy picture does: the hole carries a quarter of it.
+    float grain = 0.015;
+#ifdef SCENE_HOLE
+    grain = 0.004;
+#endif
+    c += (hash(gl_FragCoord.xy + fract(params.time) * 97.0) - 0.5) * grain;
 #endif
     color = vec4(pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2)), 1.0);
 }

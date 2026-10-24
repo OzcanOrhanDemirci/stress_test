@@ -1052,6 +1052,7 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->sceneScale = static_cast<float>(std::clamp(sceneScalePercent, 10, 100)) / 100.0f;
     renderer->sceneKind = sceneKind == 1   ? SceneRenderer::Kind::Forest
                           : sceneKind == 2 ? SceneRenderer::Kind::White
+                          : sceneKind == 3 ? SceneRenderer::Kind::Hole
                                            : SceneRenderer::Kind::Pool;
     renderer->sceneQuality = sceneQuality <= 0   ? SceneRenderer::Quality::Low
                              : sceneQuality >= 2 ? SceneRenderer::Quality::High
