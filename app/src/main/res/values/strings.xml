@@ -273,6 +273,8 @@
     <string name="settings_quality">Scene quality</string>
     <string name="settings_quality_detail">How hard the cinematic scenes work. Choose by the phone: every level keeps the GPU fully busy.</string>
     <string name="settings_quality_scale">Internal resolution: %1$d%% of the screen (forest %2$d%%)</string>
+    <string name="settings_scene_burner">Fill the scene with the burner</string>
+    <string name="settings_scene_burner_detail">Experiment: the FP32 burner fills what a scene\'s frame leaves, so a cinematic test draws more. Compare a run with it on and off.</string>
     <string name="settings_section_test">Test</string>
     <string name="settings_display">Full brightness during tests</string>
     <string name="settings_display_detail">Maximum brightness and refresh rate, so the display adds the same load every time.</string>

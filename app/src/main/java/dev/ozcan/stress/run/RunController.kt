@@ -54,6 +54,8 @@ sealed interface RunState {
 data class RunOptions(
     val deviceSafety: Boolean = true,
     val quality: SceneQuality = SceneQuality.Medium,
+    /** The experiment of docs/PLAN.md §13/7: the FP32 burner fills a scene's spare frame time. */
+    val sceneBurner: Boolean = false,
     val appVersion: String? = null,
 )
 
@@ -97,7 +99,16 @@ class RunController(
     }
 
     suspend fun run(mode: StressMode, duration: StressDuration, options: RunOptions) = coroutineScope {
-        val workload = Workload.parse(mode.recipe, kernels, burners, cpuCount)
+        // Whether the scene's leftover frame time is worth giving to the
+        // burner is a measurement on a phone (PLAN §13/7), not a decision;
+        // the toggle only composes the workload the renderer already knows
+        // how to run.
+        val recipe = if (options.sceneBurner && mode.scene != null && burners.any { it.key == FILL_BURNER }) {
+            "${mode.recipe}+$FILL_BURNER"
+        } else {
+            mode.recipe
+        }
+        val workload = Workload.parse(recipe, kernels, burners, cpuCount)
         val startedAtMillis = System.currentTimeMillis()
 
         if (options.deviceSafety) {
@@ -240,5 +251,8 @@ class RunController(
         private const val NANOS = 1_000_000_000L
         private const val WATCH_MILLIS = 500L
         private const val SAMPLER_LOST_NANOS = 3_000_000_000L
+
+        /** The burner the scene experiment fills with, the strongest measured. */
+        const val FILL_BURNER = "gpu_fp32"
     }
 }

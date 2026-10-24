@@ -10,12 +10,14 @@ enum class SceneKind(val key: String, val code: Int) {
 /**
  * The GPU side of a workload: a burner under the visible pass, or ([burner]
  * null) the visible pass alone. [scene] and [sceneScalePercent] override the
- * run's settings when set; [kind] is the scene drawn.
+ * run's settings when set; [kind] is the scene drawn. A [burner] beside a
+ * scene fills the time the scene's frame leaves (docs/PLAN.md §13/7).
  *
  * Text: a burner key, `scene` (the pool), `forest` or `white`, optionally followed by
  * `@preview` (the cheap preview ring instead of the scene) or `@NN` (the
  * scene at NN% of the screen's resolution): `gpu_fp32@preview`, `scene@35`,
- * `forest@45`.
+ * `forest@45`. A scene and a burner join into one part, in either order:
+ * `scene+gpu_fp32`.
  */
 data class GpuPart(
     val burner: GpuBurner?,
@@ -26,7 +28,14 @@ data class GpuPart(
 
     val key: String
         get() {
-            val name = burner?.key ?: kind.key
+            // Only an unscaled burner beside a scene prints as one part; a
+            // scaled one keeps the burner-first text it has always had, and
+            // `scene@35+gpu_fp32` prints as `gpu_fp32@35` — the same part.
+            val name = if (burner != null && scene == true && sceneScalePercent == null) {
+                "${kind.key}+${burner.key}"
+            } else {
+                burner?.key ?: kind.key
+            }
             return when {
                 scene == false -> "$name@$PREVIEW"
                 sceneScalePercent != null -> "$name@$sceneScalePercent"
@@ -82,8 +91,16 @@ data class Workload(val cpu: CoreAssignment?, val gpu: GpuPart?) {
                 require(part.isNotEmpty()) { "Empty part in '$text'" }
                 val gpuPart = GpuPart.parse(part, burners)
                 if (gpuPart != null) {
-                    require(gpu == null) { "Two GPU parts in '$text'" }
-                    gpu = gpuPart
+                    gpu = when {
+                        gpu == null -> gpuPart
+                        // A scene and a burner, in either order, are one GPU
+                        // part: the burner fills the frame the scene leaves.
+                        gpu.scene == true && gpu.burner == null && gpuPart.burner != null ->
+                            gpu.copy(burner = gpuPart.burner)
+                        gpuPart.scene == true && gpuPart.burner == null && gpu.burner != null ->
+                            gpuPart.copy(burner = gpu.burner)
+                        else -> throw IllegalArgumentException("Two GPU parts in '$text'")
+                    }
                 } else {
                     require(cpu == null) { "Two CPU parts in '$text'" }
                     cpu = CoreAssignment.parse(part, kernels, cpuCount)

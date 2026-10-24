@@ -48,6 +48,7 @@ import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -161,6 +162,15 @@ fun SettingsScreen(onOpenDevice: () -> Unit) {
                     )
                 }
             }
+            Spacer(Modifier.height(10.dp))
+            SwitchRow(
+                title = stringResource(R.string.settings_scene_burner),
+                description = stringResource(R.string.settings_scene_burner_detail),
+                checked = settings.sceneBurner,
+                onCheckedChange = { on -> graph.settings.update { it.copy(sceneBurner = on) } },
+                icon = Icons.Rounded.Whatshot,
+                iconTint = StressColors.AccentHot,
+            )
         }
 
         SectionHeader(stringResource(R.string.settings_section_test))

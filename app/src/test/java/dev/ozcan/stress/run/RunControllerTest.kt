@@ -7,6 +7,7 @@ import dev.ozcan.stress.engine.GpuBurner
 import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.LoadControl
 import dev.ozcan.stress.engine.LoadSettings
+import dev.ozcan.stress.engine.SceneKind
 import dev.ozcan.stress.engine.WorkUnit
 import dev.ozcan.stress.engine.Workload
 import dev.ozcan.stress.safety.SafetyReason
@@ -48,9 +49,12 @@ class RunControllerTest {
             private set
         var stopped = 0
             private set
+        var workload: Workload? = null
+            private set
 
         override suspend fun start(workload: Workload, settings: LoadSettings): String {
             started++
+            this.workload = workload
             return outcome
         }
 
@@ -209,6 +213,35 @@ class RunControllerTest {
         val record = (controller.state.value as RunState.Finished).record
         assertEquals(EndReason.SamplerLost.name, record.endReason)
         assertEquals(null, record.safetyReason)
+    }
+
+    @Test
+    fun `the scene burner option fills the cinematic recipe`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver()
+        val controller = controller(source, driver, store())
+        val samples = emit(source) { sample(it) }
+
+        controller.run(StressMode.Cinematic, StressDuration.One, RunOptions(sceneBurner = true))
+        samples.cancel()
+
+        val gpu = driver.workload!!.gpu!!
+        assertEquals("gpu_fp32", gpu.burner?.key)
+        assertEquals(true, gpu.scene)
+        assertEquals(SceneKind.Pool, gpu.kind)
+    }
+
+    @Test
+    fun `without the option the cinematic scene burns nothing`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver()
+        val controller = controller(source, driver, store())
+        val samples = emit(source) { sample(it) }
+
+        controller.run(StressMode.Cinematic, StressDuration.One, RunOptions())
+        samples.cancel()
+
+        assertEquals(null, driver.workload!!.gpu!!.burner)
     }
 
     @Test

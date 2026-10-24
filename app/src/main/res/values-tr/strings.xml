@@ -273,6 +273,8 @@
     <string name="settings_quality">Sahne kalitesi</string>
     <string name="settings_quality_detail">Sinematik sahnelerin ne kadar çalışacağı. Telefona göre seç: her seviye GPU\'yu tamamen meşgul eder.</string>
     <string name="settings_quality_scale">İç çözünürlük: %%%1$d (orman %%%2$d)</string>
+    <string name="settings_scene_burner">Sahneyi yakıcıyla doldur</string>
+    <string name="settings_scene_burner_detail">Deney: FP32 yakıcısı sahnenin karesinin boş bıraktığı süreyi doldurur, sinematik test daha çok güç çeker. Açık ve kapalı koşuları karşılaştırın.</string>
     <string name="settings_section_test">Test</string>
     <string name="settings_display">Testte en yüksek parlaklık</string>
     <string name="settings_display_detail">En yüksek parlaklık ve yenileme hızı: ekran her testte aynı yükü katsın.</string>
