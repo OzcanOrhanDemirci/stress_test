@@ -496,6 +496,7 @@ full procedure, including what happens to the signing key, is in
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | The Contributor Covenant. |
 | [docs/RELEASE.md](docs/RELEASE.md) | How a release is cut, and what happens to the key. |
 | [docs/FDROID.md](docs/FDROID.md) | The path to F-Droid, and the reproducible build. |
+| [docs/NPU.md](docs/NPU.md) | The sketch for the NPU load the plan's phase 6 asks for. |
 | [docs/PLAN.md](docs/PLAN.md) | The plan, the reference phone's measured facts and every decision, in Turkish. |
 | [docs/OLCUMLER.md](docs/OLCUMLER.md) | Every measurement with its conditions, in Turkish. |
 
