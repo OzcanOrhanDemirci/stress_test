@@ -96,19 +96,24 @@ data class RunSummary(
     val powerFromCounter: Boolean = false,
 )
 
-/** Once-a-second curves. Every list has one entry per second of the load; null where unmeasured. */
+/**
+ * Once-a-second curves. Every list has one entry per second of the load;
+ * null where unmeasured. The fields have defaults so [RunStore.list] can
+ * hand out a run with only its watts line, the one a row draws; the full
+ * curves come with [RunStore.load].
+ */
 @Serializable
 data class RunSeries(
-    val seconds: List<Double>,
-    val watts: List<Double?>,
-    val temperatures: Map<String, List<Double?>>,
-    val batteryCelsius: List<Double?>,
+    val seconds: List<Double> = emptyList(),
+    val watts: List<Double?> = emptyList(),
+    val temperatures: Map<String, List<Double?>> = emptyMap(),
+    val batteryCelsius: List<Double?> = emptyList(),
     /** Clock of each cluster in MHz, keyed by cluster name. */
-    val clocksMhz: Map<String, List<Double?>>,
+    val clocksMhz: Map<String, List<Double?>> = emptyMap(),
     /** CPU and GPU work rates relative to their best second, 0..1. */
-    val cpuRelative: List<Double?>,
-    val gpuRelative: List<Double?>,
-    val batteryPercent: List<Int?>,
+    val cpuRelative: List<Double?> = emptyList(),
+    val gpuRelative: List<Double?> = emptyList(),
+    val batteryPercent: List<Int?> = emptyList(),
     /** Frames drawn each second, when the GPU drew. */
     val fps: List<Double?> = emptyList(),
 )
