@@ -34,7 +34,7 @@ jobs:
 
       # The same pinned tools the CI builds with, cached the same way.
       - name: Restore the pinned NDK and CMake
-        uses: actions/cache@v7
+        uses: actions/cache@v6
         with:
           path: |
             /usr/local/lib/android/sdk/ndk/29.0.14206865

@@ -41,7 +41,7 @@ jobs:
       # version fail as itself, not as a confusing native build error. The
       # install is cached by version, so a hit only confirms what is there.
       - name: Restore the pinned NDK and CMake
-        uses: actions/cache@v7
+        uses: actions/cache@v6
         with:
           path: |
             /usr/local/lib/android/sdk/ndk/29.0.14206865
