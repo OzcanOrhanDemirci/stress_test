@@ -70,7 +70,7 @@ The most recent release is the supported one. Older versions receive nothing.
 
 Use GitHub's
 [private vulnerability reporting](https://github.com/OzcanOrhanDemirci/stress_test/security/advisories/new),
-or write to **ozcanorhandem@gmail.com** with `stress_test security` in the
+or write to **mail@ozcanorhandemirci.com** with `stress_test security` in the
 subject.
 
 Please include what you found, the version or commit you found it in, the phone
