@@ -262,11 +262,7 @@ private fun QualityRow(quality: SceneQuality, onSelect: (SceneQuality) -> Unit) 
                 SegmentedControl(SceneQuality.entries, quality, onSelect, label = { stringResource(Labels.quality(it)) })
                 Text(stringResource(Labels.qualityDetail(quality)), style = StressType.BodySmall)
                 Text(
-                    stringResource(
-                        R.string.settings_quality_scale,
-                        quality.scalePercent(SceneKind.Pool),
-                        quality.scalePercent(SceneKind.Forest),
-                    ),
+                    stringResource(R.string.settings_quality_scale, quality.scalePercent(SceneKind.Pool)),
                     style = StressType.Code,
                     color = StressColors.TextDim,
                 )
