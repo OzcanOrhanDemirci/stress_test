@@ -80,6 +80,8 @@
     <string name="home_open_last">Open the last run</string>
     <string name="home_tag_selected">SELECTED</string>
     <string name="home_tag_plug">PLUG</string>
+    <string name="home_notice_charge_full">Battery full: nothing to measure</string>
+    <string name="home_tag_battery">BATTERY</string>
     <string name="home_tag_safety">SAFETY</string>
     <string name="home_tag_gpu">GPU</string>
     <string name="home_tag_data">DATA</string>

@@ -75,7 +75,10 @@ internal class ChargeViewModel(private val graph: AppGraph, private val duration
                 }
             } finally {
                 graph.sampler.endChargeSampling(sampling)
-                if (!session.update.cannotMeasure && !session.measured) {
+                if (session.update.alreadyFull) {
+                    // Started at full: nothing was charged, so nothing is kept; the screen says why.
+                    _state.value = _state.value.copy(update = session.update)
+                } else if (!session.update.cannotMeasure && !session.measured) {
                     // A 0:00 record with no reading would only clutter History.
                     _state.value = _state.value.copy(discarded = true)
                 } else if (!session.update.cannotMeasure) {
@@ -83,9 +86,12 @@ internal class ChargeViewModel(private val graph: AppGraph, private val duration
                     val id = withContext(NonCancellable + Dispatchers.IO) {
                         val device = withTimeoutOrNull(2_000) { runCatching { graph.device.await() }.getOrNull() }
                         val record = session.record(startedAt, end, duration.seconds, graph.appVersion, device)
-                        runCatching { graph.runs.save(record) }
+                        val saved = runCatching { graph.runs.save(record) }
                             .onFailure { Log.e("stress-charge", "Could not save charge run", it) }
-                            .getOrNull()?.let { record.id }
+                            .isSuccess
+                        // While it charges nobody watches the screen: say so where it will be heard.
+                        if (saved && session.reachedFull) graph.chargeNotifier.batteryFull(record)
+                        record.id.takeIf { saved }
                     }
                     _state.value = _state.value.copy(saving = false, saveFailed = id == null, recordId = id)
                 }

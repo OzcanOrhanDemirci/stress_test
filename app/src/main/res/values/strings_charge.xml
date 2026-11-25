@@ -63,4 +63,14 @@
     <string name="charge_compare_a">Setup A</string>
     <string name="charge_compare_b">Setup B</string>
     <string name="charge_compare_matching_level">Compare the curves at the same battery percentage.</string>
+    <string name="charge_already_full_short">Battery full</string>
+    <string name="charge_already_full">The battery is already full, so there is no charging to measure. Nothing was saved.</string>
+    <string name="charge_home_full">The battery is already full, so there is no charging to measure. Start the charge test below 100%.</string>
+    <string name="charge_notify_channel">Charge test</string>
+    <string name="charge_notify_title">Battery full</string>
+    <string name="charge_notify_time">Took %1$s.</string>
+    <string name="charge_notify_peak">Took %1$s. Peak %2$s W.</string>
+    <string name="charge_notify_full">Took %1$s. Peak %2$s W, sustained %3$s W.</string>
+    <string name="charge_notify_rationale_title">Battery full notice</string>
+    <string name="charge_notify_rationale">The app can tell you when a charge test fills the battery, while you are away from the screen. It sends no other notifications.</string>
 </resources>

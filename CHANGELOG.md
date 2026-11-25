@@ -22,7 +22,10 @@ used for real-device checks.
   then compare two chargers or cables side by side. A usable idle measurement
   also gives an estimate of power entering the phone. Charger output and
   losses in the charging circuit are outside the measurement. Results stay in
-  History and can be exported as CSV.
+  History and can be exported as CSV. When a test fills the battery, a
+  notification says so with the time it took and the peak and sustained
+  watts. A battery that is already full has nothing to measure, so the test
+  does not start and no empty record is saved.
 - **A fourth cinematic scene, the black hole.** The scene follows each pixel's
   light as it bends around a supermassive black hole. The far side of the
   accretion disk rises over and under the shadow, and stars double around its

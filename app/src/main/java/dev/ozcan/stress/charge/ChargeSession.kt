@@ -19,6 +19,8 @@ internal data class ChargeUpdate(
     val curve: List<Point> = emptyList(),
     val end: EndReason? = null,
     val cannotMeasure: Boolean = false,
+    /** The battery was already full when the measurement would have begun: there is no charging to measure or keep. */
+    val alreadyFull: Boolean = false,
 )
 
 /** One continuous plug-in session. Times are monotonic and relative to opening the run screen. */
@@ -42,13 +44,17 @@ internal class ChargeSession(private val plannedSeconds: Int?) {
     val points: List<ChargePoint> get() = recorded
 
     /** Whether the test got a single reading into the battery; one stopped before that has nothing to keep. */
-    val measured: Boolean get() = recorded.isNotEmpty()
+    val measured: Boolean get() = recorded.isNotEmpty() && !update.alreadyFull
+
+    /** Whether the test should tell the person the battery filled: it began below full and was measured up to full. */
+    val reachedFull: Boolean get() = update.end == EndReason.BatteryFull && !update.alreadyFull && measured
     var update = ChargeUpdate()
         private set
 
     fun read(tick: ChargeTick): ChargeUpdate {
         if (update.end != null || update.cannotMeasure) return update
         val (now, battery) = tick
+        val wasMeasuring = phase == ChargePhase.Measuring
         if (battery.plugStateKnown) {
             when (phase) {
                 ChargePhase.Preparing -> if (battery.plugged) {
@@ -63,6 +69,12 @@ internal class ChargeSession(private val plannedSeconds: Int?) {
         }
 
         val ended = endCondition(phase, battery, now - measurementStart, plannedSeconds)
+        // Full on the very first reading with the cable in: a 0:00 "battery full" record would say nothing.
+        val alreadyFull = ended == EndReason.BatteryFull && !wasMeasuring && recorded.isEmpty()
+        if (alreadyFull) {
+            update = ChargeUpdate(phase, 0.0, battery, idleWatts = idleWatts, end = ended, alreadyFull = true)
+            return update
+        }
         val canRead = ChargePower.raw(battery) != null && ChargePower.volts(battery) != null
         val responsive = canRead && ChargePower.raw(battery) != 0L
         var amps: Double? = null
@@ -200,11 +212,15 @@ internal class ChargeSession(private val plannedSeconds: Int?) {
         private const val CONVENTION_PROBE_SECONDS = 90.0
         private const val MEASUREMENT_LOST_SECONDS = 10.0
 
+        /** Full as Android reports it: 100 % or status FULL. A charge test that would start here has nothing to measure. */
+        fun isFull(levelPercent: Int?, status: Int? = null): Boolean =
+            levelPercent == 100 || status == BatteryManager.BATTERY_STATUS_FULL
+
         fun endCondition(phase: ChargePhase, battery: BatteryReading, elapsed: Double, planned: Int?): EndReason? = when {
             (battery.temperatureCelsius ?: Double.NEGATIVE_INFINITY) >= STOP_CELSIUS -> EndReason.Safety
             phase != ChargePhase.Measuring -> null
             battery.onBattery -> EndReason.Unplugged
-            battery.levelPercent == 100 || battery.status == BatteryManager.BATTERY_STATUS_FULL -> EndReason.BatteryFull
+            isFull(battery.levelPercent, battery.status) -> EndReason.BatteryFull
             planned != null && elapsed >= planned -> EndReason.Completed
             else -> null
         }

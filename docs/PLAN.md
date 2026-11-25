@@ -402,7 +402,12 @@ arası önerilir), seyrek okuma (akım 1 sn'den seyrek güncelleniyorsa söyleni
 başlamaz). İki şarj koşusu Karşılaştır'la yan yana konur: iki şarj cihazını ya da kabloyu ayırmanın yolu budur.
 
 **Akış.** Ana ekranda bir mod: "Şarj testi". Süre: 5 / 15 / 30 dk ya da dolana kadar. Kablosuz başlarsa: boşta ölçümü,
-sonra "şarj cihazını tak" beklemesi; takılınca ölçüm. Kablo çıkarılınca test biter ve kayıt saklanır. Ekran açık kalır,
+sonra "şarj cihazını tak" beklemesi; takılınca ölçüm. Kablo çıkarılınca test biter ve kayıt saklanır. Pil
+dolunca (%100 ya da Android "dolu" diyor) test biter, kayıt saklanır ve bir bildirim gelir ("Pil doldu", süre, tepe ve
+sürekli W; şarj olurken ekrana bakılmaz). Bildirim izni (Android 13+) şarj testi başlatılırken istenir, Android'in
+izin verdiği kadar (en çok iki kez, ikincisinde tek satır gerekçeyle); verilmezse test bildirimsiz biter. Pil zaten doluyken ölçülecek şarj yoktur (Özcan, 2026-11-26: "0:00 süreli bir PİL
+DOLDU diye kayda gerek yok"): ana ekran başlatmaz ve bunu söyler; ölçüm başladığı anda dolu çıkarsa test kayıt
+bırakmadan biter ve ekran nedenini söyler. Ekran açık kalır,
 düşük parlaklıkta, yük yoktur; telefonu kullanmak ölçümü bozar, ekran bunu söyler. Ana ekranda kablo takılıyken çıkan
 "güç ölçülemez" notu şarj testine yönlendirir.
 
