@@ -4,6 +4,10 @@ import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.run.EndReason
 import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.StressMode
+import java.math.BigDecimal
+import java.math.RoundingMode
+import kotlin.math.floor
+import kotlin.math.roundToLong
 
 /** Two runs side by side: their headline numbers and the change between them. Pure, so it is tested. */
 object Comparison {
@@ -22,19 +26,26 @@ object Comparison {
      * a stress test is after; a cooler phone, a later throttle and fewer errors
      * are better hardware or cooling.
      */
-    enum class Metric(val higherIsBetter: Boolean) {
+    enum class Metric(val higherIsBetter: Boolean, val delta: Delta = Delta.Percent) {
         PeakPower(true),
         SustainedPower(true),
         MeanPower(true),
-        HottestChip(false),
-        HottestBattery(false),
+        HottestChip(false, Delta.Degrees),
+        HottestBattery(false, Delta.Degrees),
         CpuRate(true),
         GpuRate(true),
         Fps(true),
         Stability(true),
-        FirstThrottle(true),
-        Errors(false),
+        FirstThrottle(true, Delta.Seconds),
+        Errors(false, Delta.Count),
     }
+
+    /**
+     * How the change from A to B is told: as a percent of A for power, work rates, frame rate and stability; as the
+     * plain difference in its own unit for a temperature (a percent of a Celsius reading means nothing), a time and a
+     * count.
+     */
+    enum class Delta { Percent, Degrees, Seconds, Count }
 
     data class Row(val metric: Metric, val a: Double?, val b: Double?) {
         /** B minus A in the measurement's own units, when both runs measured it. */
@@ -42,7 +53,26 @@ object Comparison {
 
         /** B against A, as a fraction of A: +0.12 is 12% more. Null when either is missing or A is zero. */
         val change: Double? get() = if (a != null && b != null && a != 0.0) (b - a) / a else null
+
+        /**
+         * B minus A as the screens show the two values, so the difference agrees with them: temperatures to a tenth
+         * of a degree, times in the whole seconds the clock shows, counts whole. Null for a [Delta.Percent] metric
+         * or when either run did not measure it.
+         */
+        val shownDifference: Double? get() {
+            if (a == null || b == null) return null
+            return when (metric.delta) {
+                Delta.Percent -> null
+                Delta.Degrees -> rounded(rounded(b, 1) - rounded(a, 1), 1)
+                Delta.Seconds -> floor(b) - floor(a)
+                Delta.Count -> (b.roundToLong() - a.roundToLong()).toDouble()
+            }
+        }
     }
+
+    /** [value] rounded half up to [decimals] places, the way the screens print it. */
+    fun rounded(value: Double, decimals: Int): Double =
+        BigDecimal.valueOf(value).setScale(decimals, RoundingMode.HALF_UP).toDouble()
 
     /** The rows worth showing: those where at least one run has a value. */
     fun rows(a: RunRecord, b: RunRecord): List<Row> =

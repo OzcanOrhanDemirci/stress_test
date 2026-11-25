@@ -186,10 +186,13 @@ private fun sideRows(context: Context, a: RunRecord, b: RunRecord): List<SideRow
     val (peakA, peakB) = metric(Comparison.Metric.PeakPower)
     val (sustainedA, sustainedB) = metric(Comparison.Metric.SustainedPower)
     val (chipA, chipB) = metric(Comparison.Metric.HottestChip)
+    // Each value is rounded as it is printed, so the difference is the one between the numbers on the screen.
+    fun watts(value: Double?) = value?.let { Comparison.rounded(it, Format.WATT_DECIMALS) }
+    fun degrees(value: Double?) = value?.let { Comparison.rounded(it, 1) }
     return listOf(
-        sideRow(context.getString(R.string.result_peak), peakA, peakB, "W", true, Format::wattNumber),
-        sideRow(context.getString(R.string.result_sustained), sustainedA, sustainedB, "W", true, Format::wattNumber),
-        sideRow(context.getString(R.string.result_hottest), chipA, chipB, "°C", false) { Format.number(it, 0) },
+        sideRow(context.getString(R.string.result_peak), watts(peakA), watts(peakB), "W", true, Format::wattNumber),
+        sideRow(context.getString(R.string.result_sustained), watts(sustainedA), watts(sustainedB), "W", true, Format::wattNumber),
+        sideRow(context.getString(R.string.result_hottest), degrees(chipA), degrees(chipB), "°C", false) { Format.number(it, 1) },
         // Less battery for the same work is the better phone or setting.
         sideRow(context.getString(R.string.compare_battery_drain), batteryDrain(a), batteryDrain(b), null, false, ::points),
     )
@@ -207,8 +210,8 @@ private fun verdict(context: Context, a: RunRecord, b: RunRecord): String {
         peak != null -> powerSentence(context, peak, R.string.compare_verdict_peak_more, R.string.compare_verdict_peak_less)
         else -> context.getString(R.string.compare_peak_unavailable)
     }
-    val chipA = Comparison.value(a, Comparison.Metric.HottestChip)
-    val chipB = Comparison.value(b, Comparison.Metric.HottestChip)
+    val chipA = Comparison.value(a, Comparison.Metric.HottestChip)?.let { Comparison.rounded(it, 1) }
+    val chipB = Comparison.value(b, Comparison.Metric.HottestChip)?.let { Comparison.rounded(it, 1) }
     val heat = if (chipA != null && chipB != null && abs(chipB - chipA) >= 1.0) {
         val text = Format.celsius(abs(chipB - chipA), 0)
         context.getString(if (chipB > chipA) R.string.compare_verdict_hotter else R.string.compare_verdict_cooler, text)
@@ -279,12 +282,12 @@ private fun metricName(metric: Comparison.Metric): Int = when (metric) {
     Comparison.Metric.Errors -> R.string.result_errors
 }
 
-private fun format(metric: Comparison.Metric, value: Double?): String {
+private fun format(metric: Comparison.Metric, value: Double?, scale: Double = 1.0): String {
     if (value == null) return Format.MISSING
     return when (metric) {
         Comparison.Metric.PeakPower, Comparison.Metric.SustainedPower, Comparison.Metric.MeanPower -> Format.watts(value)
         Comparison.Metric.HottestChip, Comparison.Metric.HottestBattery -> Format.celsius(value)
-        Comparison.Metric.CpuRate, Comparison.Metric.GpuRate -> Format.scaled(value).let { (v, p) -> "${Format.number(v, 1)} $p".trimEnd() }
+        Comparison.Metric.CpuRate, Comparison.Metric.GpuRate -> Format.number(value / scale, 1)
         Comparison.Metric.Fps -> Format.number(value, 1)
         Comparison.Metric.Stability -> Format.percent(value)
         Comparison.Metric.FirstThrottle -> Format.clock(value)
@@ -295,9 +298,21 @@ private fun format(metric: Comparison.Metric, value: Double?): String {
 /** Every compared number: the comparison's rows, then the run-level ones it does not hold (battery, energy). */
 private fun compareValues(context: Context, a: RunRecord, b: RunRecord): List<CompareValue> {
     val metrics = Comparison.rows(a, b).map { row ->
+        val name = context.getString(metricName(row.metric))
+        // A work rate's unit goes with its name ("CPU performance (GFLOPS)"), both runs on one prefix, so the
+        // numbers stay short enough for their column.
+        val symbol = when (row.metric) {
+            Comparison.Metric.CpuRate -> rateSymbol(context, a.summary.cpuUnit, b.summary.cpuUnit)
+            Comparison.Metric.GpuRate -> rateSymbol(context, a.summary.gpuUnit, b.summary.gpuUnit)
+            else -> null
+        }
+        val top = maxOf(row.a ?: 0.0, row.b ?: 0.0)
+        val (scaled, prefix) = Format.scaled(top)
+        val scale = if (symbol != null && scaled != 0.0) top / scaled else 1.0
         CompareValue(
-            context.getString(metricName(row.metric)), format(row.metric, row.a), format(row.metric, row.b),
-            signedPercent(row.change), changeColor(row.change, row.metric.higherIsBetter),
+            if (symbol != null) "$name ($prefix$symbol)" else name,
+            format(row.metric, row.a, scale), format(row.metric, row.b, scale),
+            delta(context, row), changeColor(row.change, row.metric.higherIsBetter),
         )
     }
     val drainA = batteryDrain(a)
@@ -308,13 +323,33 @@ private fun compareValues(context: Context, a: RunRecord, b: RunRecord): List<Co
     return metrics + listOfNotNull(
         CompareValue(
             context.getString(R.string.compare_battery_drain), drainA?.let(::points) ?: Format.MISSING,
-            drainB?.let(::points) ?: Format.MISSING, signedPercent(change(drainA, drainB)), changeColor(change(drainA, drainB), false),
+            drainB?.let(::points) ?: Format.MISSING,
+            // Battery use is already in percent: its change is told in points, as on the simple page.
+            if (drainA != null && drainB != null) (drainB - drainA).let { signed(it, points(it)) } else Format.MISSING,
+            changeColor(change(drainA, drainB), false),
         ).takeIf { drainA != null || drainB != null },
         CompareValue(
             context.getString(R.string.result_energy), wh(energyA), wh(energyB),
             signedPercent(change(energyA, energyB)), changeColor(change(energyA, energyB), true),
         ).takeIf { energyA != null || energyB != null },
     )
+}
+
+/** The unit of a work rate both runs share; null when they measured different work, as nothing then shares a unit. */
+private fun rateSymbol(context: Context, a: String?, b: String?): String? {
+    if (a != null && b != null && a != b) return null
+    return Labels.rateSymbol(context, a ?: b)
+}
+
+/** The Δ of a row: a percent of A, or the difference in the reading's own unit (DESIGN: no percent of a °C). */
+private fun delta(context: Context, row: Comparison.Row): String {
+    if (row.metric.delta == Comparison.Delta.Percent) return signedPercent(row.change)
+    val d = row.shownDifference ?: return Format.MISSING
+    return when (row.metric.delta) {
+        Comparison.Delta.Degrees -> signed(d, Format.celsius(d))
+        Comparison.Delta.Seconds -> signed(d, context.getString(R.string.compare_seconds_difference, d.toLong().toString()))
+        else -> signed(d, d.toLong().toString())
+    }
 }
 
 /** What one run was: its mode, workload, quality, safety and power state, then the lines every run has. */
