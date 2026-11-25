@@ -23,7 +23,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.GppBad
@@ -69,12 +71,16 @@ import dev.ozcan.stress.ui.components.StopButton
 import dev.ozcan.stress.ui.components.Temperatures
 import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.theme.ContentMaxWidth
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
 
 private val Limits = SafetyLimits()
+
+/** The chart's own width from which the run's live chart fills the middle of the page (tablets). */
+private val WIDE_CHART = 560.dp
 
 /**
  * The run's simple page (DESIGN "What each simple page keeps", Run): a slim status line on top, the scene (or the
@@ -108,14 +114,22 @@ internal fun RunReadings(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             )
         } else {
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                LiveChart(history, height = (maxHeight - 40.dp).coerceIn(96.dp, 240.dp))
+            BoxWithConstraints(
+                Modifier.weight(1f).fillMaxWidth().wrapContentWidth().widthIn(max = ContentMaxWidth).padding(16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                // On a phone the chart keeps a calm height in the middle; on a tablet's tall page it takes the
+                // whole middle, so the page does not float a ribbon between two empty bands.
+                val most = if (maxWidth >= WIDE_CHART) maxHeight - 40.dp else 240.dp
+                LiveChart(history, height = (maxHeight - 40.dp).coerceIn(96.dp, most.coerceAtLeast(96.dp)))
             }
         }
-        Column(Modifier.fillMaxWidth().background(StressColors.Background)) {
+        // The bottom panel's ground spans the window under a scene; its content keeps a phone-like width.
+        Column(Modifier.fillMaxWidth().background(StressColors.Background), horizontalAlignment = Alignment.CenterHorizontally) {
             Hairline()
             Column(
-                Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth().navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
                 Arrangement.spacedBy(12.dp),
             ) {
                 if (total != null) MeterBar((elapsed / total).toFloat())
@@ -134,18 +148,20 @@ private fun RunStatusLine(scene: Boolean, elapsed: Double, total: Double?, safet
     val scrim = if (scene) {
         Modifier.background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.72f), Color.Transparent)))
     } else Modifier
-    Row(
-        Modifier.fillMaxWidth().then(scrim).statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
-        Arrangement.spacedBy(8.dp),
-        Alignment.CenterVertically,
-    ) {
-        RecordingDot()
-        Text(
-            "${Format.clock(elapsed)} / ${total?.let(Format::clock) ?: stringResource(R.string.duration_endless)}",
-            style = NumberStyles.Small, color = StressColors.Text, maxLines = 1,
-        )
-        Spacer(Modifier.weight(1f))
-        RunProtection(safety, safetyOn)
+    Box(Modifier.fillMaxWidth().then(scrim).statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
+        Row(
+            Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+            Arrangement.spacedBy(8.dp),
+            Alignment.CenterVertically,
+        ) {
+            RecordingDot()
+            Text(
+                "${Format.clock(elapsed)} / ${total?.let(Format::clock) ?: stringResource(R.string.duration_endless)}",
+                style = NumberStyles.Small, color = StressColors.Text, maxLines = 1,
+            )
+            Spacer(Modifier.weight(1f))
+            RunProtection(safety, safetyOn)
+        }
     }
 }
 

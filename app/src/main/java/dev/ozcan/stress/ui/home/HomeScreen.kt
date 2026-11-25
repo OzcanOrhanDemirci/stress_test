@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -230,6 +231,27 @@ fun HomeScreen(
         return
     }
 
+    val start: @Composable () -> Unit = {
+        PrimaryButton(
+            text = stringResource(R.string.home_start),
+            icon = Icons.Rounded.PlayArrow,
+            enabled = !mode.usesGpu || gpuOk,
+            onClick = {
+                val block = model.startBlock(mode)
+                if (block != null) {
+                    blocked = block
+                    if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
+                } else {
+                    if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    onStart(mode, duration)
+                }
+            },
+        )
+    }
+    // A phone pins the start button above the tab bar; a tablet's tall page would leave it far below the content
+    // it starts, so there it follows the content.
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         TopBar(
             caption = device?.let(::deviceCaption) ?: stringResource(R.string.home_tagline),
@@ -314,25 +336,14 @@ fun HomeScreen(
             }
 
             EngineeringRow(pluralStringResource(R.plurals.parts_values, log.count, log.count).upper(), { engineering = true })
+            if (wide) start()
         }
 
-        Hairline()
-        Box(Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp)) {
-            PrimaryButton(
-                text = stringResource(R.string.home_start),
-                icon = Icons.Rounded.PlayArrow,
-                enabled = !mode.usesGpu || gpuOk,
-                onClick = {
-                    val block = model.startBlock(mode)
-                    if (block != null) {
-                        blocked = block
-                        if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
-                    } else {
-                        if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                        onStart(mode, duration)
-                    }
-                },
-            )
+        if (!wide) {
+            Hairline()
+            Box(Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp)) {
+                start()
+            }
         }
     }
 
