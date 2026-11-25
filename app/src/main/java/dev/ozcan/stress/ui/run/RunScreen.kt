@@ -407,6 +407,7 @@ private fun TopHud(
             if (quality != null) Pill(stringResource(Labels.quality(quality)), StressColors.Cool)
             if (!safetyOn || safety.level == SafetyLevel.Ok) SafetyChip(safety, safetyOn)
         }
+        live?.gpu?.sceneDraw?.let { DrawnQualityNotice(mode.scene, quality, it.quality, it.scalePercent) }
         AnimatedVisibility(safetyOn && safety.level != SafetyLevel.Ok) { SafetyChip(safety, safetyOn) }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(Format.clock(elapsed), style = NumberStyles.Small, color = StressColors.Text)

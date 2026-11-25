@@ -72,6 +72,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
+import dev.ozcan.stress.analysis.Comparison
 import dev.ozcan.stress.analysis.Insight
 import dev.ozcan.stress.analysis.Insights
 import dev.ozcan.stress.analysis.ReferenceDevices
@@ -100,6 +101,7 @@ import dev.ozcan.stress.ui.components.StatTile
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.run.DrawnQualityNotice
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import java.io.File
@@ -126,8 +128,10 @@ class ResultViewModel(private val graph: AppGraph, private val runId: String) : 
 
     suspend fun delete() = withContext(Dispatchers.IO) { graph.runs.delete(runId) }
 
-    /** Every other stored run, newest first: what this one can be compared with. */
-    suspend fun others(): List<RunRecord> = withContext(Dispatchers.IO) { graph.runs.list().filter { it.id != runId } }
+    /** Eligible stored runs, newest first. */
+    suspend fun others(): List<RunRecord> = withContext(Dispatchers.IO) {
+        graph.runs.list().filter { it.id != runId && Comparison.isEligible(it) }
+    }
 }
 
 @Composable
@@ -161,7 +165,7 @@ private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
         Text(stringResource(R.string.result_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         if (record != null) {
-            IconButton(onClick = { scope.launch { others = model.others() } }) {
+            IconButton(enabled = Comparison.isEligible(record), onClick = { scope.launch { others = model.others() } }) {
                 Icon(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), tint = StressColors.TextDim)
             }
             IconButton(onClick = { confirmDelete = true }) {
@@ -241,7 +245,17 @@ private fun ResultBody(record: RunRecord, insights: List<Insight>) {
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Reveal(shown, 0) { Header(record) }
+        Reveal(shown, 0) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Header(record)
+                DrawnQualityNotice(
+                    StressMode.of(record.mode)?.scene,
+                    SceneQuality.entries.firstOrNull { it.name == record.quality },
+                    SceneQuality.entries.firstOrNull { it.name == record.drawnQuality },
+                    record.drawnScalePercent,
+                )
+            }
+        }
         Reveal(shown, 1) { Hero(record) }
 
         Reveal(shown, 2) { Tiles(record) }
@@ -413,14 +427,12 @@ private fun Hero(record: RunRecord) {
                 }
             }
         }
-        StressMode.of(record.mode)?.let { mode ->
-            ReferenceDevices.forMode(context, mode)?.let { (device, watts) ->
-                Text(
-                    stringResource(R.string.result_reference, device.name, device.chipset, Format.watts(watts)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = StressColors.TextDim,
-                )
-            }
+        ReferenceDevices.forRun(context, record)?.let { (device, watts) ->
+            Text(
+                stringResource(R.string.result_reference, device.name, device.chipset, Format.watts(watts)),
+                style = MaterialTheme.typography.bodySmall,
+                color = StressColors.TextDim,
+            )
         }
         if (s.powerFromCounter) {
             Text(stringResource(R.string.insight_counter_detail), style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
