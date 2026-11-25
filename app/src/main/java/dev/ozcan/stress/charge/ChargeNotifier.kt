@@ -37,10 +37,12 @@ class ChargeNotifier(private val app: Context) {
         val tap = PendingIntent.getActivity(
             app, record.id.hashCode(), open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        val text = context.getString(R.string.charge_notify_title) + " " + summary(context, record)
         val notification = NotificationCompat.Builder(app, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context.getString(R.string.charge_notify_title))
-            .setContentText(summary(context, record))
+            // One sentence and no title: some launchers join a title and its text with a dash.
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(tap)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -64,7 +66,7 @@ class ChargeNotifier(private val app: Context) {
         app.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    /** "Took 1 h 12 min. Peak 18.2 W, sustained 15.0 W." with what the record has. */
+    /** "Took 1 h 12 min. Peak 18.2 W, sustained 15.0 W." with what the record has; it follows "Battery full." */
     private fun summary(context: Context, record: RunRecord): String {
         val took = minutesText(context, (record.loadSeconds / 60).roundToLong().coerceAtLeast(1))
         val peak = record.summary.peakWatts?.let(Format::wattNumber)
