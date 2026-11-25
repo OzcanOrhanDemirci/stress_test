@@ -62,6 +62,16 @@ class ChargeTest {
     }
 
     @Test
+    fun `a test stopped while waiting for the charger has no reading to keep`() {
+        val session = ChargeSession(300)
+        for (second in 0..25) session.read(tick(second, 250_000, plugged = false))
+        assertEquals(ChargePhase.Waiting, session.update.phase)
+        assertFalse(session.measured)
+        session.read(tick(26, -4_500_000))
+        assertTrue(session.measured)
+    }
+
+    @Test
     fun `counter and level direction can identify charging without a charging status`() {
         val ticks = (0..5).map { second ->
             tick(second, -4500, status = BatteryManager.BATTERY_STATUS_UNKNOWN, counter = 1_500_000L + second * 1250)

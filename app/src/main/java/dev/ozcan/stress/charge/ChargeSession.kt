@@ -40,6 +40,9 @@ internal class ChargeSession(private val plannedSeconds: Int?) {
     private var inferredWhilePlugged = false
 
     val points: List<ChargePoint> get() = recorded
+
+    /** Whether the test got a single reading into the battery; one stopped before that has nothing to keep. */
+    val measured: Boolean get() = recorded.isNotEmpty()
     var update = ChargeUpdate()
         private set
 
