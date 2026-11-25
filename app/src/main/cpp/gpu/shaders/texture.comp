@@ -2,7 +2,7 @@
 // G3: bilinear texture sampling. Four independent coordinate streams walk a
 // 16 MiB texture, so the texture units, their caches and DRAM all work.
 // One iteration = 4 samples.
-layout(local_size_x = 64) in;
+layout(local_size_x = 64, local_size_x_id = 0) in;
 
 layout(push_constant) uniform Params {
     uint iterations;

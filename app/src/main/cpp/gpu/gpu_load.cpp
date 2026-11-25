@@ -15,9 +15,11 @@
 #include <cstdio>
 #include <cstring>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 #include "common/log.h"
+#include "gpu/compat.h"
 #include "gpu/scene_renderer.h"
 #include "gpu/vk.h"
 #include "shaders/alu_fp16_comp.h"
@@ -61,7 +63,6 @@ constexpr uint32_t kTextureSize = 2048;
 constexpr uint32_t kFramesInFlight = 3;
 constexpr uint32_t kStampsPerFrame = 3;  // frame start, burner done, visible pass done
 constexpr uint32_t kMaxDispatches = 256;
-constexpr uint32_t kMaxGroups = 2048;  // result slots reserved per dispatch
 
 static_assert(kBandwidthBytes == 32u * 1024 * 1024, "bandwidth buffers are meant to be 32 MiB");
 
@@ -89,6 +90,8 @@ struct PreviewParams {
     float height;
     float time;
     float load;
+    uint32_t transform;
+    uint32_t srgb;
 };
 
 struct ComputeParams {
@@ -98,6 +101,58 @@ struct ComputeParams {
 
 using vk::Buffer;
 using vk::Image;
+
+bool hasDeviceExtension(VkPhysicalDevice physical, const char* name) {
+    uint32_t count = 0;
+    if (vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, nullptr) != VK_SUCCESS) return false;
+    std::vector<VkExtensionProperties> extensions(count);
+    if (vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, extensions.data()) != VK_SUCCESS) return false;
+    extensions.resize(count);
+    return std::any_of(extensions.begin(), extensions.end(), [name](const auto& e) {
+        return std::strcmp(e.extensionName, name) == 0;
+    });
+}
+
+struct DeviceChoice {
+    VkPhysicalDevice device = VK_NULL_HANDLE;
+    VkPhysicalDeviceProperties properties{};
+    uint32_t queueFamily = 0;
+    uint32_t timestampBits = 0;
+};
+
+DeviceChoice chooseDevice(VkInstance instance, VkSurfaceKHR surface = VK_NULL_HANDLE) {
+    uint32_t count = 0;
+    if (vkEnumeratePhysicalDevices(instance, &count, nullptr) != VK_SUCCESS || count == 0) return {};
+    std::vector<VkPhysicalDevice> devices(count);
+    if (vkEnumeratePhysicalDevices(instance, &count, devices.data()) != VK_SUCCESS) return {};
+    devices.resize(count);
+    for (auto device : devices) {
+        VkPhysicalDeviceProperties props{};
+        vkGetPhysicalDeviceProperties(device, &props);
+        // A software Vulkan implementation would put the "GPU" load on the CPU.
+        if (props.apiVersion < VK_API_VERSION_1_1 || props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU ||
+            !hasDeviceExtension(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) continue;
+        uint32_t familyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &familyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> families(familyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &familyCount, families.data());
+        DeviceChoice choice;
+        for (uint32_t i = 0; i < familyCount; ++i) {
+            constexpr VkQueueFlags required = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+            if ((families[i].queueFlags & required) != required || families[i].queueCount == 0) continue;
+            if (surface != VK_NULL_HANDLE) {
+                VkBool32 present = VK_FALSE;
+                if (vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present) != VK_SUCCESS || !present) continue;
+            }
+            const uint32_t bits = props.limits.timestampPeriod > 0.0f ? families[i].timestampValidBits : 0;
+            if (choice.device == VK_NULL_HANDLE || (choice.timestampBits == 0 && bits > 0)) {
+                choice = {device, props, i, bits};
+            }
+        }
+        if (choice.device != VK_NULL_HANDLE) return choice;
+    }
+    return {};
+}
 
 }  // namespace
 
@@ -129,6 +184,9 @@ struct GpuLoad::Renderer {
     VkFormat format = VK_FORMAT_UNDEFINED;
     VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     VkExtent2D extent{};
+    VkExtent2D screen{};  // the scene's orientation, before the final pass pre-rotates
+    VkSurfaceTransformFlagBitsKHR transform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    VkSurfaceTransformFlagBitsKHR surfaceTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     VkRenderPass presentPass = VK_NULL_HANDLE;
     std::vector<VkImageView> views;
     std::vector<VkFramebuffer> framebuffers;
@@ -163,6 +221,7 @@ struct GpuLoad::Renderer {
     SceneRenderer sceneRenderer;
 
     uint32_t groups = 0;
+    uint32_t groupSize = kGroupSize;
     uint32_t iterations = 0;
     double workPerDispatch = 0;
     uint32_t perFrame = 1;
@@ -171,22 +230,15 @@ struct GpuLoad::Renderer {
     std::vector<uint32_t> golden;
     int64_t startNanos = 0;
 
-    pthread_t thread{};
-    bool threadStarted = false;
     std::atomic<bool> stopRequested{false};
-    // A frame wait that ran past its budget means a hung driver: the device
-    // is treated as lost, and even a wait-idle is skipped on the way out,
-    // for it may never answer.
-    bool deviceTimedOut = false;
-    // A frame takes at most a few hundred milliseconds even at High quality
-    // on a slow phone; two seconds of silence means the driver stopped
-    // answering.
     static constexpr int64_t kFrameWaitNanos = 2'000'000'000;
 
-    // Initialisation runs on the render thread; start() waits for its outcome.
-    std::mutex initMutex;
-    std::condition_variable initDone;
+    // All Vulkan calls including teardown stay on this thread. A wedged driver
+    // must not make Android's surface callbacks join it indefinitely.
+    std::mutex threadMutex;
+    std::condition_variable threadChanged;
     int initResult = -1;  // -1 pending, 0 ok, 1 failed
+    std::atomic<bool> finished{false};
 
     std::atomic<int> state{kStateIdle};
     std::atomic<int64_t> frames{0};
@@ -203,7 +255,15 @@ struct GpuLoad::Renderer {
     std::atomic<uint32_t> height{0};
 
     static void* threadMain(void* arg) {
-        static_cast<Renderer*>(arg)->run();
+        std::unique_ptr<std::shared_ptr<Renderer>> self(static_cast<std::shared_ptr<Renderer>*>(arg));
+        auto& renderer = **self;
+        renderer.run();
+        renderer.destroy();
+        {
+            std::lock_guard lock(renderer.threadMutex);
+            renderer.finished.store(true);
+        }
+        renderer.threadChanged.notify_all();
         return nullptr;
     }
 
@@ -212,30 +272,26 @@ struct GpuLoad::Renderer {
         setpriority(PRIO_PROCESS, static_cast<id_t>(gettid()), -8);
         const bool ok = init();
         {
-            std::lock_guard lock(initMutex);
+            std::lock_guard lock(threadMutex);
+            if (ok) state.store(kStateRunning);
+            else if (state.load() == kStateIdle) state.store(kStateFailed);
             initResult = ok ? 0 : 1;
         }
-        initDone.notify_all();
-        if (!ok) {
-            state.store(kStateFailed);
-            return;
-        }
-        state.store(kStateRunning);
+        threadChanged.notify_all();
+        if (!ok) return;
         startNanos = nowNanos();
         while (!stopRequested.load(std::memory_order_relaxed)) {
             if (!frame()) break;
         }
-        if (device != VK_NULL_HANDLE && !deviceTimedOut) vkDeviceWaitIdle(device);
     }
 
     // ---- setup ----------------------------------------------------------------
 
     bool init() {
-        // The loader of a phone may be older than its driver: ask for the
-        // newer of 1.1 and what the loader knows, up to 1.2.
-        uint32_t loader = VK_API_VERSION_1_0;
-        if (vkEnumerateInstanceVersion(&loader) != VK_SUCCESS) loader = VK_API_VERSION_1_0;
-        instanceVersion = std::min<uint32_t>(std::max<uint32_t>(loader, VK_API_VERSION_1_1), VK_API_VERSION_1_2);
+        uint32_t loader = 0;
+        VK_TRY(vkEnumerateInstanceVersion(&loader));
+        if (loader < VK_API_VERSION_1_1) return false;
+        instanceVersion = std::min<uint32_t>(loader, VK_API_VERSION_1_2);
         VkApplicationInfo app{};
         app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         app.pApplicationName = "stress";
@@ -253,53 +309,42 @@ struct GpuLoad::Renderer {
         surfaceInfo.window = window;
         VK_TRY(vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface));
 
-        uint32_t count = 1;
-        VkResult enumerated = vkEnumeratePhysicalDevices(instance, &count, &physical);
-        if ((enumerated != VK_SUCCESS && enumerated != VK_INCOMPLETE) || count == 0) {
-            LOGE("no Vulkan device");
+        const auto choice = chooseDevice(instance, surface);
+        if (choice.device == VK_NULL_HANDLE) {
+            LOGE("no Vulkan 1.1 hardware device with graphics, compute and present");
             return false;
         }
-        VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(physical, &properties);
+        physical = choice.device;
+        const auto& properties = choice.properties;
         vkGetPhysicalDeviceMemoryProperties(physical, &memoryProperties);
         timestampPeriodNanos = properties.limits.timestampPeriod;
         const uint32_t deviceVersion = std::min(properties.apiVersion, instanceVersion);
-        if (deviceVersion < VK_API_VERSION_1_1) {
-            LOGE("%s has Vulkan %u.%u; 1.1 is needed", properties.deviceName, VK_API_VERSION_MAJOR(properties.apiVersion),
-                 VK_API_VERSION_MINOR(properties.apiVersion));
-            return false;
-        }
-
-        uint32_t familyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(physical, &familyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> families(familyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(physical, &familyCount, families.data());
-        // A family that can draw, compute and present; one with timestamps if
-        // there is one. Without them frames are timed on the CPU (collect()).
-        bool foundFamily = false;
-        for (uint32_t i = 0; i < familyCount; ++i) {
-            VkBool32 present = VK_FALSE;
-            vkGetPhysicalDeviceSurfaceSupportKHR(physical, i, surface, &present);
-            const VkQueueFlags need = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
-            if ((families[i].queueFlags & need) != need || !present) continue;
-            const bool stamps = families[i].timestampValidBits > 0 && timestampPeriodNanos > 0.0;
-            if (foundFamily && (timed || !stamps)) continue;
-            queueFamily = i;
-            timed = stamps;
-            if (stamps) {
-                timestampMask = families[i].timestampValidBits >= 64 ? ~0ULL : (1ULL << families[i].timestampValidBits) - 1;
-            }
-            foundFamily = true;
-        }
-        if (!foundFamily) {
-            LOGE("no queue family with graphics, compute and present");
-            return false;
+        queueFamily = choice.queueFamily;
+        // TOP/BOTTOM timestamps need valid bits on this queue. The separate
+        // timestampComputeAndGraphics limit describes support across queues.
+        timed = choice.timestampBits > 0;
+        if (choice.timestampBits > 0 && choice.timestampBits < 64) {
+            timestampMask = (1ULL << choice.timestampBits) - 1;
         }
         if (!timed) LOGW("no GPU timestamps: frames are timed on the CPU");
 
+        VkPhysicalDeviceSubgroupProperties subgroup{};
+        subgroup.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+        VkPhysicalDeviceProperties2 properties2{};
+        properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        properties2.pNext = &subgroup;
+        vkGetPhysicalDeviceProperties2(physical, &properties2);
+        if (burner == kFp32 || burner == kFp16 || burner == kTexture) {
+            groupSize = vk::burnerGroupSize((subgroup.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) ?
+                                                subgroup.subgroupSize : 0,
+                                            properties.limits.maxComputeWorkGroupSize[0],
+                                            properties.limits.maxComputeWorkGroupInvocations);
+        }
+
         // FP16 arithmetic (G2 only): a Vulkan 1.2 feature, or on 1.1 the extension it came from.
         const bool vulkan12 = deviceVersion >= VK_API_VERSION_1_2;
-        const bool float16Extension = !vulkan12 && hasDeviceExtension(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
+        const bool float16Extension = burner == kFp16 && !vulkan12 &&
+                                      hasDeviceExtension(physical, VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
         VkPhysicalDeviceVulkan12Features supported12{};
         supported12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
         VkPhysicalDeviceShaderFloat16Int8Features supportedFloat16{};
@@ -316,7 +361,7 @@ struct GpuLoad::Renderer {
         }
         VkPhysicalDeviceVulkan12Features enabled12{};
         enabled12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-        enabled12.shaderFloat16 = float16 ? VK_TRUE : VK_FALSE;
+        enabled12.shaderFloat16 = burner == kFp16 && float16 ? VK_TRUE : VK_FALSE;
         VkPhysicalDeviceShaderFloat16Int8Features enabledFloat16{};
         enabledFloat16.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
         enabledFloat16.shaderFloat16 = float16 ? VK_TRUE : VK_FALSE;
@@ -335,7 +380,7 @@ struct GpuLoad::Renderer {
         if (float16Extension && float16) deviceExtensions.push_back(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
         VkDeviceCreateInfo deviceInfo{};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceInfo.pNext = vulkan12 ? static_cast<const void*>(&enabled12)
+        deviceInfo.pNext = vulkan12 && enabled12.shaderFloat16 ? static_cast<const void*>(&enabled12)
                                     : float16Extension && float16 ? static_cast<const void*>(&enabledFloat16) : nullptr;
         deviceInfo.pEnabledFeatures = &enabledFeatures;
         deviceInfo.queueCreateInfoCount = 1;
@@ -371,42 +416,63 @@ struct GpuLoad::Renderer {
             return false;
         }
 
-        return createPresentPass() && createSwapchain() && createFrameResources() && createBurnerResources() &&
-               createPipelines();
+        VkSurfaceCapabilitiesKHR caps{};
+        VkSurfaceFormatKHR chosen{};
+        return readSurface(caps, chosen) && configureSurface(caps, chosen, surfaceExtent(caps)) &&
+               createFrameResources() && createBurnerResources() && createPipelines();
     }
 
-    bool hasDeviceExtension(const char* name) const {
-        uint32_t count = 0;
-        if (vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, nullptr) != VK_SUCCESS) return false;
-        std::vector<VkExtensionProperties> extensions(count);
-        if (vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, extensions.data()) != VK_SUCCESS) return false;
-        for (const auto& e : extensions) {
-            if (std::strcmp(e.extensionName, name) == 0) return true;
+    bool readSurface(VkSurfaceCapabilitiesKHR& caps, VkSurfaceFormatKHR& chosen) {
+        const VkResult capabilities = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps);
+        if (capabilities != VK_SUCCESS) return lost("surface capabilities", capabilities);
+        uint32_t formatCount = 0;
+        VK_TRY(vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface, &formatCount, nullptr));
+        if (formatCount == 0) return false;
+        std::vector<VkSurfaceFormatKHR> formats(formatCount);
+        VK_TRY(vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface, &formatCount, formats.data()));
+        formats.resize(formatCount);
+        chosen = vk::surfaceFormat(formats);
+        if (chosen.format == VK_FORMAT_UNDEFINED || !(caps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+            LOGE("no SDR swapchain color attachment");
+            return false;
         }
-        return false;
+        return true;
+    }
+
+    VkExtent2D surfaceExtent(const VkSurfaceCapabilitiesKHR& caps) const {
+        if (caps.currentExtent.width != UINT32_MAX) return caps.currentExtent;
+        const int32_t w = ANativeWindow_getWidth(window);
+        const int32_t h = ANativeWindow_getHeight(window);
+        if (w <= 0 || h <= 0) return {};
+        return {std::clamp(static_cast<uint32_t>(w), caps.minImageExtent.width, caps.maxImageExtent.width),
+                std::clamp(static_cast<uint32_t>(h), caps.minImageExtent.height, caps.maxImageExtent.height)};
+    }
+
+    bool configureSurface(const VkSurfaceCapabilitiesKHR& caps, VkSurfaceFormatKHR chosen, VkExtent2D size) {
+        const bool formatChanged = chosen.format != format;
+        format = chosen.format;
+        colorSpace = chosen.colorSpace;
+        extent = size;
+        surfaceTransform = caps.currentTransform;
+        // Leave rotation to Android when IDENTITY is supported. If the surface
+        // requires pre-rotation, sample the upright scene through that transform.
+        transform = (caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+                        ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : caps.currentTransform;
+        screen = vk::quarterTurn(transform) ? VkExtent2D{extent.height, extent.width} : extent;
+        if (extent.width == 0 || extent.height == 0) return false;
+        if (formatChanged) {
+            destroySwapchainViews();
+            if (presentPass) vkDestroyRenderPass(device, presentPass, nullptr);
+            presentPass = VK_NULL_HANDLE;
+            if (!createPresentPass()) return false;
+        }
+        if (!createSwapchain(caps)) return false;
+        width.store(screen.width, std::memory_order_relaxed);
+        height.store(screen.height, std::memory_order_relaxed);
+        return true;
     }
 
     bool createPresentPass() {
-        VkSurfaceCapabilitiesKHR caps;
-        VK_TRY(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps));
-        uint32_t formatCount = 0;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface, &formatCount, nullptr);
-        std::vector<VkSurfaceFormatKHR> formats(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface, &formatCount, formats.data());
-        if (formats.empty()) return false;
-        // The final pass writes display-ready (gamma-encoded) values, so an
-        // sRGB format, which would encode them again, comes last.
-        format = formats[0].format == VK_FORMAT_UNDEFINED ? VK_FORMAT_R8G8B8A8_UNORM : formats[0].format;
-        colorSpace = formats[0].colorSpace;
-        for (VkFormat wanted : {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM}) {
-            for (const auto& f : formats) {
-                if (f.format == wanted && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-                    format = f.format;
-                    colorSpace = f.colorSpace;
-                }
-            }
-        }
-
         VkAttachmentDescription color{};
         color.format = format;
         color.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -419,23 +485,9 @@ struct GpuLoad::Renderer {
         return vk.renderPass(std::span(&color, 1), false, presentPass);
     }
 
-    bool createSwapchain() {
-        VkSurfaceCapabilitiesKHR caps;
-        VK_TRY(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps));
-        extent = caps.currentExtent;
-        if (extent.width == 0 || extent.height == 0) return false;
-        width.store(extent.width, std::memory_order_relaxed);
-        height.store(extent.height, std::memory_order_relaxed);
+    bool createSwapchain(const VkSurfaceCapabilitiesKHR& caps) {
         uint32_t imageCount = std::max<uint32_t>(caps.minImageCount, 3);
         if (caps.maxImageCount > 0) imageCount = std::min(imageCount, caps.maxImageCount);
-        VkCompositeAlphaFlagBitsKHR alpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
-        for (VkCompositeAlphaFlagBitsKHR candidate : {VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR}) {
-            if (caps.supportedCompositeAlpha & candidate) {
-                alpha = candidate;
-                break;
-            }
-        }
-
         VkSwapchainKHR old = swapchain;
         VkSwapchainCreateInfoKHR info{};
         info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -447,19 +499,23 @@ struct GpuLoad::Renderer {
         info.imageArrayLayers = 1;
         info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        info.preTransform = caps.currentTransform;
-        info.compositeAlpha = alpha;
+        info.preTransform = transform;
+        info.compositeAlpha = vk::compositeAlpha(caps.supportedCompositeAlpha);
         info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         info.clipped = VK_TRUE;
         info.oldSwapchain = old;
-        VK_TRY(vkCreateSwapchainKHR(device, &info, nullptr, &swapchain));
+        VkSwapchainKHR next = VK_NULL_HANDLE;
+        const VkResult created = vkCreateSwapchainKHR(device, &info, nullptr, &next);
+        if (created != VK_SUCCESS) return lost("vkCreateSwapchainKHR", created);
+        swapchain = next;
         destroySwapchainViews();
         if (old != VK_NULL_HANDLE) vkDestroySwapchainKHR(device, old, nullptr);
 
         uint32_t count = 0;
-        vkGetSwapchainImagesKHR(device, swapchain, &count, nullptr);
+        VK_TRY(vkGetSwapchainImagesKHR(device, swapchain, &count, nullptr));
         std::vector<VkImage> images(count);
-        vkGetSwapchainImagesKHR(device, swapchain, &count, images.data());
+        VK_TRY(vkGetSwapchainImagesKHR(device, swapchain, &count, images.data()));
+        images.resize(count);
         for (VkImage image : images) {
             VkImageView view;
             if (!vk.createView(image, format, view)) return false;
@@ -513,31 +569,27 @@ struct GpuLoad::Renderer {
         queryInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
         queryInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
         queryInfo.queryCount = kStampsPerFrame * kFramesInFlight;
-        VK_TRY(vkCreateQueryPool(device, &queryInfo, nullptr, &queries));
+        const VkResult created = vkCreateQueryPool(device, &queryInfo, nullptr, &queries);
+        if (created == VK_ERROR_DEVICE_LOST) return lost("vkCreateQueryPool", created);
+        if (created != VK_SUCCESS) {
+            LOGW("timestamp queries unavailable (%d): using CPU frame timing", static_cast<int>(created));
+            timed = false;
+        }
         return true;
     }
 
     bool createBurnerResources() {
-        const VkDeviceSize resultBytes = VkDeviceSize{kFramesInFlight} * kMaxDispatches * kMaxGroups * sizeof(uint32_t);
-        if (!vk.createBuffer(resultBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                          {VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                               VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT},
-                          results)) {
-            return false;
-        }
-
         switch (burner) {
             case kFp32:
             case kFp16:
-                groups = kAluGroups;
+                groups = kAluGroups * kGroupSize / groupSize;
                 iterations = kAluIterations;
-                workPerDispatch = double{kAluGroups} * kGroupSize * kAluIterations * kAluFlopPerIteration;
+                workPerDispatch = static_cast<double>(groups) * groupSize * iterations * kAluFlopPerIteration;
                 break;
             case kTexture:
-                groups = kTextureGroups;
+                groups = kTextureGroups * kGroupSize / groupSize;
                 iterations = kTextureIterations;
-                workPerDispatch = double{kTextureGroups} * kGroupSize * kTextureIterations * kSamplesPerIteration;
+                workPerDispatch = static_cast<double>(groups) * groupSize * iterations * kSamplesPerIteration;
                 if (!createNoiseTexture()) return false;
                 break;
             case kBandwidth:
@@ -553,12 +605,18 @@ struct GpuLoad::Renderer {
             default:
                 break;
         }
-        return true;
+        if (groups == 0) return true;  // The preview and the blend burner have no compute digests.
+        const VkDeviceSize resultBytes = VkDeviceSize{kFramesInFlight} * kMaxDispatches * groups * sizeof(uint32_t);
+        return vk.createBuffer(resultBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                               {VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                                    VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT}, results);
     }
 
     bool createStaging(VkDeviceSize bytes, uint64_t seed, Buffer& staging) {
         if (!vk.createBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                           {VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT}, staging)) {
+            vk.destroy(staging);
             return false;
         }
         fillRandom(staging.mapped, static_cast<size_t>(bytes), seed);
@@ -612,6 +670,12 @@ struct GpuLoad::Renderer {
             vk.runOnce([&](VkCommandBuffer cmd) {
                 VkBufferCopy copy{0, 0, kBandwidthBytes};
                 vkCmdCopyBuffer(cmd, staging.buffer, source.buffer, 1, &copy);
+                VkMemoryBarrier ready{};
+                ready.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+                ready.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                ready.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+                                     1, &ready, 0, nullptr, 0, nullptr);
             });
         vk.destroy(staging);
         return ok;
@@ -644,6 +708,37 @@ struct GpuLoad::Renderer {
     }
 
     bool createPipelines() {
+        if (groups > 0 && !createComputeLayout()) return false;
+        VkPushConstantRange graphicsPush{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PreviewParams)};
+        VkPipelineLayoutCreateInfo graphicsLayoutInfo{};
+        graphicsLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        graphicsLayoutInfo.pushConstantRangeCount = 1;
+        graphicsLayoutInfo.pPushConstantRanges = &graphicsPush;
+        VK_TRY(vkCreatePipelineLayout(device, &graphicsLayoutInfo, nullptr, &graphicsLayout));
+
+        switch (burner) {
+            case kFp32: if (!createComputePipeline(kAluFp32CompSpirv)) return false; break;
+            case kFp16: if (!createComputePipeline(kAluFp16CompSpirv)) return false; break;
+            case kTexture: if (!createComputePipeline(kTextureCompSpirv)) return false; break;
+            case kBandwidth: if (!vk.computePipeline(computeLayout, kBandwidthCompSpirv, burnerPipeline)) return false; break;
+            case kBlend: if (!createBlendPipeline()) return false; break;
+            default: break;
+        }
+        return createVisiblePipeline();
+    }
+
+    bool createBlendPipeline() {
+        return vk.graphicsPipeline(blendPass, 1, graphicsLayout, kFullscreenVertSpirv, kBlendFragSpirv,
+                                   vk::Blend::Additive, burnerPipeline);
+    }
+
+    bool createVisiblePipeline() {
+        if (scene) return sceneRenderer.init(vk, screen, sceneScale, presentPass, sceneKind, sceneQuality);
+        return vk.graphicsPipeline(presentPass, 1, graphicsLayout, kFullscreenVertSpirv, kPreviewFragSpirv,
+                                   vk::Blend::None, previewPipeline);
+    }
+
+    bool createComputeLayout() {
         // One descriptor layout serves every compute burner; each uses the bindings it needs.
         std::array<VkDescriptorSetLayoutBinding, 4> bindings{};
         const VkDescriptorType types[] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -684,32 +779,7 @@ struct GpuLoad::Renderer {
         computeLayoutInfo.pushConstantRangeCount = 1;
         computeLayoutInfo.pPushConstantRanges = &computePush;
         VK_TRY(vkCreatePipelineLayout(device, &computeLayoutInfo, nullptr, &computeLayout));
-
-        VkPushConstantRange graphicsPush{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PreviewParams)};
-        VkPipelineLayoutCreateInfo graphicsLayoutInfo{};
-        graphicsLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        graphicsLayoutInfo.pushConstantRangeCount = 1;
-        graphicsLayoutInfo.pPushConstantRanges = &graphicsPush;
-        VK_TRY(vkCreatePipelineLayout(device, &graphicsLayoutInfo, nullptr, &graphicsLayout));
-
-        switch (burner) {
-            case kFp32: if (!createComputePipeline(kAluFp32CompSpirv)) return false; break;
-            case kFp16: if (!createComputePipeline(kAluFp16CompSpirv)) return false; break;
-            case kTexture: if (!createComputePipeline(kTextureCompSpirv)) return false; break;
-            case kBandwidth: if (!createComputePipeline(kBandwidthCompSpirv)) return false; break;
-            case kBlend:
-                if (!vk.graphicsPipeline(blendPass, 1, graphicsLayout, kFullscreenVertSpirv, kBlendFragSpirv, vk::Blend::Additive,
-                                         burnerPipeline)) {
-                    return false;
-                }
-                break;
-            default: break;
-        }
-        if (!scene) {
-            return vk.graphicsPipeline(presentPass, 1, graphicsLayout, kFullscreenVertSpirv, kPreviewFragSpirv, vk::Blend::None,
-                                       previewPipeline);
-        }
-        return sceneRenderer.init(vk, extent, sceneScale, presentPass, sceneKind, sceneQuality);
+        return true;
     }
 
     void writeDescriptors() {
@@ -747,19 +817,8 @@ struct GpuLoad::Renderer {
     }
 
     bool createComputePipeline(std::span<const uint32_t> code) {
-        VkShaderModule module;
-        if (!vk.shaderModule(code, module)) return false;
-        VkComputePipelineCreateInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-        info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-        info.stage.module = module;
-        info.stage.pName = "main";
-        info.layout = computeLayout;
-        const VkResult result = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &burnerPipeline);
-        vkDestroyShaderModule(device, module, nullptr);
-        VK_TRY(result);
-        return true;
+        const vk::Specialization localSize(static_cast<int32_t>(groupSize));
+        return vk.computePipeline(computeLayout, code, burnerPipeline, &localSize.info);
     }
 
     // ---- frame loop -------------------------------------------------------------
@@ -770,21 +829,19 @@ struct GpuLoad::Renderer {
             const VkResult waited = vkWaitForFences(device, 1, &fences[slot], VK_TRUE, kFrameWaitNanos);
             if (waited == VK_TIMEOUT) return timedOut("vkWaitForFences");
             if (waited != VK_SUCCESS) return lost("vkWaitForFences", waited);
-            collect(slot);
+            if (!collect(slot)) return false;
             submitted[slot] = false;
         }
 
         uint32_t image = 0;
         VkResult acquiredResult = vkAcquireNextImageKHR(device, swapchain, kFrameWaitNanos, acquired[slot], VK_NULL_HANDLE, &image);
-        if (acquiredResult == VK_ERROR_OUT_OF_DATE_KHR) return recreateSwapchain();
-        if (acquiredResult == VK_TIMEOUT) return timedOut("vkAcquireNextImageKHR");
+        if (acquiredResult == VK_ERROR_OUT_OF_DATE_KHR) return recreateSwapchain(true);
+        if (acquiredResult == VK_TIMEOUT || acquiredResult == VK_NOT_READY) return true;
         if (acquiredResult != VK_SUCCESS && acquiredResult != VK_SUBOPTIMAL_KHR) return lost("vkAcquireNextImageKHR", acquiredResult);
 
         const uint32_t count = burner >= 0 ? perFrame : 0;
-        if (!record(slot, image, count)) {
-            state.store(kStateFailed);
-            return false;
-        }
+        if (stopRequested.load(std::memory_order_relaxed)) return false;
+        if (!record(slot, image, count)) return false;
 
         VkResult reset = vkResetFences(device, 1, &fences[slot]);
         if (reset != VK_SUCCESS) return lost("vkResetFences", reset);
@@ -813,8 +870,9 @@ struct GpuLoad::Renderer {
         present.pImageIndices = &image;
         const VkResult presented = vkQueuePresentKHR(queue, &present);
         ++frameIndex;
-        if (presented == VK_ERROR_OUT_OF_DATE_KHR || presented == VK_SUBOPTIMAL_KHR) return recreateSwapchain();
-        if (presented != VK_SUCCESS) return lost("vkQueuePresentKHR", presented);
+        if (presented == VK_ERROR_OUT_OF_DATE_KHR) return recreateSwapchain(true);
+        if (presented != VK_SUCCESS && presented != VK_SUBOPTIMAL_KHR) return lost("vkQueuePresentKHR", presented);
+        if (presented == VK_SUBOPTIMAL_KHR || acquiredResult == VK_SUBOPTIMAL_KHR) return recreateSwapchain(false);
         return true;
     }
 
@@ -824,29 +882,63 @@ struct GpuLoad::Renderer {
         return false;
     }
 
-    // A bounded wait that came back empty: the driver stopped answering and
-    // no Vulkan call will return. Report the device lost, so the run ends
-    // as a GPU failure instead of stop() hanging in its join.
+    // A bounded wait can expire while the queue still owns the objects.
+    // Report the failure now; let the render thread drain or wait for a reset
+    // before destroying any of them.
     bool timedOut(const char* where) {
         LOGE("%s: no completion within the frame budget; treating the device as lost", where);
-        deviceTimedOut = true;
         state.store(kStateDeviceLost);
         return false;
     }
 
-    bool recreateSwapchain() {
-        vkDeviceWaitIdle(device);
+    bool drainFrames() {
+        const VkResult drained = vkDeviceWaitIdle(device);
+        if (drained != VK_SUCCESS) return lost("vkDeviceWaitIdle", drained);
         for (uint32_t s = 0; s < kFramesInFlight; ++s) {
             if (submitted[s]) {
-                collect(s);
+                if (!collect(s)) return false;
                 submitted[s] = false;
             }
         }
-        if (!createSwapchain()) {
-            state.store(kStateFailed);
-            return false;
+        return true;
+    }
+
+    bool recreateSwapchain(bool outOfDate) {
+        VkSurfaceCapabilitiesKHR caps{};
+        VkSurfaceFormatKHR chosen{};
+        if (!readSurface(caps, chosen)) return failed();
+        const VkExtent2D size = surfaceExtent(caps);
+        if (size.width == 0 || size.height == 0) {
+            // The window can be temporarily minimized. Retry until Android
+            // supplies a size again or detaches the surface.
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            return true;
+        }
+        const bool resized = size.width != extent.width || size.height != extent.height;
+        const bool changed = chosen.format != format || chosen.colorSpace != colorSpace ||
+                             caps.currentTransform != surfaceTransform;
+        // Some Android surfaces keep reporting SUBOPTIMAL when SurfaceFlinger
+        // handles rotation. Recreating identical images each frame cannot fix it.
+        if (!outOfDate && !resized && !changed) return true;
+        if (!drainFrames()) return false;
+        if (!configureSurface(caps, chosen, size)) return failed();
+        if (resized || changed) {
+            sceneRenderer.destroy();
+            if (previewPipeline) vkDestroyPipeline(device, previewPipeline, nullptr);
+            previewPipeline = VK_NULL_HANDLE;
+            if (!createVisiblePipeline()) return failed();
+        }
+        if (resized && burner == kBlend) {
+            destroyBlend();
+            workPerDispatch = double{kBlendLayers} * extent.width * extent.height;
+            if (!createBlendTarget() || !createBlendPipeline()) return failed();
         }
         return true;
+    }
+
+    bool failed() {
+        if (state.load() == kStateRunning) state.store(kStateFailed);
+        return false;
     }
 
     bool record(uint32_t slot, uint32_t image, uint32_t count) {
@@ -854,7 +946,8 @@ struct GpuLoad::Renderer {
         VkCommandBufferBeginInfo begin{};
         begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        VK_TRY(vkBeginCommandBuffer(cmd, &begin));
+        const VkResult begun = vkBeginCommandBuffer(cmd, &begin);
+        if (begun != VK_SUCCESS) return lost("vkBeginCommandBuffer", begun);
         if (timed) {
             vkCmdResetQueryPool(cmd, queries, slot * kStampsPerFrame, kStampsPerFrame);
             vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queries, slot * kStampsPerFrame);
@@ -882,7 +975,20 @@ struct GpuLoad::Renderer {
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, burnerPipeline);
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, computeLayout, 0, 1, &descriptorSet, 0, nullptr);
             for (uint32_t d = 0; d < count; ++d) {
-                const ComputeParams params{iterations, (slot * kMaxDispatches + d) * kMaxGroups};
+                if (burner == kBandwidth) {
+                    // Dispatches write the same destination, including across frames.
+                    VkBufferMemoryBarrier reuse{};
+                    reuse.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+                    reuse.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+                    reuse.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+                    reuse.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    reuse.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    reuse.buffer = destination.buffer;
+                    reuse.size = VK_WHOLE_SIZE;
+                    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                         0, 0, nullptr, 1, &reuse, 0, nullptr);
+                }
+                const ComputeParams params{iterations, (slot * kMaxDispatches + d) * groups};
                 vkCmdPushConstants(cmd, computeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(params), &params);
                 vkCmdDispatch(cmd, groups, 1, 1);
             }
@@ -910,9 +1016,10 @@ struct GpuLoad::Renderer {
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
         if (scene) {
-            sceneRenderer.recordFinal(cmd, extent, seconds);
+            sceneRenderer.recordFinal(cmd, screen, seconds, transform, vk::srgbAttachment(format));
         } else {
-            const PreviewParams params{static_cast<float>(extent.width), static_cast<float>(extent.height), seconds, load};
+            const PreviewParams params{static_cast<float>(screen.width), static_cast<float>(screen.height), seconds,
+                                       load, transform, vk::srgbAttachment(format)};
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, previewPipeline);
             vkCmdPushConstants(cmd, graphicsLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);
             vkCmdDraw(cmd, 3, 1, 0, 0);
@@ -920,19 +1027,22 @@ struct GpuLoad::Renderer {
         vkCmdEndRenderPass(cmd);
 
         if (timed) vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queries, slot * kStampsPerFrame + 2);
-        VK_TRY(vkEndCommandBuffer(cmd));
-        return true;
+        const VkResult ended = vkEndCommandBuffer(cmd);
+        return ended == VK_SUCCESS || lost("vkEndCommandBuffer", ended);
     }
 
     // Reads back a finished frame: its GPU time, its digests, and the next frame's size.
-    void collect(uint32_t slot) {
+    bool collect(uint32_t slot) {
         std::array<uint64_t, kStampsPerFrame> stamps{};
         int64_t burnerNanos = 0;
         int64_t visibleNanos = 0;
         const int64_t collectedAt = nowNanos();
         if (timed) {
-            if (vkGetQueryPoolResults(device, queries, slot * kStampsPerFrame, kStampsPerFrame, sizeof(stamps),
-                                      stamps.data(), sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS) {
+            const VkResult read = vkGetQueryPoolResults(device, queries, slot * kStampsPerFrame, kStampsPerFrame,
+                                                        sizeof(stamps), stamps.data(), sizeof(uint64_t),
+                                                        VK_QUERY_RESULT_64_BIT);
+            if (read == VK_ERROR_DEVICE_LOST) return lost("vkGetQueryPoolResults", read);
+            if (read == VK_SUCCESS) {
                 auto nanos = [&](uint64_t from, uint64_t to) {
                     const uint64_t ticks = ((to & timestampMask) - (from & timestampMask)) & timestampMask;
                     return static_cast<int64_t>(static_cast<double>(ticks) * timestampPeriodNanos);
@@ -973,12 +1083,13 @@ struct GpuLoad::Renderer {
             perFrame = static_cast<uint32_t>(std::lround(perFrameExact));
         }
         dispatchesPerFrame.store(perFrame, std::memory_order_relaxed);
+        return true;
     }
 
     void verify(uint32_t slot, uint32_t count) {
         const auto* base = static_cast<const uint32_t*>(results.mapped);
         for (uint32_t d = 0; d < count; ++d) {
-            const uint32_t* region = base + (size_t{slot} * kMaxDispatches + d) * kMaxGroups;
+            const uint32_t* region = base + (size_t{slot} * kMaxDispatches + d) * groups;
             if (golden.empty()) {
                 golden.assign(region, region + groups);
                 continue;
@@ -990,19 +1101,29 @@ struct GpuLoad::Renderer {
         }
     }
 
+    void destroyBlend() {
+        if (burnerPipeline) vkDestroyPipeline(device, burnerPipeline, nullptr);
+        if (blendFramebuffer) vkDestroyFramebuffer(device, blendFramebuffer, nullptr);
+        if (blendPass) vkDestroyRenderPass(device, blendPass, nullptr);
+        vk.destroy(blendTarget);
+        burnerPipeline = VK_NULL_HANDLE;
+        blendFramebuffer = VK_NULL_HANDLE;
+        blendPass = VK_NULL_HANDLE;
+    }
+
     void destroy() {
         if (device != VK_NULL_HANDLE) {
-            vkDeviceWaitIdle(device);
+            // A real device loss is safe to clean up. A timeout alone isn't.
+            // Waiting here keeps pending objects alive without blocking stop().
+            const VkResult drained = vkDeviceWaitIdle(device);
+            if (drained == VK_ERROR_DEVICE_LOST) state.store(kStateDeviceLost);
             sceneRenderer.destroy();
-            if (burnerPipeline) vkDestroyPipeline(device, burnerPipeline, nullptr);
+            destroyBlend();
             if (previewPipeline) vkDestroyPipeline(device, previewPipeline, nullptr);
             if (computeLayout) vkDestroyPipelineLayout(device, computeLayout, nullptr);
             if (graphicsLayout) vkDestroyPipelineLayout(device, graphicsLayout, nullptr);
             if (descriptorPool) vkDestroyDescriptorPool(device, descriptorPool, nullptr);
             if (setLayout) vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
-            if (blendFramebuffer) vkDestroyFramebuffer(device, blendFramebuffer, nullptr);
-            if (blendPass) vkDestroyRenderPass(device, blendPass, nullptr);
-            vk.destroy(blendTarget);
             if (sampler) vkDestroySampler(device, sampler, nullptr);
             vk.destroy(noise);
             vk.destroy(source);
@@ -1035,16 +1156,17 @@ GpuLoad::~GpuLoad() { stop(); }
 
 GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene,
                                     int sceneScalePercent, int sceneKind, int sceneQuality) {
-    std::lock_guard lock(control_);
-    if (renderer_) {
+    std::unique_lock lock(control_);
+    if (retiring_ && retiring_->finished.load()) retiring_.reset();
+    if (renderer_ || retiring_) {
         ANativeWindow_release(window);
-        return kAlreadyRunning;
+        return renderer_ ? kAlreadyRunning : kSetupFailed;
     }
     if (burner < -1 || burner >= static_cast<int>(kBurners.size())) {
         ANativeWindow_release(window);
         return kInvalidBurner;
     }
-    auto renderer = std::make_unique<Renderer>();
+    auto renderer = std::make_shared<Renderer>();
     renderer->window = window;
     renderer->burner = burner;
     renderer->targetFrameNanos = int64_t{std::clamp(targetFrameMillis, 5, 200)} * 1'000'000;
@@ -1057,48 +1179,58 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->sceneQuality = sceneQuality <= 0   ? SceneRenderer::Quality::Low
                              : sceneQuality >= 2 ? SceneRenderer::Quality::High
                                                  : SceneRenderer::Quality::Medium;
-    if (pthread_create(&renderer->thread, nullptr, &Renderer::threadMain, renderer.get()) != 0) {
+    auto* threadOwner = new std::shared_ptr<Renderer>(renderer);
+    pthread_t thread;
+    if (pthread_create(&thread, nullptr, &Renderer::threadMain, threadOwner) != 0) {
+        delete threadOwner;
         renderer->destroy();
         return kSetupFailed;
     }
-    renderer->threadStarted = true;
-    {
-        std::unique_lock wait(renderer->initMutex);
-        // Setup normally takes a few hundred milliseconds. A driver wedged
-        // before it finished will never report an outcome: after a generous
-        // budget give up rather than block the caller forever. The renderer
-        // is released on purpose — the thread may still be inside a driver
-        // call, so neither a join nor a destroy is safe on it.
-        if (!renderer->initDone.wait_for(wait, std::chrono::seconds(10),
-                                         [&] { return renderer->initResult >= 0; })) {
-            LOGE("GPU setup did not report an outcome within ten seconds; abandoning it");
+    pthread_detach(thread);
+    lastState_.store(kStateIdle);
+    renderer_ = renderer;
+    lock.unlock();
+
+    std::unique_lock wait(renderer->threadMutex);
+    const bool reported = renderer->threadChanged.wait_for(wait, std::chrono::seconds(10), [&] {
+        return renderer->initResult >= 0 || renderer->stopRequested.load();
+    });
+    const bool started = reported && renderer->initResult == 0 && !renderer->stopRequested.load();
+    wait.unlock();
+
+    if (!started) {
+        if (!reported) LOGE("GPU setup did not report an outcome within ten seconds");
+        lock.lock();
+        if (renderer_ == renderer) {
             renderer->stopRequested.store(true);
+            retiring_ = std::move(renderer_);
             lastState_.store(kStateFailed);
-            renderer.release();
-            return kSetupFailed;
         }
-    }
-    const bool ok = renderer->initResult == 0;
-    renderer_ = std::move(renderer);
-    if (!ok) {
-        lastState_.store(kStateFailed);
-        pthread_join(renderer_->thread, nullptr);
-        renderer_->destroy();
-        renderer_.reset();
         return kSetupFailed;
     }
     return kStarted;
 }
 
 void GpuLoad::stop() {
-    std::lock_guard lock(control_);
-    if (!renderer_) return;
-    renderer_->stopRequested.store(true);
-    if (renderer_->threadStarted) pthread_join(renderer_->thread, nullptr);
-    const int finalState = renderer_->state.load();
-    renderer_->destroy();
-    renderer_.reset();
-    lastState_.store(finalState == kStateRunning ? kStateIdle : finalState);
+    std::unique_lock lock(control_);
+    if (!renderer_) {
+        if (retiring_ && retiring_->finished.load()) retiring_.reset();
+        lastState_.store(kStateIdle);
+        return;
+    }
+    const auto renderer = std::move(renderer_);
+    retiring_ = renderer;
+    std::unique_lock wait(renderer->threadMutex);
+    renderer->stopRequested.store(true);
+    const bool starting = renderer->initResult < 0;
+    lastState_.store(kStateIdle);
+    lock.unlock();
+    renderer->threadChanged.notify_all();
+    if (starting) return;  // The thread has yet to submit any visible frames.
+    if (!renderer->threadChanged.wait_for(wait, std::chrono::milliseconds(2200),
+                                          [&] { return renderer->finished.load(); })) {
+        LOGE("GPU teardown is still waiting for the driver");
+    }
 }
 
 void GpuLoad::snapshot(int64_t* out) const {
@@ -1124,35 +1256,30 @@ void GpuLoad::snapshot(int64_t* out) const {
     out[kFieldHeight] = r.height.load(std::memory_order_relaxed);
     out[kFieldBurnerNanos] = r.burnerTotalNanos.load(std::memory_order_relaxed);
     out[kFieldVisibleNanos] = r.visibleTotalNanos.load(std::memory_order_relaxed);
-    out[kFieldTimed] = r.timed ? 1 : 0;
+    out[kFieldTimed] = r.state.load() == kStateRunning && r.timed ? 1 : 0;
 }
 
 std::string GpuLoad::describeDevice() {
     uint32_t loader = VK_API_VERSION_1_0;
-    if (vkEnumerateInstanceVersion(&loader) != VK_SUCCESS) return {};
+    if (vkEnumerateInstanceVersion(&loader) != VK_SUCCESS || loader < VK_API_VERSION_1_1) return {};
     VkApplicationInfo app{};
     app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app.pApplicationName = "stress";
-    app.apiVersion = std::max<uint32_t>(loader, VK_API_VERSION_1_1);
+    app.apiVersion = std::min<uint32_t>(loader, VK_API_VERSION_1_2);
     VkInstanceCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     info.pApplicationInfo = &app;
     VkInstance instance = VK_NULL_HANDLE;
     if (vkCreateInstance(&info, nullptr, &instance) != VK_SUCCESS) return {};
     std::string text;
-    uint32_t count = 1;
-    VkPhysicalDevice physical = VK_NULL_HANDLE;
-    const VkResult enumerated = vkEnumeratePhysicalDevices(instance, &count, &physical);
-    if ((enumerated == VK_SUCCESS || enumerated == VK_INCOMPLETE) && count > 0) {
-        VkPhysicalDeviceProperties p;
-        vkGetPhysicalDeviceProperties(physical, &p);
-        if (p.apiVersion >= VK_API_VERSION_1_1) {
+    const auto choice = chooseDevice(instance);
+    if (choice.device != VK_NULL_HANDLE) {
+            const auto& p = choice.properties;
             char line[512];
             std::snprintf(line, sizeof(line), "%s|%u.%u.%u|%u|%u|%u", p.deviceName, VK_API_VERSION_MAJOR(p.apiVersion),
                           VK_API_VERSION_MINOR(p.apiVersion), VK_API_VERSION_PATCH(p.apiVersion), p.driverVersion,
                           p.vendorID, p.deviceID);
             text = line;
-        }
     }
     vkDestroyInstance(instance, nullptr);
     return text;

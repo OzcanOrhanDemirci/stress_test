@@ -930,13 +930,10 @@ void SceneRenderer::recordParticles(VkCommandBuffer cmd, float time) {
     readable(cmd);
 }
 
-void SceneRenderer::recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float time) {
-    const VkViewport viewport{0.0f, 0.0f, static_cast<float>(screen.width), static_cast<float>(screen.height), 0.0f, 1.0f};
-    const VkRect2D scissor{{0, 0}, screen};
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
+void SceneRenderer::recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float time,
+                                VkSurfaceTransformFlagBitsKHR transform, bool srgb) {
     const float bloom = kind_ == Kind::White ? kWhiteBloomStrength : kBloomStrength;
-    FinalParams params{static_cast<float>(screen.width), static_cast<float>(screen.height), time, bloom};
+    FinalParams params{static_cast<float>(screen.width), static_cast<float>(screen.height), time, bloom, transform, srgb};
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, finalPipeline_);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, samplingLayout_, 0, 1, &finalSets_[written_], 0, nullptr);
     vkCmdPushConstants(cmd, samplingLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);
