@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- History and Compare: simple and engineering pages. -->
-    <string name="history_delete_mode">Delete runs</string>
-    <string name="history_delete_pick">Tap a run to delete it.</string>
+    <string name="history_delete_mode">Delete tests</string>
+    <string name="history_delete_pick">Tap a test to delete it.</string>
 
     <string name="compare_difference">Diff.</string>
     <string name="compare_battery_drain">Battery used</string>
     <string name="compare_summary">Summary</string>
-    <string name="compare_run_a">Run A</string>
-    <string name="compare_run_b">Run B</string>
+    <string name="compare_run_a">Test A</string>
+    <string name="compare_run_b">Test B</string>
     <string name="compare_date">Date</string>
     <string name="compare_planned">Planned</string>
     <string name="compare_scale">Scale %1$s%% of the screen</string>

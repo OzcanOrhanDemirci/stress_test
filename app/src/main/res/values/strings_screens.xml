@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="history_compare_pick">Select two runs to compare.</string>
-    <string name="history_compare_more">Save two runs to compare them.</string>
+    <string name="history_compare_pick">Select two tests to compare.</string>
+    <string name="history_compare_more">Save two tests to compare them.</string>
     <string name="history_compare_cancel">Cancel selection</string>
     <string name="history_compare_selected">%1$d of 2 selected</string>
     <string name="history_power_invalid">Invalid power</string>
     <string name="history_power_missing">Power unavailable</string>
-    <string name="compare_same_run">Choose two different runs to compare.</string>
-    <string name="compare_run_missing">One of the runs could not be loaded. Choose another run from History.</string>
-    <string name="compare_peak_difference">The peak power difference from run A to run B is %1$s.</string>
-    <string name="compare_peak_unavailable">Peak power needs a measurement from both runs.</string>
+    <string name="compare_same_run">Choose two different tests to compare.</string>
+    <string name="compare_run_missing">One of the tests could not be loaded. Choose another test from History.</string>
+    <string name="compare_peak_difference">The peak power difference from test A to test B is %1$s.</string>
+    <string name="compare_peak_unavailable">Peak power needs a measurement from both tests.</string>
     <string name="compare_tab_chip">Chip</string>
     <string name="device_waiting">Waiting for live readings.</string>
     <string name="device_waiting_hardware">Reading device information.</string>
@@ -49,4 +49,5 @@
     <string name="device_gpu_idle">Idle</string>
     <string name="device_gpu_running">Running</string>
     <string name="device_gpu_failed">Failed</string>
+    <string name="compare_not_eligible">A test drawn below its chosen quality, or one whose GPU failed, cannot be compared fairly.</string>
 </resources>
