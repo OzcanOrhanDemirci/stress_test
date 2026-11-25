@@ -2,6 +2,7 @@ package dev.ozcan.stress.charge
 
 import android.os.BatteryManager
 import dev.ozcan.stress.report.ReportCsv
+import dev.ozcan.stress.report.ReportCsvTest
 import dev.ozcan.stress.run.EndReason
 import dev.ozcan.stress.run.RunStore
 import dev.ozcan.stress.telemetry.BatteryReading
@@ -238,9 +239,10 @@ class ChargeTest {
         assertEquals(18.0, requireNotNull(row.summary.peakWatts), 0.001)
         val saved = requireNotNull(store.load(row.id))
         assertEquals(original, saved)
-        val csv = StringWriter().also { ReportCsv.write(it, saved) }.toString()
-        assertEquals("t_s,battery_input_w,battery_current_a,battery_v,temp_battery_c,battery_percent", csv.lineSequence().first())
-        assertTrue(csv.contains("0.000,18.000,4.500,4.000,25.000,52"))
+        val csv = StringWriter().also { ReportCsv.write(it, saved, ReportCsvTest.words("en")) }.toString()
+        assertTrue(csv.contains("\r\nTime (s),Power into the battery (W),Charge current (A),Battery voltage (V),Battery temperature (°C),Battery level (%)\r\n"))
+        assertTrue(csv.contains("\r\n0,18.00,4.50,4.000,25.0,52\r\n"))
+        assertTrue(csv.contains("Peak power into the battery (W),18.00"))
     }
 
     private fun tick(
