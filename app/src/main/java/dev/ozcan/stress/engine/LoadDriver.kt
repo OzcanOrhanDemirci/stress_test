@@ -31,8 +31,11 @@ interface LoadControl {
      */
     suspend fun start(workload: Workload, settings: LoadSettings): String
 
-    /** Stops everything [start] left running. */
-    suspend fun stop()
+    /** The GPU status for this load, independent of telemetry's sampling interval. */
+    fun gpuStatus(): GpuRunStatus
+
+    /** Stops everything [start] left running and returns its final GPU status. */
+    suspend fun stop(): GpuRunStatus
 
     companion object {
         const val STARTED = "Started"
@@ -60,7 +63,7 @@ class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) : LoadC
                 sceneKind = part.kind,
                 quality = settings.quality,
             )
-            withContext(Dispatchers.Default) { gpu.request(request) }
+            withContext(Dispatchers.Default) { gpu.startRun(request) }
             val started = gpu.lastStart
             if (!gpu.hasSurface) problems += "gpu=NoSurface" else if (started != GpuStartResult.Started) problems += "gpu=$started"
         }
@@ -77,10 +80,12 @@ class LoadDriver(private val cpu: CpuEngine, private val gpu: GpuEngine) : LoadC
      * before the caller closed its measuring window must not see the load
      * already stopped. Runs even when the caller is being cancelled.
      */
-    override suspend fun stop() = withContext(NonCancellable + Dispatchers.Default) {
+    override fun gpuStatus(): GpuRunStatus = gpu.runStatus()
+
+    override suspend fun stop(): GpuRunStatus = withContext(NonCancellable + Dispatchers.Default) {
         delay(STOP_GRACE_MILLIS)
         cpu.stop()
-        gpu.request(null)
+        gpu.finishRun()
     }
 
     companion object {
