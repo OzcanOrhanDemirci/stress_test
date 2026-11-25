@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -591,7 +592,7 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
                 text = stringResource(R.string.result_csv),
                 icon = Icons.Rounded.TableChart,
                 enabled = !busy,
-                modifier = Modifier.weight(if (record.isCharge) 1f else 0.8f),
+                modifier = if (record.isCharge) Modifier.weight(1f) else Modifier.width(80.dp),
                 onClick = {
                     scope.launch {
                         busy = true
@@ -613,7 +614,7 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
             PrimaryButton(
                 text = stringResource(R.string.result_share_pdf),
                 enabled = !busy,
-                modifier = Modifier.weight(1.15f),
+                modifier = Modifier.weight(1f),
                 onClick = {
                     scope.launch {
                         busy = true
