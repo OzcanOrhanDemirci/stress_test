@@ -55,6 +55,7 @@ import dev.ozcan.stress.analysis.Insight
 import dev.ozcan.stress.analysis.Insights
 import dev.ozcan.stress.analysis.Comparison
 import dev.ozcan.stress.analysis.ReferenceDevices
+import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.report.ReportCsv
@@ -67,6 +68,7 @@ import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.InsightText
 import dev.ozcan.stress.ui.Labels
+import dev.ozcan.stress.ui.charge.ChargeResult
 import dev.ozcan.stress.ui.components.CenteredBox
 import dev.ozcan.stress.ui.components.ChartSeries
 import dev.ozcan.stress.ui.components.Hairline
@@ -137,6 +139,10 @@ fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit)
         when {
             loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
+            record.isCharge -> {
+                ChargeResult(record, Modifier.weight(1f))
+                ReportActions(record, emptyList())
+            }
             else -> {
                 val insights = loaded?.insights.orEmpty()
                 ResultBody(record, insights, Modifier.weight(1f))
@@ -160,7 +166,7 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
             .joinToString(" // ").upper()
     }
     TopBar(
-        title = stringResource(R.string.result_title),
+        title = stringResource(if (record?.isCharge == true) R.string.charge_result else R.string.result_title),
         caption = caption,
         onBack = onBack,
         modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
@@ -585,7 +591,7 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
                 text = stringResource(R.string.result_csv),
                 icon = Icons.Rounded.TableChart,
                 enabled = !busy,
-                modifier = Modifier.weight(0.8f),
+                modifier = Modifier.weight(if (record.isCharge) 1f else 0.8f),
                 onClick = {
                     scope.launch {
                         busy = true
@@ -597,6 +603,7 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
                     }
                 },
             )
+            if (record.isCharge) return@Row
             SecondaryButton(
                 text = stringResource(R.string.export_save_pdf),
                 enabled = !busy,

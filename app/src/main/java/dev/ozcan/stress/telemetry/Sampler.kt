@@ -87,6 +87,24 @@ class Sampler(
     private val _latest = MutableStateFlow<Sample?>(null)
     override val latest: StateFlow<Sample?> = _latest.asStateFlow()
 
+    data class ChargeSample(val timeNanos: Long, val battery: BatteryReading, val remainingMillis: Long?)
+
+    /** A dedicated stream lets the charge run keep the same light sampling in every phase. */
+    class ChargeSampling internal constructor() {
+        internal val reading = MutableStateFlow<ChargeSample?>(null)
+        val latest: StateFlow<ChargeSample?> = reading.asStateFlow()
+    }
+
+    @Volatile private var chargeSampling: ChargeSampling? = null
+
+    @Synchronized
+    fun beginChargeSampling(): ChargeSampling = ChargeSampling().also { chargeSampling = it }
+
+    @Synchronized
+    fun endChargeSampling(sampling: ChargeSampling) {
+        if (chargeSampling === sampling) chargeSampling = null
+    }
+
     override val log = SampleLog()
 
     private var executor: ScheduledExecutorService? = null
@@ -133,6 +151,16 @@ class Sampler(
 
     private fun takeSample() {
         val now = SystemClock.elapsedRealtimeNanos()
+        chargeSampling?.let { sampling ->
+            val previous = sampling.latest.value
+            // Tolerate scheduler jitter around a one-second tick.
+            if (previous == null || now - previous.timeNanos >= 950_000_000L) {
+                val reading = battery.read(now)
+                val remaining = if (reading.plugged) battery.chargeTimeRemainingMillis() else null
+                sampling.reading.value = ChargeSample(now, reading, remaining)
+            }
+            return
+        }
         val lastRead = headroomReadNanos
         if (lastRead == null || now - lastRead >= HEADROOM_INTERVAL_NANOS) {
             headroom = thermal.headroom()

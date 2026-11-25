@@ -49,12 +49,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
+import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
+import dev.ozcan.stress.ui.charge.ChargeHistoryRow
 import dev.ozcan.stress.ui.components.CenteredBox
 import dev.ozcan.stress.ui.components.GaugeMark
 import dev.ozcan.stress.ui.components.GlassCard
@@ -126,7 +128,11 @@ fun HistoryScreen(onOpen: (String) -> Unit) {
                         enter = fadeIn(tween(350, delayMillis = 40 * index.coerceAtMost(8))) +
                             slideInVertically(tween(400, delayMillis = 40 * index.coerceAtMost(8))) { it / 4 },
                     ) {
-                        RunCard(record, onClick = { onOpen(record.id) }, onDelete = { deleting = record })
+                        if (record.isCharge) {
+                            ChargeHistoryRow(record, onClick = { onOpen(record.id) }, onDelete = { deleting = record })
+                        } else {
+                            RunCard(record, onClick = { onOpen(record.id) }, onDelete = { deleting = record })
+                        }
                     }
                 }
             }
