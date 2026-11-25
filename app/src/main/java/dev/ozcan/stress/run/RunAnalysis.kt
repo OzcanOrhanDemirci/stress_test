@@ -34,26 +34,29 @@ object RunAnalysis {
         load: List<Sample>,
         clusters: List<CpuCluster>,
         clusterName: (CpuCluster) -> String,
+    ): Pair<RunSummary, RunSeries> = analyze(RunPowerBaseline(baseline), load, clusters, clusterName)
+
+    internal fun analyze(
+        baseline: RunPowerBaseline,
+        load: List<Sample>,
+        clusters: List<CpuCluster>,
+        clusterName: (CpuCluster) -> String,
     ): Pair<RunSummary, RunSeries> {
         val origin = load.firstOrNull()?.timeNanos ?: 0L
         val span = load.lastOrNull()?.let { Power.seconds(it.timeNanos, origin) } ?: 0.0
         // This stored flag means a charger was attached, including in older runs.
-        val powerValid = (baseline + load).none { it.battery.plugged }
-        val onBattery = (baseline + load).all { it.battery.onBattery }
-        val idleConvention = Power.currentConvention(baseline)
-        val loadConvention = Power.currentConvention(load)
-        val convention = (loadConvention ?: idleConvention).takeIf {
-            onBattery && (idleConvention == null || loadConvention == null || idleConvention == loadConvention)
-        }
-        val idleOrigin = baseline.firstOrNull()?.timeNanos ?: 0L
-        val idleRaw = baseline.lastOrNull()?.battery?.measurableCurrent
+        val powerValid = !baseline.plugged && load.none { it.battery.plugged }
+        val canMeasure = baseline.canMeasure(load)
+        val idleRaw = baseline.lastCurrent
         // A gauge can freeze just before the load starts, while its last idle
         // value still looks fresh. The load has to show some response.
         val responds = idleRaw == null || load.any { it.battery.measurableCurrent?.let { raw -> raw != idleRaw } == true }
-        val direct = if (responds) convention?.let { Power.windowWatts(load, it, origin) }.orEmpty() else emptyList()
+        val direct = if (canMeasure && responds) {
+            baseline.convention?.let { Power.windowWatts(load, it, origin) }.orEmpty()
+        } else emptyList()
         val directMean = Power.meanWatts(direct)
-        val energyWatts = if (onBattery) Power.energyCounterWatts(load, origin) else null
-        val chargeWatts = if (onBattery) Power.chargeCounterWatts(load, origin) else null
+        val energyWatts = if (canMeasure) Power.energyCounterWatts(load, origin) else null
+        val chargeWatts = if (canMeasure) Power.chargeCounterWatts(load, origin) else null
         val counter = energyWatts ?: chargeWatts
         val mismatch = directMean != null && counter != null && !Power.agrees(directMean, counter)
         val watts = if (mismatch) emptyList() else direct
@@ -63,7 +66,7 @@ object RunAnalysis {
             watts.isEmpty() && (!mismatch ||
                 (energyWatts != null && chargeWatts != null && Power.agrees(energyWatts, chargeWatts)))
         }
-        val idle = if (mismatch || !responds) null else convention?.let { Power.meanWatts(Power.windowWatts(baseline, it, idleOrigin)) }
+        val idle = baseline.watts.takeIf { canMeasure && responds && !mismatch }
         val mean = Power.meanWatts(watts) ?: counterWatts
         val sustained = Power.meanWatts(Stats.window(watts, span - SUSTAINED_SECONDS, Double.MAX_VALUE)) ?: counterWatts?.let {
             if (span <= SUSTAINED_SECONDS) it else {
@@ -267,5 +270,29 @@ object RunAnalysis {
             batteryPercent = perSecond { samples -> samples.lastOrNull()?.battery?.levelPercent },
             fps = if (scene) perSecondRate { it.gpu.frames.toDouble() } else emptyList(),
         )
+    }
+}
+
+/** The completed idle phase fixes the current convention for both views of a run. */
+internal class RunPowerBaseline(samples: List<Sample>) {
+    val plugged = samples.any { it.battery.plugged }
+    val lastCurrent = samples.lastOrNull()?.battery?.measurableCurrent
+    private val onBattery = samples.all { it.battery.onBattery }
+    private val candidate = if (onBattery) Power.currentConvention(samples) else null
+    private val direction = Power.currentDirection(samples, candidate)
+    private val showsCharging = Power.countersShowCharging(samples) ||
+        direction == 0 || (candidate != null && direction != candidate.dischargeSign)
+
+    val convention = candidate.takeUnless { showsCharging }
+    val watts = convention?.let { Power.meanWatts(Power.windowWatts(samples, it, samples.first().timeNanos)) }
+
+    fun canMeasure(load: List<Sample>): Boolean {
+        if (!onBattery || showsCharging || load.any { !it.battery.onBattery } || Power.countersShowCharging(load)) {
+            return false
+        }
+        // A false unplug broadcast can leave the idle phase charging while
+        // the load actually drains the battery. Never reinterpret that flip.
+        val loadDirection = Power.currentDirection(load, convention) ?: return true
+        return loadDirection != 0 && (direction == null || loadDirection == direction)
     }
 }

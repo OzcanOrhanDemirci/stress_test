@@ -17,9 +17,11 @@ data class CurrentConvention(val ampsPerUnit: Double, val dischargeSign: Int) {
     fun usableAmps(raw: Long): Double? = dischargeAmps(raw).takeIf { it in PHONE_DISCHARGE_AMPS }
 
     companion object {
+        internal const val MAX_DISCHARGE_AMPS = 25.0
+
         // A deliberately broad envelope for a screen-on phone. If both units
         // could fit (e.g. 22,000), the readings alone do not identify the unit.
-        private val PHONE_DISCHARGE_AMPS = 0.02..25.0
+        private val PHONE_DISCHARGE_AMPS = 0.02..MAX_DISCHARGE_AMPS
 
         /** Needs a consistent unit and direction in readings taken on battery. */
         fun infer(rawReadings: List<Long>): CurrentConvention? {
@@ -38,6 +40,9 @@ data class CurrentConvention(val ampsPerUnit: Double, val dischargeSign: Int) {
 data class Point(val seconds: Double, val value: Double)
 
 object Power {
+    // The archive keeps a sample at least one second apart. Two intervals
+    // with scheduling jitter can exceed two seconds when one tick is lost.
+    private const val MAX_SAMPLE_GAP_SECONDS = 3.0
 
     /**
      * `BATTERY_PROPERTY_CHARGE_COUNTER` in µAh. Android documents µAh; the
@@ -74,6 +79,30 @@ object Power {
     fun currentConvention(samples: List<Sample>): CurrentConvention? =
         CurrentConvention.infer(samples.mapNotNull { it.battery.measurableCurrent })
 
+    /** Sign of the time-weighted raw current, including near-zero charging readings. */
+    internal fun currentDirection(samples: List<Sample>, convention: CurrentConvention?): Int? {
+        val origin = samples.firstOrNull()?.timeNanos ?: return null
+        val limit = CurrentConvention.MAX_DISCHARGE_AMPS / (convention?.ampsPerUnit ?: 1e-6)
+        val points = samples.mapNotNull { sample ->
+            val raw = sample.battery.measurableCurrent?.toDouble()?.takeIf { it != 0.0 && abs(it) <= limit }
+                ?: return@mapNotNull null
+            Point(seconds(sample.timeNanos, origin), raw)
+        }
+        val mean = meanWatts(points) ?: points.singleOrNull()?.value ?: return null
+        return mean.compareTo(0.0)
+    }
+
+    /** Repeated counter increases can expose charging even with a false unplug broadcast. */
+    internal fun countersShowCharging(samples: List<Sample>): Boolean {
+        fun isRising(points: List<Point>): Boolean {
+            val changes = points.zipWithNext { a, b -> b.value - a.value }
+            return changes.count { it > 0 } >= 2 && changes.none { it < 0 }
+        }
+        val origin = samples.firstOrNull()?.timeNanos ?: return false
+        return isRising(counterPoints(samples, origin) { it.battery.chargeCounterMicroAmpHours }) ||
+            isRising(counterPoints(samples, origin) { it.battery.energyCounterNanoWattHours })
+    }
+
     /**
      * Battery output power of each sample in watts: discharge current times
      * battery voltage. Samples taken while plugged in, or missing either
@@ -94,9 +123,9 @@ object Power {
     fun windowWatts(samples: List<Sample>, convention: CurrentConvention, origin: Long): List<Point> {
         val first = samples.firstOrNull() ?: return emptyList()
         val points = watts(samples, convention, origin)
-        if (points.size < 3 || points.first().seconds - seconds(first.timeNanos, origin) > 3.0 ||
-            seconds(samples.last().timeNanos, origin) - points.last().seconds > 2.0 ||
-            points.zipWithNext().any { (a, b) -> b.seconds - a.seconds > 2.0 }
+        if (points.size < 3 || points.first().seconds - seconds(first.timeNanos, origin) > MAX_SAMPLE_GAP_SECONDS ||
+            seconds(samples.last().timeNanos, origin) - points.last().seconds > MAX_SAMPLE_GAP_SECONDS ||
+            points.zipWithNext().any { (a, b) -> b.seconds - a.seconds > MAX_SAMPLE_GAP_SECONDS }
         ) return emptyList()
         return points
     }

@@ -114,4 +114,22 @@ class PowerTest {
         val points = listOf(Point(0.0, 4.0), Point(1.0, 4.0), Point(2.0, 8.0), Point(2.1, 8.0), Point(3.0, 8.0))
         assertEquals(6.0, Power.meanWatts(points)!!, 1e-9)
     }
+
+    @Test
+    fun `a single missed archived tick survives scheduling jitter but a longer outage does not`() {
+        val convention = CurrentConvention(1e-3, -1)
+        val samples = (0..10).map { tick -> sample(tick * 1.1, currentRaw = -2000) }
+        val oneMiss = samples.filterIndexed { i, _ -> i != 5 }
+        assertEquals(8.0, Power.meanWatts(Power.windowWatts(oneMiss, convention, 0))!!, 1e-9)
+        val twoMisses = samples.filterIndexed { i, _ -> i !in 5..6 }
+        assertEquals(emptyList<Point>(), Power.windowWatts(twoMisses, convention, 0))
+    }
+
+    @Test
+    fun `several counter drops clustered at the start cannot measure a steady rate`() {
+        val samples = (0..180).map { second ->
+            sample(second.toDouble(), chargeCounter = 4_000_000L - second.coerceAtMost(4) * 10_000)
+        }
+        assertNull(Power.chargeCounterWatts(samples, 0))
+    }
 }

@@ -117,7 +117,6 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
     val state by model.state.collectAsStateWithLifecycle()
     val live by model.live.collectAsStateWithLifecycle()
     val power by model.power.collectAsStateWithLifecycle()
-    val idle by model.idleWatts.collectAsStateWithLifecycle()
     val peak by model.peakWatts.collectAsStateWithLifecycle()
     val safety by model.safety.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -188,7 +187,7 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
                 exit = slideOutVertically { -it } + fadeOut(),
             ) {
                 (state as? RunState.Running)?.let { running ->
-                    TopHud(mode, model.settings.quality.takeIf { mode.scene != null }, running, now, live, power, idle, safety, model.settings.deviceSafety)
+                    TopHud(mode, model.settings.quality.takeIf { mode.scene != null }, running, now, live, power, safety, model.settings.deviceSafety)
                 }
             }
             Spacer(Modifier.weight(1f))
@@ -218,7 +217,7 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
             label = "phase",
         ) { phase ->
             when (phase) {
-                Phase.Baseline -> BaselineCard(mode, state as? RunState.Baseline, now, idle) { confirmStop = true }
+                Phase.Baseline -> BaselineCard(mode, state as? RunState.Baseline, now) { confirmStop = true }
                 Phase.Analysing -> MessageCard(null, stringResource(R.string.run_analysing), StressColors.Text, progress = true)
                 Phase.Finished -> FinishedCard(state as? RunState.Finished)
                 Phase.Failed -> FailedCard(state as? RunState.Failed, onLeave)
@@ -264,7 +263,7 @@ private fun Modifier.glass(): Modifier = this
     .border(1.dp, Color.White.copy(alpha = 0.08f), HudShape)
 
 @Composable
-private fun BaselineCard(mode: StressMode, state: RunState.Baseline?, now: Long, idle: Double?, onCancel: () -> Unit) {
+private fun BaselineCard(mode: StressMode, state: RunState.Baseline?, now: Long, onCancel: () -> Unit) {
     val context = context()
     val total = RunController.BASELINE_SECONDS.toDouble()
     val remaining = state?.let { ((it.endsAtNanos - now) / 1e9).coerceIn(0.0, total) } ?: total
@@ -296,9 +295,6 @@ private fun BaselineCard(mode: StressMode, state: RunState.Baseline?, now: Long,
             color = StressColors.TextDim,
             textAlign = TextAlign.Center,
         )
-        if (idle != null) {
-            Text(stringResource(R.string.run_baseline_idle, Format.watts(idle)), style = NumberStyles.Small, color = StressColors.Cool)
-        }
         TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel), color = StressColors.TextDim) }
     }
 }
@@ -389,7 +385,6 @@ private fun TopHud(
     now: Long,
     live: LiveView?,
     power: List<Double>,
-    idle: Double?,
     safety: SafetyCheck,
     safetyOn: Boolean,
 ) {
@@ -431,8 +426,12 @@ private fun TopHud(
                 Text(
                     when {
                         live?.plugged == true -> stringResource(R.string.run_power_invalid)
-                        live != null && live.watts == null -> stringResource(R.string.power_unavailable)
-                        else -> stringResource(R.string.run_power_caption, Format.watts(idle), Format.watts(live?.watts?.let { w -> idle?.let { w - it } }))
+                        live?.watts == null -> stringResource(R.string.power_unavailable)
+                        else -> {
+                            val idle = state.idleWatts
+                            val aboveIdle = idle?.let { live.watts - it }?.takeIf { it >= 0.0 }
+                            stringResource(R.string.run_power_caption, Format.watts(idle), Format.watts(aboveIdle))
+                        }
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (live?.plugged == true) StressColors.Warn else StressColors.TextDim,
