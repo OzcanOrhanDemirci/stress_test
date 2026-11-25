@@ -128,7 +128,10 @@ private fun Screen(entry: NavEntry, navigator: Navigator) {
             onOpenRun = { navigator.push(Route.Result(it)) },
             onOpenSettings = { navigator.select(Route.Tab.Settings) },
         )
-        Route.Tab.History -> HistoryScreen(onOpen = { navigator.push(Route.Result(it)) })
+        Route.Tab.History -> HistoryScreen(
+            onOpen = { navigator.push(Route.Result(it)) },
+            onCompare = { first, second -> navigator.push(Route.Compare(first, second)) },
+        )
         Route.Tab.Settings -> SettingsScreen(onOpenDevice = { navigator.select(Route.Tab.Device) })
         Route.Tab.Device -> DeviceScreen()
         is Route.Run -> RunScreen(

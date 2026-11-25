@@ -13,14 +13,19 @@ import javax.xml.parsers.DocumentBuilderFactory
  */
 class StringsTest {
 
-    private fun strings(path: String): Map<String, String> {
-        val file = File(path)
-        assertTrue("missing $path (tests run from the app module)", file.exists())
-        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
-        val nodes = document.getElementsByTagName("string")
-        return (0 until nodes.length).associate { i ->
-            val node = nodes.item(i)
-            node.attributes.getNamedItem("name").nodeValue to node.textContent
+    private fun strings(directory: String): Map<String, String> {
+        val files = File(directory).listFiles { _, name -> name.startsWith("strings") && name.endsWith(".xml") }
+        assertTrue("missing strings in $directory (tests run from the app module)", !files.isNullOrEmpty())
+        return buildMap {
+            for (file in files.orEmpty()) {
+                val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
+                val nodes = document.getElementsByTagName("string")
+                for (i in 0 until nodes.length) {
+                    val node = nodes.item(i)
+                    val name = node.attributes.getNamedItem("name").nodeValue
+                    assertTrue("duplicate string in $directory: $name", put(name, node.textContent) == null)
+                }
+            }
         }
     }
 
@@ -38,8 +43,8 @@ class StringsTest {
         }
     }
 
-    private val english = strings("src/main/res/values/strings.xml")
-    private val turkish = strings("src/main/res/values-tr/strings.xml")
+    private val english = strings("src/main/res/values")
+    private val turkish = strings("src/main/res/values-tr")
     private val englishPlurals = plurals("src/main/res/values/strings.xml")
     private val turkishPlurals = plurals("src/main/res/values-tr/strings.xml")
 

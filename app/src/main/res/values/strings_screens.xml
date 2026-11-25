@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="history_compare_pick">Select two runs to compare.</string>
+    <string name="history_compare_more">Save two runs to compare them.</string>
+    <string name="history_compare_cancel">Cancel selection</string>
+    <string name="history_compare_selected">%1$d of 2 selected</string>
+    <string name="history_power_invalid">Invalid power</string>
+    <string name="history_power_missing">Power unavailable</string>
+</resources>
