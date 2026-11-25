@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- History and Compare: simple and engineering pages. -->
+    <string name="history_delete_mode">Delete runs</string>
+    <string name="history_delete_pick">Tap a run to delete it.</string>
+
+    <string name="compare_difference">Diff.</string>
+    <string name="compare_battery_drain">Battery used</string>
+    <string name="compare_summary">Summary</string>
+    <string name="compare_run_a">Run A</string>
+    <string name="compare_run_b">Run B</string>
+    <string name="compare_date">Date</string>
+    <string name="compare_planned">Planned</string>
+    <string name="compare_scale">Scale %1$s%% of the screen</string>
+    <string name="compare_power">Power measurement</string>
+    <string name="compare_power_valid">Valid</string>
+    <string name="compare_power_counter">From the charge counter</string>
+    <string name="compare_cadence">Current reading interval</string>
+    <string name="compare_hot_slowdown">Slowed while hot</string>
+    <string name="compare_yes">Yes</string>
+    <string name="compare_no">No</string>
+
+    <string name="compare_verdict_sustained_more">B held %1$s more sustained power than A.</string>
+    <string name="compare_verdict_sustained_less">B held %1$s less sustained power than A.</string>
+    <string name="compare_verdict_peak_more">B reached %1$s higher peak power than A.</string>
+    <string name="compare_verdict_peak_less">B reached %1$s lower peak power than A.</string>
+    <string name="compare_verdict_same">A and B drew the same power.</string>
+    <string name="compare_verdict_hotter">Its hottest chip ran %1$s hotter.</string>
+    <string name="compare_verdict_cooler">Its hottest chip ran %1$s cooler.</string>
+
+    <string name="charge_compare_verdict_more">Setup B delivered %1$s more sustained power to the battery than A.</string>
+    <string name="charge_compare_verdict_less">Setup B delivered %1$s less sustained power to the battery than A.</string>
+    <string name="charge_compare_verdict_same">Both setups delivered the same sustained power to the battery.</string>
+</resources>

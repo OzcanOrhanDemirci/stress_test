@@ -3,12 +3,10 @@ package dev.ozcan.stress.ui.history
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,11 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,7 +37,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -64,8 +67,6 @@ import dev.ozcan.stress.ui.components.MetricNumber
 import dev.ozcan.stress.ui.components.Panel
 import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.components.SecondaryButton
-import dev.ozcan.stress.ui.components.Sparkline
-import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
@@ -97,23 +98,31 @@ class HistoryViewModel(private val graph: AppGraph) : ViewModel() {
     }
 }
 
+/** What a tap on a run row does: open it, pick it for a comparison, or ask to delete it. */
+private enum class HistoryMode { Browse, Compare, Delete }
+
+/**
+ * The history (DESIGN "History"): a calm column of run rows, each a link to its result, whose engineering page is
+ * the run's own. Comparing and deleting are modes of the list, entered from the top bar, so a row carries one
+ * affordance at a time.
+ */
 @Composable
 fun HistoryScreen(onOpen: (String) -> Unit, onCompare: (String, String) -> Unit) {
     val graph = context().graph
     val model: HistoryViewModel = viewModel { HistoryViewModel(graph) }
     val runs by model.runs.collectAsStateWithLifecycle()
     var deleting by remember { mutableStateOf<RunRecord?>(null) }
-    var comparing by rememberSaveable { mutableStateOf(false) }
+    var mode by rememberSaveable { mutableStateOf(HistoryMode.Browse) }
     var picked by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     // Every visit reads the list again: a run may have finished or been deleted elsewhere.
     LaunchedEffect(Unit) { model.refresh() }
     val list = runs
     val selected = picked.filter { id -> list?.any { it.id == id } == true }
-    val cancelSelection = {
-        comparing = false
+    val backToBrowse = {
+        mode = HistoryMode.Browse
         picked = arrayListOf()
     }
-    BackHandler(enabled = comparing, onBack = cancelSelection)
+    BackHandler(enabled = mode != HistoryMode.Browse, onBack = backToBrowse)
 
     Column(Modifier.fillMaxSize()) {
         TopBar(
@@ -121,15 +130,18 @@ fun HistoryScreen(onOpen: (String) -> Unit, onCompare: (String, String) -> Unit)
             caption = list?.let { stringResource(R.string.history_count, it.size) },
             modifier = Modifier.statusBarsPadding(),
         ) {
-            if (comparing) {
-                TopBarAction(Icons.Rounded.Close, stringResource(R.string.history_compare_cancel), cancelSelection)
-            } else if (!list.isNullOrEmpty()) {
-                TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), { comparing = true })
+            when {
+                mode != HistoryMode.Browse ->
+                    TopBarAction(Icons.Rounded.Close, stringResource(R.string.history_compare_cancel), backToBrowse)
+                !list.isNullOrEmpty() -> {
+                    TopBarAction(Icons.Rounded.DeleteOutline, stringResource(R.string.history_delete_mode), { mode = HistoryMode.Delete })
+                    TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), { mode = HistoryMode.Compare })
+                }
             }
         }
         when {
-            list == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
-            list.isEmpty() -> CenteredBox(Modifier.padding(16.dp)) {
+            list == null -> CenteredBox(Modifier.weight(1f)) { CircularProgressIndicator(color = StressColors.Accent) }
+            list.isEmpty() -> CenteredBox(Modifier.weight(1f).padding(16.dp)) {
                 Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.history_empty_title)) {
                     Text(stringResource(R.string.history_empty_text), style = StressType.Body, color = StressColors.TextDim)
                 }
@@ -141,35 +153,36 @@ fun HistoryScreen(onOpen: (String) -> Unit, onCompare: (String, String) -> Unit)
             ) {
                 items(list, key = { it.id }) { record ->
                     val isSelected = record.id in selected
-                    val canSelect = isSelected || selected.size < 2
-                    val toggle = {
-                        picked = ArrayList(if (isSelected) selected - record.id else selected + record.id)
+                    val onClick: () -> Unit = when (mode) {
+                        HistoryMode.Browse -> { { onOpen(record.id) } }
+                        HistoryMode.Delete -> { { deleting = record } }
+                        HistoryMode.Compare -> { { picked = ArrayList(if (isSelected) selected - record.id else selected + record.id) } }
                     }
-                    RunCard(
-                        record = record,
-                        selected = isSelected.takeIf { comparing },
-                        canSelect = canSelect,
-                        onClick = if (comparing) toggle else { { onOpen(record.id) } },
-                        onDelete = { deleting = record },
-                    )
+                    RunRow(record, mode, isSelected, canSelect = isSelected || selected.size < 2, onClick = onClick)
                 }
             }
         }
-        if (comparing && !list.isNullOrEmpty()) {
+        if (mode != HistoryMode.Browse && !list.isNullOrEmpty()) {
             Hairline()
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val instruction = if (list.size >= 2) R.string.history_compare_pick else R.string.history_compare_more
+                val instruction = when {
+                    mode == HistoryMode.Delete -> R.string.history_delete_pick
+                    list.size >= 2 -> R.string.history_compare_pick
+                    else -> R.string.history_compare_more
+                }
                 Text(stringResource(instruction), style = StressType.BodySmall, color = StressColors.TextDim)
-                PrimaryButton(
-                    text = stringResource(R.string.compare_title),
-                    subtitle = stringResource(R.string.history_compare_selected, selected.size),
-                    icon = Icons.AutoMirrored.Rounded.CompareArrows,
-                    enabled = selected.size == 2,
-                    onClick = {
-                        cancelSelection()
-                        onCompare(selected[0], selected[1])
-                    },
-                )
+                if (mode == HistoryMode.Compare) {
+                    PrimaryButton(
+                        text = stringResource(R.string.compare_title),
+                        subtitle = stringResource(R.string.history_compare_selected, selected.size),
+                        icon = Icons.AutoMirrored.Rounded.CompareArrows,
+                        enabled = selected.size == 2,
+                        onClick = {
+                            backToBrowse()
+                            onCompare(selected[0], selected[1])
+                        },
+                    )
+                }
             }
         }
     }
@@ -184,6 +197,8 @@ fun HistoryScreen(onOpen: (String) -> Unit, onCompare: (String, String) -> Unit)
             confirmButton = {
                 SecondaryButton(stringResource(R.string.delete), color = StressColors.Bad, onClick = {
                     close()
+                    // The last run gone leaves nothing to delete: back to the plain list.
+                    if (list?.size == 1) backToBrowse()
                     model.delete(record)
                 })
             },
@@ -209,20 +224,28 @@ private fun modeReading(mode: StressMode?, record: RunRecord): ModeReading = whe
     else -> ModeReading(Labels.modeIcon(mode), historyPower(record.summary))
 }
 
+/**
+ * One run as a control row: mode icon, mode and scene, date, length and quality, the headline power, and the row's
+ * affordance: a chevron to open it, a checkbox while comparing, a red bin while deleting. A run that did not end
+ * cleanly says so in one short line; everything else about it is on its result page.
+ */
 @Composable
-private fun RunCard(
+private fun RunRow(
     record: RunRecord,
-    selected: Boolean?,
+    mode: HistoryMode,
+    selected: Boolean,
     canSelect: Boolean,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
 ) {
-    val summary = record.summary
-    val mode = StressMode.of(record.mode)
-    val (icon, power) = modeReading(mode, record)
-    val reason = Labels.endReasonOf(record)
-    val quality = SceneQuality.entries.firstOrNull { it.name == record.quality }.takeIf { mode?.scene != null }
-    val selection = if (selected == null) Modifier else Modifier.toggleable(
+    val runMode = StressMode.of(record.mode)
+    val (icon, power) = modeReading(runMode, record)
+    val quality = SceneQuality.entries.firstOrNull { it.name == record.quality }.takeIf { runMode?.scene != null }
+    val qualityName = quality?.let { stringResource(Labels.quality(it)) }
+    // The scene's name alone: the clapper icon already says it is a cinematic run, and the row is narrow.
+    val title = runMode?.scene?.let { stringResource(Labels.scene(it)) } ?: Labels.recordModeName(context(), record)
+    val length = listOfNotNull(Format.clock(record.loadSeconds), qualityName).joinToString(" · ")
+    val comparing = mode == HistoryMode.Compare
+    val selection = if (!comparing) Modifier else Modifier.toggleable(
         value = selected,
         enabled = canSelect,
         role = Role.Checkbox,
@@ -232,76 +255,68 @@ private fun RunCard(
     Panel(
         Modifier.fillMaxWidth().then(selection),
         padding = 12.dp,
-        selected = selected,
-        onClick = onClick.takeIf { selected == null },
+        selected = selected.takeIf { comparing },
+        onClick = onClick.takeIf { !comparing },
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                IconBadge(icon, StressColors.TextDim, size = 32.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(Labels.recordModeName(context(), record), style = StressType.Heading)
-                    quality?.let { Text(stringResource(Labels.quality(it)), style = StressType.BodySmall, color = StressColors.TextDim) }
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(stringResource(power.label).upper(), style = StressType.Label, color = StressColors.TextDim)
-                    MetricNumber(Format.wattNumber(power.number), power.unit, NumberStyles.Small, StressColors.Accent)
-                }
-                if (selected == null) {
-                    TopBarAction(Icons.Rounded.DeleteOutline, stringResource(R.string.delete), onDelete)
-                } else {
-                    Checkbox(
-                        checked = selected,
-                        onCheckedChange = null,
-                        enabled = canSelect,
-                        modifier = Modifier.size(40.dp),
-                        colors = CheckboxDefaults.colors(checkedColor = StressColors.Cool, uncheckedColor = StressColors.TextDim),
-                    )
-                }
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            IconBadge(icon, StressColors.TextDim, size = 36.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = StressType.Heading, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(Dates.short(record.startedAtMillis), style = StressType.Code, color = StressColors.TextDim, maxLines = 1)
+                Text(length, style = StressType.Code, color = StressColors.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                runState(record, power)?.let { Text(it, style = StressType.Code.copy(fontSize = 11.sp), maxLines = 2) }
             }
-            Hairline()
-            Text(
-                "${Dates.long(record.startedAtMillis)} · ${Format.clock(record.loadSeconds)}",
-                style = StressType.Code,
-                color = StressColors.TextDim,
-            )
-            val watts = remember(record.series) { record.series.watts.filterNotNull() }
-            if (summary.powerValid && watts.size > 2) {
-                Sparkline(watts, StressColors.Accent, Modifier.fillMaxWidth().height(24.dp))
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(power.label).upper(), style = StressType.Label.copy(fontSize = 10.sp, lineHeight = 14.sp),
+                    color = StressColors.TextFaint, maxLines = 1,
+                )
+                MetricNumber(Format.wattNumber(power.number), power.unit, NumberStyles.Small, StressColors.Accent)
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                val hottest = summary.maxTemperatures.filterKeys { it != "battery" && it != "Pil" }.values.maxOrNull()
-                if (hottest != null) {
-                    Text(
-                        stringResource(R.string.title_with_part, stringResource(R.string.result_hottest), Format.celsius(hottest, 0)),
-                        style = StressType.BodySmall,
-                        color = StressColors.TextDim,
-                        modifier = Modifier.align(Alignment.CenterVertically),
-                    )
-                }
-                if (record.isCharge) {
-                    // No computation runs in a charge test, so there is no error count to show.
-                } else if (summary.computationErrors > 0) {
-                    StatusChip(stringResource(R.string.run_errors, summary.computationErrors), StressColors.Bad, icon = Icons.Rounded.Warning)
-                } else if (reason == EndReason.Completed) {
-                    StatusChip(stringResource(R.string.run_errors, 0L), StressColors.Good)
-                }
-                if (reason != EndReason.Completed) {
-                    StatusChip(
-                        stringResource(Labels.endReasonShort(reason)),
-                        Labels.endReasonColor(reason),
-                        icon = Icons.Rounded.Shield.takeIf { reason == EndReason.Safety },
-                    )
-                }
-                if (!summary.powerValid) {
-                    StatusChip(stringResource(R.string.history_power_invalid), StressColors.Warn)
-                } else if (power.number == null) {
-                    StatusChip(stringResource(R.string.history_power_missing), StressColors.TextDim)
-                }
+            when (mode) {
+                HistoryMode.Browse -> Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = StressColors.TextDim)
+                HistoryMode.Delete -> Icon(Icons.Rounded.DeleteOutline, stringResource(R.string.delete), tint = StressColors.Bad)
+                HistoryMode.Compare -> Checkbox(
+                    checked = selected,
+                    onCheckedChange = null,
+                    enabled = canSelect,
+                    modifier = Modifier.size(32.dp),
+                    colors = CheckboxDefaults.colors(checkedColor = StressColors.Cool, uncheckedColor = StressColors.TextDim),
+                )
             }
+        }
+    }
+}
+
+/**
+ * A row's state line, only when the run did not end cleanly: computation errors, an early end, power that was
+ * invalid or not measured, each in its colour. Null for a clean run, so a calm list stays calm.
+ */
+@Composable
+private fun runState(record: RunRecord, power: HistoryReading): AnnotatedString? {
+    val summary = record.summary
+    val reason = Labels.endReasonOf(record)
+    val parts = buildList {
+        // No computation runs in a charge test, so there is no error count to show.
+        if (!record.isCharge && summary.computationErrors > 0) {
+            add(stringResource(R.string.run_errors, summary.computationErrors) to StressColors.Bad)
+        }
+        if (reason != EndReason.Completed) add(stringResource(Labels.endReasonShort(reason)) to Labels.endReasonColor(reason))
+        if (!summary.powerValid) {
+            add(stringResource(R.string.history_power_invalid) to StressColors.Warn)
+        } else if (power.number == null) {
+            add(stringResource(R.string.history_power_missing) to StressColors.TextDim)
+        }
+    }
+    if (parts.isEmpty()) return null
+    return buildAnnotatedString {
+        parts.forEachIndexed { i, (text, color) ->
+            if (i > 0) withStyle(SpanStyle(color = StressColors.TextFaint)) { append(" · ") }
+            withStyle(SpanStyle(color = color)) { append(text.upper()) }
         }
     }
 }
