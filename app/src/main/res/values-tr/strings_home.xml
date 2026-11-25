@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home (Test tab): one-line notices of the simple page. -->
+    <string name="home_notice_plugged">Şarj kablosu takılı: şarj testine geç</string>
+    <string name="home_notice_no_vulkan">Vulkan 1.1 yok: GPU testleri kapalı</string>
+    <string name="home_notice_hot">Başlamak için fazla sıcak: %1$s</string>
+    <string name="home_mode_charge_part">Pile giren</string>
+
+    <!-- Home engineering page: sections. -->
+    <string name="home_eng_test">Seçili test</string>
+    <string name="home_eng_notices">Uyarılar</string>
+    <string name="home_eng_power">Güç ve pil</string>
+    <string name="home_eng_thermal">Sıcaklıklar</string>
+    <string name="home_eng_clusters">CPU kümeleri</string>
+    <string name="home_eng_gpu">GPU</string>
+    <string name="home_eng_workload">İş yükü</string>
+    <string name="home_eng_scene">Sahne</string>
+    <string name="home_eng_best">Bu telefondaki en yüksek güç</string>
+    <string name="home_eng_last">Son koşu</string>
+    <string name="home_eng_device">Cihaz</string>
+    <string name="home_eng_zones">%1$d bölge</string>
+
+    <!-- Home engineering page: line keys and values. -->
+    <string name="home_key_mode">Mod</string>
+    <string name="home_key_quality">Kalite</string>
+    <string name="home_key_resolution">İç çözünürlük</string>
+    <string name="home_key_duration">Süre</string>
+    <string name="home_key_safety">Cihaz güvenliği</string>
+    <string name="home_key_stop_chip">Çipte durdurma</string>
+    <string name="home_key_stop_battery">Pilde durdurma</string>
+    <string name="home_key_stop_skin">Kasada durdurma</string>
+    <string name="home_key_start">Başlatma</string>
+    <string name="home_val_on">Açık</string>
+    <string name="home_val_off">Kapalı</string>
+    <string name="home_val_ready">Hazır</string>
+    <string name="home_val_held">Bekliyor</string>
+    <string name="home_val_no_gpu">GPU yok</string>
+    <string name="home_val_yes">Evet</string>
+    <string name="home_val_no">Hayır</string>
+    <string name="home_key_power">Pilden çekilen güç</string>
+    <string name="home_key_current">Akım</string>
+    <string name="home_key_raw_current">Ham akım (CURRENT_NOW)</string>
+    <string name="home_key_voltage">Gerilim</string>
+    <string name="home_key_charger">Şarj kablosu</string>
+    <string name="home_val_plugged">Takılı</string>
+    <string name="home_val_unplugged">Takılı değil</string>
+    <string name="home_key_level">Pil seviyesi</string>
+    <string name="home_key_battery_temp">Pil sıcaklığı</string>
+    <string name="home_key_chip">Çip (CPU ve GPU’nun en sıcağı)</string>
+    <string name="home_key_thermal_status">Android termal durumu</string>
+    <string name="home_key_headroom">Termal pay</string>
+    <string name="home_key_max_clock">en çok %1$s MHz</string>
+    <string name="home_key_gpu_load">GPU yükü</string>
+    <string name="home_key_gpu_state">Durum</string>
+    <string name="home_val_gpu_idle">Boşta</string>
+    <string name="home_val_gpu_running">Çalışıyor</string>
+    <string name="home_val_gpu_failed">Hata</string>
+    <string name="home_key_gpu">GPU</string>
+    <string name="home_key_vulkan">Vulkan</string>
+    <string name="home_key_recipe">Tarif</string>
+    <string name="home_key_cpu_kernel">CPU yükü</string>
+    <string name="home_key_threads">İş parçacığı</string>
+    <string name="home_key_unit">Birim</string>
+    <string name="home_key_supported">Bu CPU destekliyor</string>
+    <string name="home_key_gpu_burner">GPU yakıcısı</string>
+    <string name="home_key_verified">Sonuçlar denetleniyor</string>
+    <string name="home_key_visible_pass">Görünen çizim</string>
+    <string name="home_val_preview">Önizleme halkası</string>
+    <string name="home_key_scene_burner">Sahneyi yakıcı dolduruyor</string>
+    <string name="home_key_peak">En yüksek güç</string>
+    <string name="home_key_sustained">Sürekli güç</string>
+    <string name="home_key_load_time">Yük süresi</string>
+    <string name="home_key_date">Tarih</string>
+    <string name="home_key_errors">Hesap hatası</string>
+    <string name="home_key_model">Model</string>
+    <string name="home_key_android">Android</string>
+    <string name="home_key_soc">Yonga seti</string>
+    <string name="home_key_cpu">CPU</string>
+    <string name="home_key_cores">Çekirdek</string>
+    <string name="home_key_ram">Bellek</string>
+    <string name="home_key_display">Ekran</string>
+    <string name="home_key_app">Uygulama sürümü</string>
+    <string name="home_open_last">Son koşuyu aç</string>
+    <string name="home_tag_selected">SEÇİLİ</string>
+    <string name="home_tag_plug">KABLO</string>
+    <string name="home_tag_safety">GÜVENLİK</string>
+    <string name="home_tag_gpu">GPU</string>
+    <string name="home_tag_data">VERİ</string>
+
+    <!-- Home engineering page: once-per-section reasons. -->
+    <string name="home_note_waiting">İlk ölçümler bekleniyor.</string>
+    <string name="home_note_power_plugged">Şarj kablosu takılıyken pilden çekilen güç ve akım ölçülemez.</string>
+    <string name="home_note_power_missing">N/A olan değerleri bu telefonun pil sayacı bildirmiyor.</string>
+    <string name="home_note_thermal_missing">N/A olanlar için uygulama bu telefonda okuyabileceği bir sıcaklık bölgesi bulamadı.</string>
+    <string name="home_note_clocks_missing">N/A olan frekanslar şu anda bu telefonda okunamıyor.</string>
+    <string name="home_note_gpu_estimated">Sürücünün GPU yük sayacı kapalı; yük, uygulamanın kare sürelerinden hesaplanıyor.</string>
+    <string name="home_note_gpu_missing">GPU yükü yalnızca bir GPU testi ya da kare süresi tahmini veri verirken görünür; sürücünün sayacı uygulamalara kapalı.</string>
+    <string name="home_note_no_vulkan">Vulkan 1.1 sürücüsü olmadan GPU ve sinematik testler çalışamaz.</string>
+    <string name="home_note_charge_workload">Şarj testi telefona yük bindirmez; pile giren gücü ölçer.</string>
+    <string name="home_note_best_missing">N/A olan modların bu telefonda henüz geçerli bir koşusu yok.</string>
+    <string name="home_note_last_power">Telefon bu koşu sırasında kullanılabilir bir pil akımı bildirmedi; gücü ölçülemedi.</string>
+    <string name="home_note_no_runs">Henüz koşu yok.</string>
+    <string name="home_note_device_missing">N/A olan değerleri Android bildirmedi.</string>
+    <string name="home_notices_none">Şu anda testi bekleten ya da yönlendiren bir durum yok.</string>
+</resources>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home (Test tab): one-line notices of the simple page. -->
+    <string name="home_notice_plugged">Charger connected: run the charge test</string>
+    <string name="home_notice_no_vulkan">No Vulkan 1.1: GPU tests are off</string>
+    <string name="home_notice_hot">Too hot to start: %1$s</string>
+    <string name="home_mode_charge_part">Battery in</string>
+
+    <!-- Home engineering page: sections. -->
+    <string name="home_eng_test">Selected test</string>
+    <string name="home_eng_notices">Notices</string>
+    <string name="home_eng_power">Power and battery</string>
+    <string name="home_eng_thermal">Temperatures</string>
+    <string name="home_eng_clusters">CPU clusters</string>
+    <string name="home_eng_gpu">GPU</string>
+    <string name="home_eng_workload">Workload</string>
+    <string name="home_eng_scene">Scene</string>
+    <string name="home_eng_best">Best power on this phone</string>
+    <string name="home_eng_last">Last run</string>
+    <string name="home_eng_device">Device</string>
+    <string name="home_eng_zones">%1$d zones</string>
+
+    <!-- Home engineering page: line keys and values. -->
+    <string name="home_key_mode">Mode</string>
+    <string name="home_key_quality">Quality</string>
+    <string name="home_key_resolution">Internal resolution</string>
+    <string name="home_key_duration">Duration</string>
+    <string name="home_key_safety">Device safety</string>
+    <string name="home_key_stop_chip">Stops at chip</string>
+    <string name="home_key_stop_battery">Stops at battery</string>
+    <string name="home_key_stop_skin">Stops at case</string>
+    <string name="home_key_start">Start</string>
+    <string name="home_val_on">On</string>
+    <string name="home_val_off">Off</string>
+    <string name="home_val_ready">Ready</string>
+    <string name="home_val_held">Held</string>
+    <string name="home_val_no_gpu">No GPU</string>
+    <string name="home_val_yes">Yes</string>
+    <string name="home_val_no">No</string>
+    <string name="home_key_power">Power from battery</string>
+    <string name="home_key_current">Current</string>
+    <string name="home_key_raw_current">Raw current (CURRENT_NOW)</string>
+    <string name="home_key_voltage">Voltage</string>
+    <string name="home_key_charger">Charger</string>
+    <string name="home_val_plugged">Connected</string>
+    <string name="home_val_unplugged">Not connected</string>
+    <string name="home_key_level">Battery level</string>
+    <string name="home_key_battery_temp">Battery temperature</string>
+    <string name="home_key_chip">Chip (hottest of CPU and GPU)</string>
+    <string name="home_key_thermal_status">Android thermal status</string>
+    <string name="home_key_headroom">Thermal headroom</string>
+    <string name="home_key_max_clock">max %1$s MHz</string>
+    <string name="home_key_gpu_load">GPU load</string>
+    <string name="home_key_gpu_state">State</string>
+    <string name="home_val_gpu_idle">Idle</string>
+    <string name="home_val_gpu_running">Running</string>
+    <string name="home_val_gpu_failed">Failed</string>
+    <string name="home_key_gpu">GPU</string>
+    <string name="home_key_vulkan">Vulkan</string>
+    <string name="home_key_recipe">Recipe</string>
+    <string name="home_key_cpu_kernel">CPU kernel</string>
+    <string name="home_key_threads">Threads</string>
+    <string name="home_key_unit">Unit</string>
+    <string name="home_key_supported">Supported by this CPU</string>
+    <string name="home_key_gpu_burner">GPU burner</string>
+    <string name="home_key_verified">Results checked</string>
+    <string name="home_key_visible_pass">Visible pass</string>
+    <string name="home_val_preview">Preview ring</string>
+    <string name="home_key_scene_burner">Burner fills the scene</string>
+    <string name="home_key_peak">Peak power</string>
+    <string name="home_key_sustained">Sustained power</string>
+    <string name="home_key_load_time">Load time</string>
+    <string name="home_key_date">Date</string>
+    <string name="home_key_errors">Computation errors</string>
+    <string name="home_key_model">Model</string>
+    <string name="home_key_android">Android</string>
+    <string name="home_key_soc">Chipset</string>
+    <string name="home_key_cpu">CPU</string>
+    <string name="home_key_cores">Cores</string>
+    <string name="home_key_ram">Memory</string>
+    <string name="home_key_display">Display</string>
+    <string name="home_key_app">App version</string>
+    <string name="home_open_last">Open the last run</string>
+    <string name="home_tag_selected">SELECTED</string>
+    <string name="home_tag_plug">PLUG</string>
+    <string name="home_tag_safety">SAFETY</string>
+    <string name="home_tag_gpu">GPU</string>
+    <string name="home_tag_data">DATA</string>
+
+    <!-- Home engineering page: once-per-section reasons. -->
+    <string name="home_note_waiting">Waiting for the first readings.</string>
+    <string name="home_note_power_plugged">With the charger connected, the power and current drawn from the battery cannot be measured.</string>
+    <string name="home_note_power_missing">Values marked N/A are not reported by this phone’s battery gauge.</string>
+    <string name="home_note_thermal_missing">For values marked N/A the app found no thermal zone it can read on this phone.</string>
+    <string name="home_note_clocks_missing">Clocks marked N/A cannot be read on this phone right now.</string>
+    <string name="home_note_gpu_estimated">The driver’s GPU load counter is closed, so the load is estimated from this app’s frame times.</string>
+    <string name="home_note_gpu_missing">GPU load is shown only while a GPU test or the frame-time estimate has data; the driver’s counter is closed to apps.</string>
+    <string name="home_note_no_vulkan">Without a Vulkan 1.1 driver the GPU and cinematic tests cannot run.</string>
+    <string name="home_note_charge_workload">The charge test puts no load on the phone; it measures the power going into the battery.</string>
+    <string name="home_note_best_missing">Modes marked N/A have no valid run on this phone yet.</string>
+    <string name="home_note_last_power">The phone did not report a usable battery current during this run, so its power could not be measured.</string>
+    <string name="home_note_no_runs">No runs yet.</string>
+    <string name="home_note_device_missing">Android did not report the values marked N/A.</string>
+    <string name="home_notices_none">Nothing holds or redirects a test now.</string>
+</resources>
