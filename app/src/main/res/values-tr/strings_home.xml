@@ -41,9 +41,6 @@
     <string name="home_key_current">Akım</string>
     <string name="home_key_raw_current">Ham akım (CURRENT_NOW)</string>
     <string name="home_key_voltage">Gerilim</string>
-    <string name="home_key_charger">Şarj kablosu</string>
-    <string name="home_val_plugged">Takılı</string>
-    <string name="home_val_unplugged">Takılı değil</string>
     <string name="home_key_level">Pil seviyesi</string>
     <string name="home_key_battery_temp">Pil sıcaklığı</string>
     <string name="home_key_chip">Çip (CPU ve GPU’nun en sıcağı)</string>
@@ -90,16 +87,16 @@
     <!-- Home engineering page: once-per-section reasons. -->
     <string name="home_note_waiting">İlk ölçümler bekleniyor.</string>
     <string name="home_note_power_plugged">Şarj kablosu takılıyken pilden çekilen güç ve akım ölçülemez.</string>
-    <string name="home_note_power_missing">N/A olan değerleri bu telefonun pil sayacı bildirmiyor.</string>
-    <string name="home_note_thermal_missing">N/A olanlar için uygulama bu telefonda okuyabileceği bir sıcaklık bölgesi bulamadı.</string>
-    <string name="home_note_clocks_missing">N/A olan frekanslar şu anda bu telefonda okunamıyor.</string>
+    <string name="home_note_power_missing">YOK yazan değerleri bu telefonun pil sayacı bildirmiyor.</string>
+    <string name="home_note_thermal_missing">YOK yazanlar için uygulama bu telefonda okuyabileceği bir sıcaklık bölgesi bulamadı.</string>
+    <string name="home_note_clocks_missing">YOK yazan frekanslar şu anda bu telefonda okunamıyor.</string>
     <string name="home_note_gpu_estimated">Sürücünün GPU yük sayacı kapalı; yük, uygulamanın kare sürelerinden hesaplanıyor.</string>
     <string name="home_note_gpu_missing">GPU yükü yalnızca bir GPU testi ya da kare süresi tahmini veri verirken görünür; sürücünün sayacı uygulamalara kapalı.</string>
     <string name="home_note_no_vulkan">Vulkan 1.1 sürücüsü olmadan GPU ve sinematik testler çalışamaz.</string>
     <string name="home_note_charge_workload">Şarj testi telefona yük bindirmez; pile giren gücü ölçer.</string>
-    <string name="home_note_best_missing">N/A olan modların bu telefonda henüz geçerli bir koşusu yok.</string>
+    <string name="home_note_best_missing">YOK yazan modların bu telefonda henüz geçerli bir koşusu yok.</string>
     <string name="home_note_last_power">Telefon bu koşu sırasında kullanılabilir bir pil akımı bildirmedi; gücü ölçülemedi.</string>
     <string name="home_note_no_runs">Henüz koşu yok.</string>
-    <string name="home_note_device_missing">N/A olan değerleri Android bildirmedi.</string>
+    <string name="home_note_device_missing">YOK yazan değerleri Android bildirmedi.</string>
     <string name="home_notices_none">Şu anda testi bekleten ya da yönlendiren bir durum yok.</string>
 </resources>
