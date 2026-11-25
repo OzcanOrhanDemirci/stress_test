@@ -154,7 +154,7 @@ private fun ChargeTimeChart(record: RunRecord) {
             Text(stringResource(R.string.charge_no_curve), style = StressType.BodySmall, color = StressColors.TextDim)
         } else {
             TimeChart(series.seconds, lines, if (lines.first().color == StressColors.Accent) "W" else "°C",
-                yMin = 0.0.takeIf { lines.first().color == StressColors.Accent })
+                yMin = 0.0.takeIf { lines.first().color == StressColors.Accent }, showAxisUnits = true)
         }
     }
 }
