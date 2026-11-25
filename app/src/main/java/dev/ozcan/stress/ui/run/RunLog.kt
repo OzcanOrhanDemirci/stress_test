@@ -155,8 +155,8 @@ internal fun runLog(
         add(LogItem(stringResource(R.string.run_line_battery_temp), Format.number(battery, 1), "°C", Temperatures.battery(battery)))
         add(
             LogItem(
-                stringResource(R.string.run_line_charger),
-                live?.let { stringResource(if (it.plugged) R.string.run_charger_on else R.string.run_charger_off) },
+                stringResource(R.string.charger),
+                live?.let { stringResource(if (it.plugged) R.string.charger_connected else R.string.charger_not_connected) },
                 tag = if (plugged) LogTag.Warn else null,
             ),
         )

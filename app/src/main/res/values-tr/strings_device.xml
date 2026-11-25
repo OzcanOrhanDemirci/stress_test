@@ -17,9 +17,6 @@
     <string name="device_v2_refresh_value">%1$d sn\'de bir</string>
     <string name="device_v2_cluster">CPU kümesi %1$d</string>
     <string name="device_v2_clock_share">En yüksek frekansa oranı</string>
-    <string name="device_v2_charger">Şarj aleti</string>
-    <string name="device_v2_plugged">takılı</string>
-    <string name="device_v2_unplugged">takılı değil</string>
     <string name="device_v2_zones_summary">%1$d/%2$d okunuyor</string>
     <string name="device_v2_section_counters">GPU</string>
     <string name="device_v2_section_raw">Ham değerler</string>

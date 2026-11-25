@@ -18,9 +18,6 @@
     <string name="device_v2_refresh_value">every %1$d s</string>
     <string name="device_v2_cluster">CPU cluster %1$d</string>
     <string name="device_v2_clock_share">Share of maximum clock</string>
-    <string name="device_v2_charger">Charger</string>
-    <string name="device_v2_plugged">plugged in</string>
-    <string name="device_v2_unplugged">unplugged</string>
     <string name="device_v2_zones_summary">%1$d/%2$d readable</string>
     <string name="device_v2_section_counters">GPU</string>
     <string name="device_v2_section_raw">Raw values</string>

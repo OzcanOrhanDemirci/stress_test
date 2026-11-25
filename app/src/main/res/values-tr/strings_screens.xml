@@ -23,9 +23,8 @@
     <string name="device_battery_output">Pilden çekilen güç</string>
     <string name="device_battery_level">Pil seviyesi</string>
     <string name="device_battery_temperature">Pil sıcaklığı</string>
-    <string name="device_power_plugged">Pilden çekilen gücü ölçmek için şarj kablosunu çıkar.</string>
+    <string name="device_power_plugged">Pilden çekilen gücü ve akımı ölçmek için şarj kablosunu çıkar.</string>
     <string name="device_power_missing">Gücü ölçmek için geçerli akım ve gerilim ölçümleri gerekli.</string>
-    <string name="device_current_plugged">Pilden çekilen akımı ölçmek için şarj kablosunu çıkar.</string>
     <string name="device_current_missing">Pil sayacı geçerli bir anlık akım değeri vermiyor.</string>
     <string name="device_raw_missing">Android ham akım değerini bildirmedi.</string>
     <string name="device_voltage_missing">Android pil gerilimini bildirmedi.</string>
