@@ -392,9 +392,14 @@ private fun Hero(record: RunRecord) {
             Text(stringResource(R.string.insight_charging_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
             return@GlassCard
         }
+        if (s.meanWatts == null && s.peakWatts == null) {
+            Text(stringResource(R.string.power_unavailable), style = MaterialTheme.typography.titleMedium, color = StressColors.Warn)
+            return@GlassCard
+        }
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.result_peak).upper(), style = MaterialTheme.typography.labelMedium, color = StressColors.TextDim, letterSpacing = 1.6.sp)
+                val powerLabel = if (s.peakWatts == null) R.string.result_mean else R.string.result_peak
+                Text(stringResource(powerLabel).upper(), style = MaterialTheme.typography.labelMedium, color = StressColors.TextDim, letterSpacing = 1.6.sp)
                 Row(verticalAlignment = Alignment.Bottom) {
                     CountUpNumber(s.peakWatts ?: s.meanWatts, { Format.number(it, 2) }, style = NumberStyles.Hero, color = StressColors.Accent)
                     Text(" W", style = MaterialTheme.typography.headlineSmall, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 10.dp))

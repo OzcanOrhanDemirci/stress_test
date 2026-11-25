@@ -431,13 +431,14 @@ private fun TopHud(
                 Text(
                     when {
                         live?.plugged == true -> stringResource(R.string.run_power_invalid)
+                        live != null && live.watts == null -> stringResource(R.string.power_unavailable)
                         else -> stringResource(R.string.run_power_caption, Format.watts(idle), Format.watts(live?.watts?.let { w -> idle?.let { w - it } }))
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (live?.plugged == true) StressColors.Warn else StressColors.TextDim,
                 )
             }
-            if (live?.plugged != true) {
+            if (live?.watts != null) {
                 Text("W", style = MaterialTheme.typography.titleMedium, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 18.dp))
             }
             Sparkline(power, StressColors.Accent, Modifier.weight(1f).height(44.dp).padding(bottom = 4.dp))

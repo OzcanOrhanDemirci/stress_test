@@ -198,7 +198,8 @@ private fun RunCard(record: RunRecord, onClick: () -> Unit, onDelete: () -> Unit
         // Spaced by hand: a spacedBy arrangement would also put its gap on both sides of the flexible spacer,
         // and the end-reason pill needs that room.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Metric(Icons.Rounded.Bolt, if (s.powerValid) Format.watts(s.peakWatts ?: s.meanWatts) else Format.MISSING, stringResource(R.string.result_peak))
+            val powerLabel = if (s.powerValid && s.peakWatts == null && s.meanWatts != null) R.string.result_mean else R.string.result_peak
+            Metric(Icons.Rounded.Bolt, if (s.powerValid) Format.watts(s.peakWatts ?: s.meanWatts) else Format.MISSING, stringResource(powerLabel))
             Spacer(Modifier.width(14.dp))
             Metric(
                 Icons.Rounded.Thermostat,

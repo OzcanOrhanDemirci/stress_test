@@ -1,6 +1,5 @@
 package dev.ozcan.stress.run
 
-import dev.ozcan.stress.analysis.CurrentConvention
 import dev.ozcan.stress.analysis.Point
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
@@ -35,19 +34,42 @@ object RunAnalysis {
         clusters: List<CpuCluster>,
         clusterName: (CpuCluster) -> String,
     ): Pair<RunSummary, RunSeries> {
-        val convention = CurrentConvention.infer(baseline.unplugged().mapNotNull { it.battery.currentRaw })
-            ?: CurrentConvention.infer(load.unplugged().mapNotNull { it.battery.currentRaw })
         val origin = load.firstOrNull()?.timeNanos ?: 0L
-        val watts = convention?.let { Power.watts(load, it, origin) }.orEmpty()
         val span = load.lastOrNull()?.let { Power.seconds(it.timeNanos, origin) } ?: 0.0
+        // This stored flag means a charger was attached, including in older runs.
         val powerValid = (baseline + load).none { it.battery.plugged }
-
-        // Without an instantaneous current, the charge counter's slope still
-        // gives the mean power, though not its peaks.
-        val counterWatts = if (watts.isEmpty() && powerValid) counterPower(load, origin) else null
-        val idle = convention?.let { Stats.meanOf(Power.watts(baseline, it, baseline.firstOrNull()?.timeNanos ?: 0L)) }
-        val mean = Stats.meanOf(watts) ?: counterWatts
-        val sustained = Stats.meanOf(Stats.window(watts, span - SUSTAINED_SECONDS, Double.MAX_VALUE)) ?: counterWatts
+        val onBattery = (baseline + load).all { it.battery.onBattery }
+        val idleConvention = Power.currentConvention(baseline)
+        val loadConvention = Power.currentConvention(load)
+        val convention = (loadConvention ?: idleConvention).takeIf {
+            onBattery && (idleConvention == null || loadConvention == null || idleConvention == loadConvention)
+        }
+        val idleOrigin = baseline.firstOrNull()?.timeNanos ?: 0L
+        val idleRaw = baseline.lastOrNull()?.battery?.measurableCurrent
+        // A gauge can freeze just before the load starts, while its last idle
+        // value still looks fresh. The load has to show some response.
+        val responds = idleRaw == null || load.any { it.battery.measurableCurrent?.let { raw -> raw != idleRaw } == true }
+        val direct = if (responds) convention?.let { Power.windowWatts(load, it, origin) }.orEmpty() else emptyList()
+        val directMean = Power.meanWatts(direct)
+        val energyWatts = if (onBattery) Power.energyCounterWatts(load, origin) else null
+        val chargeWatts = if (onBattery) Power.chargeCounterWatts(load, origin) else null
+        val counter = energyWatts ?: chargeWatts
+        val mismatch = directMean != null && counter != null && !Power.agrees(directMean, counter)
+        val watts = if (mismatch) emptyList() else direct
+        // With no usable current the counters can give a mean. When two
+        // sources disagree, only report a mean if the two counters corroborate it.
+        val counterWatts = counter?.takeIf {
+            watts.isEmpty() && (!mismatch ||
+                (energyWatts != null && chargeWatts != null && Power.agrees(energyWatts, chargeWatts)))
+        }
+        val idle = if (mismatch || !responds) null else convention?.let { Power.meanWatts(Power.windowWatts(baseline, it, idleOrigin)) }
+        val mean = Power.meanWatts(watts) ?: counterWatts
+        val sustained = Power.meanWatts(Stats.window(watts, span - SUSTAINED_SECONDS, Double.MAX_VALUE)) ?: counterWatts?.let {
+            if (span <= SUSTAINED_SECONDS) it else {
+                val tail = load.filter { Power.seconds(it.timeNanos, origin) >= span - SUSTAINED_SECONDS }
+                if (energyWatts != null) Power.energyCounterWatts(tail, origin) else Power.chargeCounterWatts(tail, origin)
+            }
+        }
         val cpuRates = rates(load) { s -> s.cpu.workers.sumOf { it.work } }
         val gpuRunning = load.any { it.gpu.isRunning }
         // A burner paces its frames to a fixed time, so only a scene's frame rate means anything.
@@ -55,10 +77,10 @@ object RunAnalysis {
 
         val summary = RunSummary(
             idleWatts = idle,
-            peakWatts = if (watts.isEmpty()) null else Stats.maxWindowMean(watts, PEAK_WINDOW_SECONDS) ?: mean,
+            peakWatts = Stats.maxWindowMean(watts, PEAK_WINDOW_SECONDS),
             meanWatts = mean,
             sustainedWatts = sustained,
-            energyWattHours = energy(watts) ?: counterWatts?.let { it * span / 3600.0 },
+            energyWattHours = Power.joules(watts)?.div(3600.0) ?: counterWatts?.let { it * span / 3600.0 },
             batteryStartPercent = load.firstOrNull()?.battery?.levelPercent,
             batteryEndPercent = load.lastOrNull()?.battery?.levelPercent,
             batteryLifeHours = batteryLife(load, sustained),
@@ -87,22 +109,6 @@ object RunAnalysis {
         return summary.copy(minFps = settledFps.minOrNull()) to series
     }
 
-    private fun List<Sample>.unplugged() = filter { !it.battery.plugged }
-
-    /** Mean battery output power from the charge counter's slope and the mean voltage, in watts. */
-    private fun counterPower(load: List<Sample>, origin: Long): Double? {
-        val amps = Power.chargeCounterAmps(load, origin)?.takeIf { it > 0 } ?: return null
-        val volts = Stats.mean(load.mapNotNull { s -> s.battery.voltageMillivolts?.let { it / 1000.0 } }) ?: return null
-        return amps * volts
-    }
-
-    /** Trapezoidal integral of power over time, in watt-hours. */
-    private fun energy(watts: List<Point>): Double? {
-        if (watts.size < 2) return null
-        val joules = watts.zipWithNext { a, b -> (a.value + b.value) / 2 * (b.seconds - a.seconds) }.sum()
-        return joules / 3600.0
-    }
-
     /**
      * The gauge knows the charge left and the level it corresponds to, so the
      * full charge follows; at the nominal voltage that is the energy of a full
@@ -110,10 +116,15 @@ object RunAnalysis {
      */
     private fun batteryLife(load: List<Sample>, sustainedWatts: Double?): Double? {
         val start = load.firstOrNull()?.battery ?: return null
-        val counter = start.chargeCounterMicroAmpHours ?: return null
-        val level = start.levelPercent?.takeIf { it > 0 } ?: return null
+        val level = start.levelPercent?.takeIf { it >= 10 } ?: return null
         val watts = sustainedWatts?.takeIf { it > 0 } ?: return null
-        val fullWattHours = counter * 1e-6 * NOMINAL_VOLTS * 100.0 / level
+        val remainingWattHours = start.energyCounterNanoWattHours?.times(1e-9) ?: run {
+            val counter = start.chargeCounterMicroAmpHours ?: return null
+            val mv = start.voltageMillivolts ?: return null
+            val nominal = if (mv > 5_000) 2 * NOMINAL_VOLTS else NOMINAL_VOLTS
+            counter * 1e-6 * nominal
+        }
+        val fullWattHours = remainingWattHours * 100.0 / level
         return fullWattHours / watts
     }
 
