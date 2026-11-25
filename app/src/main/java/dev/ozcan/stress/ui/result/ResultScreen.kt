@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -90,6 +91,7 @@ import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.hoursText
 import dev.ozcan.stress.ui.run.DrawnQualityNotice
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
@@ -166,7 +168,7 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
             .joinToString(" // ").upper()
     }
     TopBar(
-        title = stringResource(if (record?.isCharge == true) R.string.charge_result else R.string.result_title),
+        title = stringResource(R.string.result_title),
         caption = caption,
         onBack = onBack,
         modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
@@ -283,10 +285,10 @@ private fun Summary(record: RunRecord) {
             Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
                 Stack(Modifier.weight(1f), spacing = 4) {
                     SectionLabel(stringResource(R.string.result_peak))
-                    MetricNumber(Format.number(peak, 2), "W", NumberStyles.Hero, StressColors.Accent)
+                    MetricNumber(Format.wattNumber(peak), "W", NumberStyles.Hero, StressColors.Accent)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.result_sustained), style = StressType.BodySmall, color = StressColors.TextDim)
-                        MetricNumber(Format.number(sustained, 2), "W", NumberStyles.Small, StressColors.Accent)
+                        MetricNumber(Format.wattNumber(sustained), "W", NumberStyles.Small, StressColors.Accent)
                     }
                 }
                 StabilityArc(stability, stringResource(R.string.result_stability))
@@ -319,11 +321,11 @@ private fun PowerTiles(record: RunRecord) {
         val cell = Modifier.weight(1f).fillMaxHeight()
         val color = StressColors.Accent
         MetricTile(
-            stringResource(R.string.result_mean_short), Format.number(s.meanWatts.takeIf { s.powerValid }, 2),
+            stringResource(R.string.result_mean_short), Format.wattNumber(s.meanWatts.takeIf { s.powerValid }),
             cell, unit = "W", color = color, padding = 8.dp,
         )
         MetricTile(
-            stringResource(R.string.result_idle), Format.number(s.idleWatts.takeIf { s.powerValid }, 2),
+            stringResource(R.string.result_idle), Format.wattNumber(s.idleWatts.takeIf { s.powerValid }),
             cell, unit = "W", color = color, padding = 8.dp,
         )
         MetricTile(
@@ -462,7 +464,7 @@ private fun MainChart(record: RunRecord) {
                             add(ChartSeries(chipLabel, StressColors.Cool, chip, "°C", range))
                         }
                     }
-                    TimeChart(series.seconds, lines, "W", height = 160.dp, yMin = 0.0, decimals = 2)
+                    TimeChart(series.seconds, lines, "W", height = 160.dp, yMin = 0.0, decimals = Format.WATT_DECIMALS)
                 } else {
                     Text(Format.MISSING, style = StressType.Code, color = StressColors.TextDim)
                 }
@@ -591,7 +593,7 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
                 text = stringResource(R.string.result_csv),
                 icon = Icons.Rounded.TableChart,
                 enabled = !busy,
-                modifier = Modifier.weight(if (record.isCharge) 1f else 0.8f),
+                modifier = if (record.isCharge) Modifier.weight(1f) else Modifier.width(80.dp),
                 onClick = {
                     scope.launch {
                         busy = true
@@ -613,7 +615,7 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
             PrimaryButton(
                 text = stringResource(R.string.result_share_pdf),
                 enabled = !busy,
-                modifier = Modifier.weight(1.15f),
+                modifier = Modifier.weight(1f),
                 onClick = {
                     scope.launch {
                         busy = true
@@ -627,11 +629,4 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
             )
         }
     }
-}
-
-/** 2.52 h -> "2 h 31 min" in the screen's language. */
-fun hoursText(context: android.content.Context, hours: Double): String {
-    val minutes = (hours * 60).toLong()
-    return if (minutes >= 60) context.getString(R.string.hours_minutes, minutes / 60, minutes % 60)
-    else context.getString(R.string.minutes_only, minutes)
 }

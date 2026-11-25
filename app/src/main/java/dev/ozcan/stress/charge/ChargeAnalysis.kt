@@ -39,11 +39,14 @@ internal data class ChargeAnalysis(
         private const val SLOWDOWN_FRACTION = 0.70
         private const val SLOWDOWN_SECONDS = 30.0
         private const val MAX_GAP_SECONDS = 3.0
+        const val STANDARD_MIN_WATTS = 4.5
+        const val FAST_MIN_WATTS = 9.0
+        const val FAST_MAX_WATTS = 18.0
 
         fun speed(peak: Double): ChargeSpeed = when {
-            peak < 4.5 -> ChargeSpeed.UsbPort
-            peak < 9.0 -> ChargeSpeed.Standard
-            peak <= 18.0 -> ChargeSpeed.Fast
+            peak < STANDARD_MIN_WATTS -> ChargeSpeed.UsbPort
+            peak < FAST_MIN_WATTS -> ChargeSpeed.Standard
+            peak <= FAST_MAX_WATTS -> ChargeSpeed.Fast
             else -> ChargeSpeed.HighPower
         }
 

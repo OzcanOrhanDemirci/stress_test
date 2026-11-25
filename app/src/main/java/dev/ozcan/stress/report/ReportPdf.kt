@@ -29,7 +29,7 @@ import dev.ozcan.stress.ui.components.niceStep
 import dev.ozcan.stress.ui.components.niceTicks
 import dev.ozcan.stress.ui.components.tickLabel
 import dev.ozcan.stress.ui.components.timeStep
-import dev.ozcan.stress.ui.result.hoursText
+import dev.ozcan.stress.ui.hoursText
 import java.io.File
 
 /**

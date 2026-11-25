@@ -51,6 +51,7 @@ import dev.ozcan.stress.ui.components.StopButton
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.minutesText
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
@@ -112,7 +113,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
             } else when (phase) {
                 ChargePhase.Preparing -> ChargeMessage(R.string.charge_checking_text)
                 ChargePhase.Baseline -> Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.charge_baseline)) {
-                    MetricNumber(Format.number(update.watts, 1), "W", NumberStyles.Hero, StressColors.Accent)
+                    MetricNumber(Format.wattNumber(update.watts), "W", NumberStyles.Hero, StressColors.Accent)
                     Text(stringResource(R.string.charge_baseline_text), style = StressType.BodySmall, color = StressColors.TextDim)
                     MeterBar((update.elapsedSeconds / ChargeSession.BASELINE_SECONDS).toFloat())
                 }
@@ -121,7 +122,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
                     InfoRow(stringResource(R.string.charge_idle), Format.watts(update.idleWatts))
                 }
                 ChargePhase.Measuring -> Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.charge_battery_power)) {
-                    MetricNumber(Format.number(update.watts, 1), "W", NumberStyles.Hero, StressColors.Accent)
+                    MetricNumber(Format.wattNumber(update.watts), "W", NumberStyles.Hero, StressColors.Accent)
                     Text(
                         stringResource(when (update.watts) {
                             null -> R.string.charge_identifying
@@ -154,7 +155,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
                         battery?.plugType?.let { stringResource(plugLabel(it)) } ?: Format.MISSING,
                     )
                     state.remainingMillis?.let {
-                        InfoRow(stringResource(R.string.charge_full_estimate), Format.clock(it / 1000.0))
+                        InfoRow(stringResource(R.string.charge_full_estimate), minutesText(context(), it / 60_000))
                     }
                 }
             }

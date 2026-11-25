@@ -63,12 +63,12 @@ fun ChargeResult(record: RunRecord, modifier: Modifier = Modifier) {
                 StatusChip(stringResource(Labels.endReasonShort(reason)), Labels.endReasonColor(reason))
             }
             SectionLabel(stringResource(R.string.charge_peak), caption = Format.clock(record.loadSeconds))
-            MetricNumber(Format.number(peak, 1), "W", NumberStyles.Hero, StressColors.Accent)
+            MetricNumber(Format.wattNumber(peak), "W", NumberStyles.Hero, StressColors.Accent)
             Text(stringResource(R.string.charge_net_explained), style = StressType.BodySmall, color = StressColors.TextDim)
         }
         TileRow(Modifier.height(IntrinsicSize.Min)) {
             MetricTile(
-                stringResource(R.string.charge_sustained), Format.number(summary.sustainedWatts, 1), Modifier.weight(1f).fillMaxHeight(),
+                stringResource(R.string.charge_sustained), Format.wattNumber(summary.sustainedWatts), Modifier.weight(1f).fillMaxHeight(),
                 unit = "W", color = StressColors.Accent, caption = stringResource(R.string.charge_sustained_note),
             )
             MetricTile(
@@ -110,13 +110,16 @@ private fun ChargeFindings(record: RunRecord) {
     val details = record.charge
     val findings = buildList {
         if (peak != null && peak > 0.0) {
-            val speed = when (ChargeAnalysis.speed(peak)) {
-                ChargeSpeed.UsbPort -> R.string.charge_speed_usb
-                ChargeSpeed.Standard -> R.string.charge_speed_standard
-                ChargeSpeed.Fast -> R.string.charge_speed_fast
-                ChargeSpeed.HighPower -> R.string.charge_speed_high
-            }
-            add(stringResource(speed, Format.watts(peak)))
+            val watts = Format.watts(peak)
+            val standardMin = Format.number(ChargeAnalysis.STANDARD_MIN_WATTS, 1)
+            val fastMin = Format.number(ChargeAnalysis.FAST_MIN_WATTS, 0)
+            val fastMax = Format.number(ChargeAnalysis.FAST_MAX_WATTS, 0)
+            add(when (ChargeAnalysis.speed(peak)) {
+                ChargeSpeed.UsbPort -> stringResource(R.string.charge_speed_usb, watts, standardMin)
+                ChargeSpeed.Standard -> stringResource(R.string.charge_speed_standard, watts, standardMin, fastMin)
+                ChargeSpeed.Fast -> stringResource(R.string.charge_speed_fast, watts, fastMin, fastMax)
+                ChargeSpeed.HighPower -> stringResource(R.string.charge_speed_high, watts, fastMax)
+            })
         }
         if (details?.slowdownWhileHot == true) add(stringResource(R.string.charge_heat_finding))
         if ((record.summary.batteryStartPercent ?: 0) > 80) add(stringResource(R.string.charge_high_start))
@@ -139,7 +142,9 @@ private fun ChargeTimeChart(record: RunRecord) {
     val power = stringResource(R.string.charge_battery_power)
     val battery = stringResource(R.string.temp_battery)
     val lines = buildList {
-        if (series.watts.any { it != null }) add(ChartSeries(power, StressColors.Accent, series.watts, "W"))
+        if (series.watts.any { it != null }) {
+            add(ChartSeries(power, StressColors.Accent, series.watts, "W", decimals = Format.WATT_DECIMALS))
+        }
         val min = series.batteryCelsius.filterNotNull().minOrNull()
         val max = series.batteryCelsius.filterNotNull().maxOrNull()
         if (min != null && max != null) {
@@ -152,7 +157,7 @@ private fun ChargeTimeChart(record: RunRecord) {
             Text(stringResource(R.string.charge_no_curve), style = StressType.BodySmall, color = StressColors.TextDim)
         } else {
             TimeChart(series.seconds, lines, if (lines.first().color == StressColors.Accent) "W" else "°C",
-                yMin = 0.0.takeIf { lines.first().color == StressColors.Accent })
+                yMin = 0.0.takeIf { lines.first().color == StressColors.Accent }, showAxisUnits = true)
         }
     }
 }

@@ -1,5 +1,7 @@
 package dev.ozcan.stress.ui
 
+import android.content.Context
+import dev.ozcan.stress.R
 import java.util.Locale
 
 /**
@@ -9,6 +11,7 @@ import java.util.Locale
  */
 object Format {
     const val MISSING = "—"
+    const val WATT_DECIMALS = 2
 
     private val locale: Locale get() = Locale.getDefault()
 
@@ -18,7 +21,9 @@ object Format {
     fun number(value: Double?, decimals: Int): String =
         value?.takeIf { it.isFinite() }?.let { String.format(locale, "%.${decimals}f", it) } ?: MISSING
 
-    fun watts(value: Double?): String = value?.let { "${number(it, 2)} W" } ?: MISSING
+    fun wattNumber(value: Double?): String = number(value, WATT_DECIMALS)
+
+    fun watts(value: Double?): String = wattNumber(value).let { if (it == MISSING) it else "$it W" }
 
     fun celsius(value: Double?, decimals: Int = 1): String = value?.let { "${number(it, decimals)} °C" } ?: MISSING
 
@@ -73,6 +78,14 @@ object Format {
     /** An axis label: "0:00", "2:30", "1:05:00". */
     fun elapsedShort(seconds: Double): String = clock(seconds)
 }
+
+/** A whole number of minutes, written as hours and minutes when needed. */
+fun minutesText(context: Context, minutes: Long): String =
+    if (minutes >= 60) context.getString(R.string.hours_minutes, minutes / 60, minutes % 60)
+    else context.getString(R.string.minutes_only, minutes)
+
+/** 2.52 h -> "2 h 31 min" in the screen's language. */
+fun hoursText(context: Context, hours: Double): String = minutesText(context, (hours * 60).toLong())
 
 /** Dates in the device's language. */
 object Dates {
