@@ -1,9 +1,21 @@
 package dev.ozcan.stress.analysis
 
+import dev.ozcan.stress.engine.SceneQuality
+import dev.ozcan.stress.run.EndReason
 import dev.ozcan.stress.run.RunRecord
+import dev.ozcan.stress.run.StressMode
 
 /** Two runs side by side: their headline numbers and the change between them. Pure, so it is tested. */
 object Comparison {
+
+    /** A reduced run can mix different workloads, so its watts cannot rank a single quality. */
+    fun isEligible(record: RunRecord): Boolean {
+        if (record.endReason == EndReason.GpuFailed.name || record.drawnQuality != record.quality) return false
+        val drawnScale = record.drawnScalePercent ?: return true // Older files only recorded the tier.
+        val kind = StressMode.of(record.mode)?.scene ?: return false
+        val quality = SceneQuality.entries.firstOrNull { it.name == record.quality } ?: return false
+        return drawnScale == quality.scalePercent(kind).toDouble()
+    }
 
     /**
      * A compared number, and which way is better: more power and work is what
