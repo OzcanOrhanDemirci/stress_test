@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fixed labels of the shared parts (engineering page, log, setting rows). Uppercased in code. -->
+    <string name="parts_engineering_view">Engineering view</string>
+    <string name="parts_engineering">Engineering</string>
+    <string name="parts_close">Close</string>
+    <plurals name="parts_values">
+        <item quantity="one">%d value</item>
+        <item quantity="other">%d values</item>
+    </plurals>
+    <string name="parts_tag_ok">OK</string>
+    <string name="parts_tag_na">N/A</string>
+    <string name="parts_tag_warn">WARN</string>
+    <string name="parts_tag_stop">STOP</string>
+</resources>

@@ -19,6 +19,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -34,11 +35,13 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.ozcan.stress.R
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressMotion
 import dev.ozcan.stress.ui.theme.StressType
@@ -235,18 +238,7 @@ fun SwitchRow(
                 Text(description, style = StressType.BodySmall, color = StressColors.TextDim)
             }
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = StressColors.Cool,
-                checkedBorderColor = StressColors.Cool,
-                uncheckedThumbColor = StressColors.TextDim,
-                uncheckedTrackColor = StressColors.SurfaceHighest,
-                uncheckedBorderColor = StressColors.OutlineStrong,
-            ),
-        )
+        StressSwitch(checked, onCheckedChange)
     }
 }
 
@@ -279,5 +271,127 @@ fun NavigationRow(
             }
         }
         if (trailing != null) Icon(trailing, null, tint = StressColors.TextFaint)
+    }
+}
+
+/** The app's switch: `Cool` track when on. Pass a null [onCheckedChange] when the whole row toggles it. */
+@Composable
+fun StressSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = Color.White,
+            checkedTrackColor = StressColors.Cool,
+            checkedBorderColor = StressColors.Cool,
+            uncheckedThumbColor = StressColors.TextDim,
+            uncheckedTrackColor = StressColors.SurfaceHighest,
+            uncheckedBorderColor = StressColors.OutlineStrong,
+        ),
+    )
+}
+
+/**
+ * The control surface shared by the full-width rows: `SurfaceHigh` fill, 1 dp `OutlineStrong` rule, radius 6,
+ * `SurfaceHighest` while pressed, at least 56 dp tall. Without [onClick] it keeps the look (the row holds a control).
+ */
+@Composable
+internal fun ControlSurface(
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    role: Role = Role.Button,
+    content: @Composable () -> Unit,
+) {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val fill by animateColorAsState(
+        if (pressed) StressColors.SurfaceHighest else StressColors.SurfaceHigh, StressMotion.state(), label = "row fill",
+    )
+    Box(
+        modifier.fillMaxWidth().heightIn(min = 56.dp).clip(ControlShape).background(fill)
+            .border(1.dp, StressColors.OutlineStrong, ControlShape)
+            .then(if (onClick == null) Modifier else Modifier.clickable(source, null, role = role, onClick = onClick)),
+        contentAlignment = Alignment.CenterStart,
+    ) { content() }
+}
+
+/**
+ * The last item of every simple page: a full-width control to its engineering page. [caption] says what the page
+ * holds, in Code style ("42 VALUES"; `pluralStringResource(R.plurals.parts_values, n, n).upper()`).
+ */
+@Composable
+fun EngineeringRow(caption: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ControlSurface(onClick, modifier) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            Arrangement.spacedBy(12.dp),
+            Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.Terminal, null, Modifier.size(20.dp), tint = StressColors.TextDim)
+            Text(
+                stringResource(R.string.parts_engineering_view).upper(), Modifier.weight(1f),
+                style = StressType.Label, color = StressColors.Text, maxLines = 2,
+            )
+            Text(caption, style = StressType.Code, color = StressColors.TextDim, maxLines = 1)
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = StressColors.TextDim)
+        }
+    }
+}
+
+/**
+ * A setting (DESIGN "Settings"): [title] in Heading, one line of [description] in Body small `TextDim`, the
+ * [control] on the right (a [StressSwitch], a value) or, with [controlBelow], under the text at full width (a
+ * [SegmentedControl]). [onClick] makes the whole row act, e.g. toggle the switch; the row is drawn as a control
+ * either way, since it holds one.
+ */
+@Composable
+fun SettingRow(
+    title: String,
+    description: String?,
+    control: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    controlBelow: Boolean = false,
+) {
+    ControlSurface(onClick, modifier) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
+                SettingText(title, description, Modifier.weight(1f))
+                if (!controlBelow) control()
+            }
+            if (controlBelow) control()
+        }
+    }
+}
+
+/** A row that opens something: [title], optional [description], the current [value] in `TextDim`, a chevron. */
+@Composable
+fun NavRow(
+    title: String,
+    description: String? = null,
+    value: String? = null,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ControlSurface(onClick, modifier) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            Arrangement.spacedBy(8.dp),
+            Alignment.CenterVertically,
+        ) {
+            SettingText(title, description, Modifier.weight(1f))
+            if (value != null) Text(value, style = StressType.Body, color = StressColors.TextDim, maxLines = 1)
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = StressColors.TextDim)
+        }
+    }
+}
+
+@Composable
+private fun SettingText(title: String, description: String?, modifier: Modifier) {
+    Column(modifier, Arrangement.spacedBy(2.dp)) {
+        Text(title, style = StressType.Heading, color = StressColors.Text)
+        if (description != null) Text(description, style = StressType.BodySmall, color = StressColors.TextDim)
     }
 }
