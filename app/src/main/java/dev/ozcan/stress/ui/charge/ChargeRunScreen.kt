@@ -5,8 +5,11 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -132,13 +135,16 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
                 }
             }
             if (phase != ChargePhase.Preparing) {
-                TileRow {
+                TileRow(Modifier.height(IntrinsicSize.Min)) {
                     MetricTile(stringResource(R.string.charge_current), Format.number(update.amps, 2), Modifier.weight(1f), unit = "A")
                     MetricTile(stringResource(R.string.charge_voltage), Format.number(battery?.let(ChargePower::volts), 2), Modifier.weight(1f), unit = "V")
                 }
-                TileRow {
-                    MetricTile(stringResource(R.string.charge_battery_level), Format.percentValue(battery?.levelPercent), Modifier.weight(1f))
-                    MetricTile(stringResource(R.string.safety_reason_battery_hot), Format.number(temperature, 1), Modifier.weight(1f), unit = "°C", color = color)
+                TileRow(Modifier.height(IntrinsicSize.Min)) {
+                    MetricTile(stringResource(R.string.charge_battery_level), Format.percentValue(battery?.levelPercent), Modifier.weight(1f).fillMaxHeight())
+                    MetricTile(
+                        stringResource(R.string.safety_reason_battery_hot), Format.number(temperature, 1), Modifier.weight(1f).fillMaxHeight(),
+                        unit = "°C", color = color,
+                    )
                 }
             }
             if (phase == ChargePhase.Measuring) {

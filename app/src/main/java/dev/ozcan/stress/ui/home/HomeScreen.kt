@@ -62,6 +62,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.Capabilities
 import dev.ozcan.stress.R
+import dev.ozcan.stress.charge.ChargeSession
 import dev.ozcan.stress.device.DeviceInfo
 import dev.ozcan.stress.engine.SceneKind
 import dev.ozcan.stress.engine.SceneQuality
@@ -216,7 +217,8 @@ fun HomeScreen(
     val durations = if (mode == StressMode.Charge) ChargeDurations else StressDuration.entries
     val duration = settings.lastDuration.takeIf { it in durations } ?: StressDuration.Five
     val quality = settings.quality
-    val safety = settings.deviceSafety
+    val charge = mode == StressMode.Charge
+    val safety = charge || settings.deviceSafety
     val summary = listOfNotNull(
         Labels.modeName(context, mode),
         stringResource(Labels.duration(duration, mode)),
@@ -230,13 +232,14 @@ fun HomeScreen(
             actions = {
                 StatusChip(
                     text = if (safety) {
-                        stringResource(R.string.home_protection_limit, Limits.chipStop.toInt())
+                        val limit = if (charge) ChargeSession.STOP_CELSIUS else Limits.chipStop
+                        stringResource(R.string.home_protection_limit, limit.toInt())
                     } else {
                         stringResource(R.string.safety_off_short)
                     },
                     color = if (safety) StressColors.Good else StressColors.Bad,
                     icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
-                    onClick = onOpenSettings,
+                    onClick = onOpenSettings.takeUnless { charge },
                 )
             },
         )
