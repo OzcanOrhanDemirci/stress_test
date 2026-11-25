@@ -210,10 +210,12 @@ private fun PowerCard(live: LiveView?) {
                 style = NumberStyles.Large,
                 color = StressColors.Accent,
             )
-            if (live?.plugged != true) Text("W", style = MaterialTheme.typography.titleMedium, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 4.dp))
+            if (live?.watts != null) Text("W", style = MaterialTheme.typography.titleMedium, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 4.dp))
         }
         if (live?.plugged == true) {
             Text(stringResource(R.string.home_plugged), style = MaterialTheme.typography.bodySmall, color = StressColors.Warn)
+        } else if (live != null && live.watts == null) {
+            Text(stringResource(R.string.power_unavailable), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
         }
         Spacer(Modifier.height(6.dp))
         InfoRow(stringResource(R.string.device_current), Format.number(live?.dischargeAmps, 3) + " A")

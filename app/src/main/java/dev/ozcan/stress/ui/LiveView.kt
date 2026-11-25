@@ -1,6 +1,5 @@
 package dev.ozcan.stress.ui
 
-import dev.ozcan.stress.analysis.CurrentConvention
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.analysis.WorkRate
@@ -106,8 +105,7 @@ data class LiveView(
         fun from(recent: List<Sample>, layout: SysfsLayout): LiveView? {
             val last = recent.lastOrNull() ?: return null
             val first = recent.first()
-            val unplugged = recent.filter { !it.battery.plugged }
-            val convention = CurrentConvention.infer(unplugged.mapNotNull { it.battery.currentRaw })
+            val convention = Power.currentConvention(recent.takeLastWhile { it.battery.measurableCurrent != null })
             val seconds = (last.timeNanos - first.timeNanos) / 1e9
             val rates = if (seconds > 0) WorkRate.perCpu(first.cpu, last.cpu, seconds) else null
             val running = last.cpu.workers.firstNotNullOfOrNull { it.kernel }
@@ -116,7 +114,7 @@ data class LiveView(
             return LiveView(
                 watts = convention?.let { Stats.meanOf(Power.watts(recent, it, first.timeNanos)) },
                 dischargeAmps = convention?.let { c ->
-                    Stats.mean(unplugged.mapNotNull { s -> s.battery.currentRaw?.let(c::dischargeAmps) })
+                    Stats.mean(recent.mapNotNull { s -> s.battery.measurableCurrent?.let(c::usableAmps) })
                 },
                 currentRaw = last.battery.currentRaw,
                 volts = last.battery.voltageMillivolts?.let { it / 1000.0 },

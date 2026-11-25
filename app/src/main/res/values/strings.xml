@@ -65,6 +65,8 @@
     <string name="home_live_chip">Chip</string>
     <string name="home_live_power">Power</string>
     <string name="home_live_charging">Charging</string>
+    <string name="reading_unavailable">Unavailable</string>
+    <string name="power_unavailable">Power cannot be measured on this phone.</string>
     <string name="home_live_thermal">Thermal: %1$s</string>
     <string name="home_last_peak">peak</string>
     <string name="home_plugged">The charger is connected: the test runs, but the power drawn from the battery cannot be measured.</string>
@@ -204,7 +206,7 @@
     <string name="insight_charging_title">The charger was connected</string>
     <string name="insight_charging_detail">On a charger the battery gauge measures charging and load together, so the power figures are not valid.</string>
     <string name="insight_counter_title">Power from the charge counter</string>
-    <string name="insight_counter_detail">This phone reports no instantaneous current: the mean power comes from the battery\'s charge counter, peaks are unknown.</string>
+    <string name="insight_counter_detail">The battery counter gives the average power. Peak power could not be measured.</string>
     <string name="insight_throttled_title">Throttling began at %1$s</string>
     <string name="insight_throttled_detail">%1$s first fell below 97%% of its top clock for three seconds: the phone slowed down to hold its temperature.</string>
     <string name="insight_never_throttled_title">No throttling</string>

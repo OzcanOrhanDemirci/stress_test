@@ -335,6 +335,7 @@ private fun LiveStatus(live: LiveView?) {
                 value = when {
                     live == null -> Format.MISSING
                     live.plugged -> stringResource(R.string.home_live_charging)
+                    live.watts == null -> stringResource(R.string.reading_unavailable)
                     else -> Format.number(live.watts, 2)
                 },
                 sub = if (live != null && !live.plugged && live.watts != null) "W" else " ",
