@@ -302,7 +302,7 @@
     <string name="language_system">System</string>
     <string name="language_turkish">Türkçe</string>
     <string name="language_english">English</string>
-    <string name="settings_section_device">Device</string>
+    <string name="settings_section_device">Device and storage</string>
     <string name="settings_device">Device info and sensors</string>
     <string name="settings_device_detail">Processor, GPU, live readings, which sensors the app can read, manual load tests.</string>
     <string name="settings_clear">Clear history</string>
@@ -314,11 +314,11 @@
     <string name="settings_about_tagline">The stress test that finds your phone\'s real limits.</string>
     <string name="settings_about_text" formatted="false">Stress Test does not settle for the 100% on the screen. It truly works the processor\'s arithmetic units, its memory path and the graphics chip all at once, and measures the most power your phone can draw, how hot it gets and how it slows down as it heats up.</string>
     <string name="settings_about_cpu">CPU loads written in ARM assembly; each one checks its own results, so a calculation error is caught at once.</string>
-    <string name="settings_about_gpu">Vulkan GPU burners and three real-time cinematic 3D scenes.</string>
+    <string name="settings_about_gpu">Vulkan GPU loads and four real-time 3D scenes — Pool, Forest, White World and Black Hole.</string>
     <string name="settings_about_analysis">Power, temperatures, clocks and throttling followed second by second, then a clear analysis and a PDF report.</string>
     <string name="settings_about_quality">Graphics quality for every phone, from entry level to the latest flagships.</string>
     <string name="settings_developer">Developed by</string>
-    <string name="settings_licenses">Fonts: Space Grotesk, JetBrains Mono (SIL Open Font License 1.1)</string>
+    <string name="settings_licenses">The interface uses Instrument Sans, Space Mono and Space Grotesk. The PDF report uses JetBrains Mono. The fonts are under the SIL Open Font License 1.1.</string>
 
     <!-- Safety notice at launch -->
     <string name="notice_title">Device safety</string>
