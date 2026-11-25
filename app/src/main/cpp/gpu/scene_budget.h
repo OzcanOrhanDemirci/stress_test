@@ -5,6 +5,7 @@
 namespace stress {
 
 inline constexpr int64_t kSlowSceneNanos = 650'000'000;
+inline constexpr double kSceneStepBudgetNanos = 500'000'000.0;
 
 // Use the work at the preceding quality to bound the next draw. The pool
 // and white world trace a second ray at High, including its extra shading;
@@ -23,8 +24,11 @@ constexpr bool sceneFits(SceneRenderer::Kind kind, SceneRenderer::Quality curren
         if (kind == Kind::White) shading = 2.6;
         if (kind == Kind::Hole) shading = 4.6;
     }
-    const double budget = next == Quality::High ? 500'000'000.0 : 125'000'000.0;
-    return frameNanos > 0 && static_cast<double>(frameNanos) * scaleRatio * scaleRatio * shading <= budget;
+    // One budget for every step: the probe guards against a frame long enough
+    // to reset the driver, it does not choose a frame rate. Probe frames can run
+    // before the GPU clock ramps up, so a tighter budget would refuse settings
+    // the phone draws well once warm (the Honor's hole at Medium was refused at 125 ms).
+    return frameNanos > 0 && static_cast<double>(frameNanos) * scaleRatio * scaleRatio * shading <= kSceneStepBudgetNanos;
 }
 
 struct SceneDraw {
@@ -70,7 +74,10 @@ static_assert(!sceneTooSlow(false, Quality::High, 295'000'000, 0)); // Pool, the
 static_assert(!sceneTooSlow(false, Quality::High, 118'700'000, 0));
 static_assert(!sceneTooSlow(true, Quality::Low, kSlowSceneNanos + 1, 1));
 static_assert(sceneTooSlow(true, Quality::High, kSlowSceneNanos + 1, 2));
-static_assert(!sceneFits(Kind::Pool, Quality::Low, Quality::Medium, 45.0f / 30, 208'000'000));
+static_assert(!sceneFits(Kind::Pool, Quality::Low, Quality::Medium, 45.0f / 30, 250'000'000));
+// A probe frame three times slower than warm (GPU clock still low) must not refuse the step.
+static_assert(sceneFits(Kind::Hole, Quality::Low, Quality::Medium, 45.0f / 30, 3 * 12'900'000));
+static_assert(sceneFits(Kind::Pool, Quality::Low, Quality::Medium, 45.0f / 30, 3 * 25'900'000));
 static_assert(!sceneFits(Kind::Hole, Quality::Medium, Quality::High, 65.0f / 45, 100'000'000));
 static_assert(lowestSceneDraw({Quality::Medium, 4500}, {Quality::Low, 5000}) == SceneDraw{Quality::Low, 5000});
 static_assert(lowestSceneDraw({Quality::Low, 3000}, {Quality::Low, 2100}) == SceneDraw{Quality::Low, 2100});
