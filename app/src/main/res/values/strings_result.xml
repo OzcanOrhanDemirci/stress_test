@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="result_unavailable">The phone did not provide enough data for the readings marked —.</string>
+    <string name="result_battery_estimate">Full charge: %1$s</string>
+    <string name="result_mean_short">Mean</string>
+    <string name="result_insight_throttled">Throttling began</string>
+    <string name="result_insight_drop">CPU performance drop</string>
+    <string name="result_insight_stability">Stability: %1$s</string>
+    <string name="result_insight_chip">Peak %1$s temperature</string>
+    <string name="result_insight_battery">Battery warmed during the test</string>
+    <string name="result_insight_drain">Battery loss per hour</string>
+    <string name="result_insight_fps">Average frame rate</string>
+    <string name="result_csv">CSV</string>
+    <string name="result_share_pdf">Share PDF</string>
+</resources>

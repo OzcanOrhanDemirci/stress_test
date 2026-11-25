@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="result_unavailable">Telefon, — işaretli ölçümler için yeterli veri vermedi.</string>
+    <string name="result_battery_estimate">Tam şarj: %1$s</string>
+    <string name="result_mean_short">Ortalama</string>
+    <string name="result_insight_throttled">Hız kısma başladı</string>
+    <string name="result_insight_drop">CPU performans düşüşü</string>
+    <string name="result_insight_stability">Kararlılık: %1$s</string>
+    <string name="result_insight_chip">En yüksek %1$s sıcaklığı</string>
+    <string name="result_insight_battery">Pil test sırasında ısındı</string>
+    <string name="result_insight_drain">Saatlik pil kaybı</string>
+    <string name="result_insight_fps">Ortalama kare hızı</string>
+    <string name="result_csv">CSV</string>
+    <string name="result_share_pdf">PDF paylaş</string>
+</resources>
