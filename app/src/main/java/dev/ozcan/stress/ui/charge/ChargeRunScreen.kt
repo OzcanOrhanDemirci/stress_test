@@ -93,6 +93,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
         model.start()
     }
     LaunchedEffect(state.recordId) { state.recordId?.let(onFinished) }
+    LaunchedEffect(state.discarded) { if (state.discarded) onLeave() }
     BackHandler { if (failed) onLeave() }
 
     val status = when {

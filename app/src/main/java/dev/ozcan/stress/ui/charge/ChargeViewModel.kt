@@ -31,6 +31,8 @@ internal data class ChargeRunState(
     val saving: Boolean = false,
     val saveFailed: Boolean = false,
     val recordId: String? = null,
+    /** Stopped before the first reading (still waiting for the charger): nothing was saved. */
+    val discarded: Boolean = false,
 )
 
 internal class ChargeViewModel(private val graph: AppGraph, private val duration: StressDuration) : ViewModel() {
@@ -73,7 +75,10 @@ internal class ChargeViewModel(private val graph: AppGraph, private val duration
                 }
             } finally {
                 graph.sampler.endChargeSampling(sampling)
-                if (!session.update.cannotMeasure) {
+                if (!session.update.cannotMeasure && !session.measured) {
+                    // A 0:00 record with no reading would only clutter History.
+                    _state.value = _state.value.copy(discarded = true)
+                } else if (!session.update.cannotMeasure) {
                     _state.value = _state.value.copy(saving = true)
                     val id = withContext(NonCancellable + Dispatchers.IO) {
                         val device = withTimeoutOrNull(2_000) { runCatching { graph.device.await() }.getOrNull() }
