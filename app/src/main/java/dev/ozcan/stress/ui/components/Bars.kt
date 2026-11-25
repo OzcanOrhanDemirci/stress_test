@@ -116,7 +116,7 @@ fun <T> BottomBar(destinations: List<BarDestination<T>>, selected: T, onSelect: 
                     Arrangement.spacedBy(4.dp, Alignment.CenterVertically), Alignment.CenterHorizontally,
                 ) {
                     Icon(destination.icon, null, Modifier.size(20.dp), tint = tint)
-                    Text(destination.label, style = StressType.Label.copy(letterSpacing = 0.sp),
+                    FitText(destination.label, StressType.Label.copy(letterSpacing = 0.sp),
                         color = tint, textAlign = TextAlign.Center)
                 }
             }

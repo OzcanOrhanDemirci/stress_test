@@ -111,10 +111,10 @@ private fun ActionButton(
         Alignment.CenterVertically,
     ) {
         if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = foreground)
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text.upper(), style = StressType.Label.copy(fontSize = 14.sp, lineHeight = 20.sp), color = foreground, textAlign = TextAlign.Center)
+        Column(Modifier.weight(1f, fill = false), horizontalAlignment = Alignment.CenterHorizontally) {
+            FitText(text.upper(), StressType.Label.copy(fontSize = 14.sp, lineHeight = 20.sp), color = foreground, textAlign = TextAlign.Center)
             if (subtitle != null) {
-                Text(subtitle, style = StressType.Code, color = foreground, textAlign = TextAlign.Center)
+                FitText(subtitle, StressType.Code, color = foreground, textAlign = TextAlign.Center)
             }
         }
     }
@@ -200,10 +200,10 @@ private fun <T> ChoiceRow(
                     .background(fill, shape).border(1.dp, line, shape).padding(horizontal = 2.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                FitText(
                     if (segmented) label(option).upper() else label(option),
+                    if (segmented) StressType.Label else StressType.Code,
                     color = tint,
-                    style = if (segmented) StressType.Label else StressType.Code,
                     textAlign = TextAlign.Center,
                 )
             }
