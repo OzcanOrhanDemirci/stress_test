@@ -22,8 +22,26 @@ enum class GpuState(val code: Int) {
     DeviceLost(2),
     Failed(3);
 
+    val hasFailed: Boolean get() = this == DeviceLost || this == Failed
+
     companion object {
         fun fromCode(code: Int): GpuState = entries.firstOrNull { it.code == code } ?: Failed
+    }
+}
+
+/** Settings of a completed cinematic frame, before any upscaling to the screen. */
+data class SceneDraw(val quality: SceneQuality, val scaleBasisPoints: Int) : Comparable<SceneDraw> {
+    val scalePercent: Double get() = scaleBasisPoints / 100.0
+
+    override fun compareTo(other: SceneDraw): Int =
+        if (quality == other.quality) scaleBasisPoints.compareTo(other.scaleBasisPoints)
+        else quality.code.compareTo(other.quality.code)
+
+    companion object {
+        fun fromNative(quality: Long, scale: Long): SceneDraw? {
+            val tier = SceneQuality.entries.firstOrNull { it.code.toLong() == quality } ?: return null
+            return if (scale in 1..10_000) SceneDraw(tier, scale.toInt()) else null
+        }
     }
 }
 
@@ -114,11 +132,52 @@ data class GpuSnapshot(
     val visibleNanos: Long = 0,
     /** True when the times come from GPU timestamps; false when the CPU timed whole frames (no timestamps). */
     val timed: Boolean = true,
+    /** The last scene frame that finished, including startup probe frames. */
+    val sceneDraw: SceneDraw? = null,
+    /** Null until the probe settles. Lower quality wins, then smaller scale at that quality. */
+    val lowestSceneDraw: SceneDraw? = null,
 ) {
     val isRunning: Boolean get() = state == GpuState.Running
 
     companion object {
         val IDLE = GpuSnapshot(GpuState.Idle, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+        internal fun decode(buffer: LongArray, burner: GpuBurner?) = GpuSnapshot(
+            state = GpuState.fromCode(buffer[0].toInt()),
+            burner = burner,
+            frames = buffer[1],
+            dispatches = buffer[2],
+            work = buffer[3],
+            gpuNanos = buffer[4],
+            lastFrameNanos = buffer[5],
+            dispatchesPerFrame = buffer[6],
+            errors = buffer[7],
+            checks = buffer[8],
+            width = buffer[9].toInt(),
+            height = buffer[10].toInt(),
+            burnerNanos = buffer[11],
+            visibleNanos = buffer[12],
+            timed = buffer[13] != 0L,
+            sceneDraw = SceneDraw.fromNative(buffer[14], buffer[15]),
+            lowestSceneDraw = SceneDraw.fromNative(buffer[16], buffer[17]),
+        )
+    }
+}
+
+/** Carries a run's outcome across surface changes and the renderer's teardown. */
+data class GpuRunStatus(
+    val failed: Boolean = false,
+    val drewFrames: Boolean = false,
+    val lowestSceneDraw: SceneDraw? = null,
+) {
+    fun include(snapshot: GpuSnapshot): GpuRunStatus {
+        val drawn = snapshot.lowestSceneDraw
+        val lowest = when {
+            drawn == null -> lowestSceneDraw
+            lowestSceneDraw == null -> drawn
+            else -> minOf(lowestSceneDraw, drawn)
+        }
+        return GpuRunStatus(failed || snapshot.state.hasFailed, drewFrames || snapshot.frames > 0, lowest)
     }
 }
 
@@ -137,6 +196,7 @@ class GpuEngine {
         check(it == SNAPSHOT_STRIDE) { "Native GPU snapshot stride $it, expected $SNAPSHOT_STRIDE" }
     }
     private val buffer = LongArray(stride)
+    private val stopBuffer = LongArray(stride)
 
     private var surface: Surface? = null
     private var request: GpuRequest? = null
@@ -144,6 +204,7 @@ class GpuEngine {
     // Written under the engine lock, read by snapshot() without it: a snapshot
     // must never wait for a start in progress.
     @Volatile private var running: GpuRequest? = null
+    @Volatile private var stoppedStatus = GpuRunStatus()
 
     /** The result of the last attempt to start the renderer. */
     @Volatile var lastStart: GpuStartResult? = null
@@ -191,6 +252,10 @@ class GpuEngine {
     /** Sets what should run; null stops the renderer. */
     @Synchronized
     fun request(wanted: GpuRequest?) {
+        if (wanted != null && wanted != request) {
+            stopRenderer()
+            stoppedStatus = GpuRunStatus()
+        }
         request = wanted
         if (wanted == null) lastStart = null
         reconcile()
@@ -218,33 +283,35 @@ class GpuEngine {
     }
 
     private fun stopRenderer() {
-        if (running != null) NativeBridge.gpuStop()
+        running?.let {
+            NativeBridge.gpuStop(stopBuffer)
+            stoppedStatus = stoppedStatus.include(GpuSnapshot.decode(stopBuffer, it.burner))
+        }
         running = null
+    }
+
+    /** A fresh renderer associates even its first failure with this run. */
+    @Synchronized
+    fun startRun(wanted: GpuRequest) {
+        request(null)
+        request(wanted)
+    }
+
+    fun runStatus(): GpuRunStatus = stoppedStatus.include(snapshot())
+
+    @Synchronized
+    fun finishRun(): GpuRunStatus {
+        request(null)
+        return stoppedStatus
     }
 
     fun snapshot(): GpuSnapshot = synchronized(buffer) {
         NativeBridge.gpuSnapshot(buffer)
-        GpuSnapshot(
-            state = GpuState.fromCode(buffer[0].toInt()),
-            burner = running?.burner,
-            frames = buffer[1],
-            dispatches = buffer[2],
-            work = buffer[3],
-            gpuNanos = buffer[4],
-            lastFrameNanos = buffer[5],
-            dispatchesPerFrame = buffer[6],
-            errors = buffer[7],
-            checks = buffer[8],
-            width = buffer[9].toInt(),
-            height = buffer[10].toInt(),
-            burnerNanos = buffer[11],
-            visibleNanos = buffer[12],
-            timed = buffer[13] != 0L,
-        )
+        GpuSnapshot.decode(buffer, running?.burner)
     }
 
     companion object {
         /** Must match `GpuLoad::kSnapshotStride`. */
-        const val SNAPSHOT_STRIDE = 14
+        const val SNAPSHOT_STRIDE = 18
     }
 }

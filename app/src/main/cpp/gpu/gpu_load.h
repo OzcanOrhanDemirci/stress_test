@@ -44,7 +44,11 @@ public:
         kFieldBurnerNanos = 11,      // sum of GPU time spent in burner work
         kFieldVisibleNanos = 12,     // sum of GPU time spent drawing what the screen shows
         kFieldTimed = 13,            // 1: times come from GPU timestamps; 0: from the CPU, between frames
-        kSnapshotStride = 14,
+        kFieldSceneQuality = 14,    // quality of the last completed scene frame, -1 before the first
+        kFieldSceneScale = 15,      // its scale in hundredths of a percent, 0 before the first
+        kFieldLowestSceneQuality = 16,  // lowest settled quality drawn so far, -1 while still probing
+        kFieldLowestSceneScale = 17,    // smallest scale drawn at that settled quality, 0 while still probing
+        kSnapshotStride = 18,
     };
 
     enum State : int { kStateIdle = 0, kStateRunning = 1, kStateDeviceLost = 2, kStateFailed = 3 };
@@ -71,7 +75,7 @@ public:
                       int sceneKind, int sceneQuality);
 
     // Stops the render thread and releases every Vulkan object. Safe to call when idle.
-    void stop();
+    void stop(int64_t* finalSnapshot = nullptr);
 
     void snapshot(int64_t* out) const;
 
