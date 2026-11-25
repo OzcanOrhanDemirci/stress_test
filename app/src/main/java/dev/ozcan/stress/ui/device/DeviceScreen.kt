@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,7 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -30,7 +30,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +57,7 @@ import dev.ozcan.stress.engine.GpuRequest
 import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.StartResult
 import dev.ozcan.stress.graph
+import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.telemetry.ClusterRole
 import dev.ozcan.stress.telemetry.SensorAvailability
 import dev.ozcan.stress.telemetry.ThermalGroup
@@ -72,6 +72,7 @@ import dev.ozcan.stress.ui.components.MeterBar
 import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.components.SecondaryButton
 import dev.ozcan.stress.ui.components.SectionHeader
+import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
@@ -83,6 +84,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+private val Limits = SafetyLimits()
 
 /** The device screen's live readings and its manual load tests, which stop when the screen goes. */
 class DeviceViewModel(private val graph: AppGraph) : ViewModel() {
@@ -149,17 +152,14 @@ class DeviceViewModel(private val graph: AppGraph) : ViewModel() {
 }
 
 @Composable
-fun DeviceScreen(onBack: () -> Unit) {
+fun DeviceScreen() {
     val graph = context().graph
     val model: DeviceViewModel = viewModel { DeviceViewModel(graph) }
     val live by model.live.collectAsStateWithLifecycle()
     val device by model.device.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
-            Text(stringResource(R.string.device_title), style = MaterialTheme.typography.titleLarge)
-        }
+        TopBar(title = stringResource(R.string.device_title), modifier = Modifier.statusBarsPadding())
         Column(
             Modifier
                 .fillMaxSize()
@@ -257,9 +257,15 @@ private fun TemperatureCard(live: LiveView?) {
     GlassCard(Modifier.fillMaxWidth()) {
         ThermalGroup.entries.forEach { group ->
             val value = live?.temperatures?.get(group)
-            InfoRow(Labels.temperature(context, group.key), Format.celsius(value), valueColor = if (value == null) StressColors.TextFaint else StressColors.Text)
+            val color = when (group) {
+                ThermalGroup.Cpu, ThermalGroup.Gpu -> StressColors.temperature(value, Limits.chipWarn, Limits.chipStop)
+                ThermalGroup.Skin -> StressColors.temperature(value, Limits.skinWarn, Limits.skinStop)
+                else -> if (value == null) StressColors.TextDim else StressColors.Text
+            }
+            InfoRow(Labels.temperature(context, group.key), Format.celsius(value), valueColor = color)
         }
-        InfoRow(stringResource(R.string.temp_battery), Format.celsius(live?.batteryCelsius))
+        val battery = live?.batteryCelsius
+        InfoRow(stringResource(R.string.temp_battery), Format.celsius(battery), valueColor = StressColors.temperature(battery, Limits.batteryWarn, Limits.batteryStop))
     }
 }
 
@@ -349,7 +355,7 @@ private fun AdvancedCard(model: DeviceViewModel, live: LiveView?) {
                     Text(stringResource(R.string.device_gpu_burners), style = MaterialTheme.typography.labelLarge, color = StressColors.TextDim)
                     GpuSurface(
                         context.graph.gpu,
-                        Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(14.dp)),
+                        Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
                         onAttached = model::showPreview,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -379,12 +385,13 @@ private fun AdvancedCard(model: DeviceViewModel, live: LiveView?) {
 
 @Composable
 private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(4.dp)
     Box(
         Modifier
             .clip(shape)
-            .background(if (selected) StressColors.AccentDim else StressColors.SurfaceHighest, shape)
-            .border(1.dp, if (selected) StressColors.Accent else StressColors.Outline, shape)
+            .background(if (selected) StressColors.CoolTint else StressColors.SurfaceHighest, shape)
+            .border(1.dp, if (selected) StressColors.Cool else StressColors.Outline, shape)
+            .heightIn(min = 48.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {

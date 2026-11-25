@@ -88,7 +88,7 @@ fun LabScreen(spec: Result<LabSpec>) {
                 val phase = if (s.phase == LabState.Phase.Idle) "idle" else "load"
                 LabText("${s.run + 1}/${s.runs} · ${s.workload}", StressColors.Text)
                 LabText("$phase · ${Format.number(remaining, 0)} s", StressColors.Text)
-                LabText(Format.watts(live?.watts), StressColors.AccentDim)
+                LabText(Format.watts(live?.watts), StressColors.Accent)
             }
             is LabState.Finished -> {
                 LabText("done · ${runs(s.results.size)}", StressColors.Good)

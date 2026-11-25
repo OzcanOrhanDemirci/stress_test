@@ -1,6 +1,5 @@
 package dev.ozcan.stress.ui.result
 
-import dev.ozcan.stress.ui.upper
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,31 +24,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.BatteryStd
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PictureAsPdf
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.TableChart
-import androidx.compose.material.icons.rounded.Thermostat
-import androidx.compose.material.icons.rounded.Videocam
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -82,6 +73,7 @@ import dev.ozcan.stress.report.ReportPdf
 import dev.ozcan.stress.run.RunAnalysis
 import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.StressMode
+import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.InsightText
@@ -97,11 +89,13 @@ import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.components.SecondaryButton
 import dev.ozcan.stress.ui.components.SectionHeader
 import dev.ozcan.stress.ui.components.StatTile
+import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.upper
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -109,6 +103,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private val Limits = SafetyLimits()
 
 class ResultViewModel(private val graph: AppGraph, private val runId: String) : ViewModel() {
     /** Null while loading; [Loaded.record] null when the run is gone. */
@@ -206,7 +202,7 @@ private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit
         }
     }
     if (confirmDelete) {
-        AlertDialog(
+        StressDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text(stringResource(R.string.history_delete_title)) },
             text = { Text(stringResource(R.string.history_delete_text), color = StressColors.TextDim) },
@@ -220,7 +216,6 @@ private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit
                 }) { Text(stringResource(R.string.delete), color = StressColors.Bad) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
-            containerColor = StressColors.SurfaceHigh,
         )
     }
 }
@@ -272,7 +267,6 @@ private data class Tile(
     val label: String,
     val value: String,
     val unit: String? = null,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val accent: androidx.compose.ui.graphics.Color = StressColors.Text,
     val footnote: String? = null,
 )
@@ -285,33 +279,31 @@ private fun Tiles(record: RunRecord) {
     val mode = StressMode.of(record.mode)
     val chip = listOfNotNull(s.maxTemperatures["cpu"], s.maxTemperatures["gpu"], s.maxTemperatures["A715"], s.maxTemperatures["A510"], s.maxTemperatures["GPU"]).maxOrNull()
     val tiles = buildList {
-        add(Tile(stringResource(R.string.result_mean), Format.number(s.meanWatts, 2), "W", Icons.Rounded.Bolt))
-        add(Tile(stringResource(R.string.result_idle), Format.number(s.idleWatts, 2), "W", Icons.Rounded.Bolt))
-        add(Tile(stringResource(R.string.result_energy), Format.number(s.energyWattHours, 2), "Wh", Icons.Rounded.BatteryStd))
+        add(Tile(stringResource(R.string.result_mean), Format.number(s.meanWatts, 2), "W"))
+        add(Tile(stringResource(R.string.result_idle), Format.number(s.idleWatts, 2), "W"))
+        add(Tile(stringResource(R.string.result_energy), Format.number(s.energyWattHours, 2), "Wh"))
         add(
             Tile(
                 stringResource(R.string.result_battery),
                 "${Format.percentValue(s.batteryStartPercent)} → ${Format.percentValue(s.batteryEndPercent)}",
-                icon = Icons.Rounded.BatteryStd,
             ),
         )
-        add(Tile(stringResource(R.string.result_battery_life), s.batteryLifeHours?.let { hoursText(context, it) } ?: Format.MISSING, icon = Icons.Rounded.Schedule))
+        add(Tile(stringResource(R.string.result_battery_life), s.batteryLifeHours?.let { hoursText(context, it) } ?: Format.MISSING))
         add(
             Tile(
                 stringResource(R.string.result_hottest),
                 Format.number(chip, 1),
                 "°C",
-                Icons.Rounded.Thermostat,
-                accent = if ((chip ?: 0.0) >= 95) StressColors.Warn else StressColors.Text,
+                accent = StressColors.temperature(chip, Limits.chipWarn, Limits.chipStop),
             ),
         )
         if (mode?.usesCpu != false && s.cpuMeanRate != null) {
             val (value, unit) = Format.rateParts(s.cpuMeanRate, Labels.rateSymbol(context, s.cpuUnit))
-            add(Tile(stringResource(R.string.result_cpu_perf), value, unit, Icons.Rounded.Memory))
+            add(Tile(stringResource(R.string.result_cpu_perf), value, unit))
         }
         if (s.gpuMeanRate != null) {
             val (value, unit) = Format.rateParts(s.gpuMeanRate, Labels.rateSymbol(context, s.gpuUnit))
-            add(Tile(stringResource(R.string.result_gpu_perf), value, unit, Icons.Rounded.Videocam))
+            add(Tile(stringResource(R.string.result_gpu_perf), value, unit))
         }
         if (s.meanFps != null) {
             add(
@@ -319,19 +311,17 @@ private fun Tiles(record: RunRecord) {
                     stringResource(R.string.result_fps),
                     Format.number(s.meanFps, 1),
                     "FPS",
-                    Icons.Rounded.Videocam,
                     footnote = s.minFps?.let { stringResource(R.string.result_fps_min, Format.number(it, 1)) },
                 ),
             )
         }
         (s.cpuStability ?: s.gpuStability)?.let {
-            add(Tile(stringResource(R.string.result_stability), Format.percent(it), icon = Icons.Rounded.Insights))
+            add(Tile(stringResource(R.string.result_stability), Format.percent(it)))
         }
         add(
             Tile(
                 stringResource(R.string.result_errors),
                 s.computationErrors.toString(),
-                icon = Icons.Rounded.ErrorOutline,
                 accent = if (s.computationErrors > 0) StressColors.Bad else StressColors.Good,
             ),
         )
@@ -340,7 +330,7 @@ private fun Tiles(record: RunRecord) {
         tiles.chunked(2).forEach { row ->
             TileRow {
                 row.forEach { t ->
-                    StatTile(t.label, t.value, Modifier.weight(1f), unit = t.unit, icon = t.icon, accent = t.accent, footnote = t.footnote)
+                    StatTile(t.label, t.value, Modifier.weight(1f), unit = t.unit, accent = t.accent, footnote = t.footnote)
                 }
             }
         }
@@ -434,7 +424,7 @@ private fun InsightsCard(insights: List<Insight>) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     val color = InsightText.color(insight.severity)
                     Box(
-                        Modifier.size(34.dp).background(color.copy(alpha = 0.14f), CircleShape),
+                        Modifier.size(34.dp).background(color.copy(alpha = 0.14f), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(InsightText.icon(insight), null, tint = color, modifier = Modifier.size(18.dp))
@@ -491,7 +481,7 @@ private fun Charts(record: RunRecord) {
         }
         if (series.fps.any { it != null }) {
             ChartCard(stringResource(R.string.chart_fps)) {
-                TimeChart(series.seconds, listOf(ChartSeries("FPS", StressColors.Violet, series.fps)), "fps", yMin = 0.0)
+                TimeChart(series.seconds, listOf(ChartSeries("FPS", StressColors.Cool, series.fps)), "fps", yMin = 0.0)
             }
         }
         val levels = series.batteryPercent.filterNotNull()
@@ -499,7 +489,7 @@ private fun Charts(record: RunRecord) {
             ChartCard(stringResource(R.string.chart_battery)) {
                 TimeChart(
                     series.seconds,
-                    listOf(ChartSeries(stringResource(R.string.temp_battery), StressColors.Good, series.batteryPercent.map { it?.toDouble() })),
+                    listOf(ChartSeries(stringResource(R.string.temp_battery), StressColors.Cool, series.batteryPercent.map { it?.toDouble() })),
                     "%",
                     decimals = 0,
                 )
@@ -574,7 +564,7 @@ private fun ExportCard(record: RunRecord, insights: List<Insight>) {
         SectionHeader(stringResource(R.string.result_export))
         GlassCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBadge(Icons.Rounded.PictureAsPdf, StressColors.AccentHot)
+                IconBadge(Icons.Rounded.PictureAsPdf, StressColors.Accent)
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.export_pdf_title), style = MaterialTheme.typography.titleSmall)
                     Text(stringResource(R.string.export_pdf_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)

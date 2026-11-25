@@ -1,70 +1,45 @@
 package dev.ozcan.stress.ui.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressType
+import dev.ozcan.stress.ui.upper
 
-/**
- * A number that counts to its new value instead of jumping. [format] turns
- * the animated value into text; null shows the missing-value dash.
- */
-@Composable
-fun AnimatedNumber(
-    value: Double?,
-    format: (Double) -> String,
-    modifier: Modifier = Modifier,
-    style: TextStyle = NumberStyles.Medium,
-    color: Color = StressColors.Text,
-    durationMillis: Int = 600,
-) {
-    val animatable = remember { Animatable(value?.toFloat() ?: 0f) }
-    val first = remember { mutableListOf(true) }
-    LaunchedEffect(value) {
-        val target = value?.toFloat() ?: return@LaunchedEffect
-        if (first[0]) {
-            first[0] = false
-            animatable.snapTo(target)
-        } else {
-            animatable.animateTo(target, tween(durationMillis, easing = FastOutSlowInEasing))
-        }
-    }
-    Text(
-        if (value == null) Format.MISSING else format(animatable.value.toDouble()),
-        modifier = modifier,
-        style = style,
-        color = color,
-        maxLines = 1,
-    )
-}
-
-/**
- * A number that counts up from zero the first time it is shown: the reveal
- * of a result.
- */
+/** Formats [value] in place after an optional first reveal of at most 600 ms. */
 @Composable
 fun CountUpNumber(
     value: Double?,
@@ -74,70 +49,104 @@ fun CountUpNumber(
     color: Color = StressColors.Text,
     delayMillis: Int = 0,
 ) {
-    val animatable = remember { Animatable(0f) }
+    val played = rememberSaveable { mutableStateOf(false) }
+    val animating = remember { mutableStateOf(false) }
+    val reading = remember { Animatable(0f) }
     LaunchedEffect(value) {
-        val target = value?.toFloat() ?: return@LaunchedEffect
-        animatable.animateTo(target, tween(1100, delayMillis = delayMillis, easing = FastOutSlowInEasing))
+        val target = value ?: return@LaunchedEffect
+        if (!played.value) {
+            played.value = true
+            animating.value = true
+            val delay = delayMillis.coerceIn(0, 599)
+            try {
+                reading.animateTo(target.toFloat(), tween(600 - delay, delay, LinearOutSlowInEasing))
+            } finally {
+                animating.value = false
+            }
+        }
     }
     Text(
-        if (value == null) Format.MISSING else format(animatable.value.toDouble()),
-        modifier = modifier,
-        style = style,
-        color = color,
-        maxLines = 1,
+        value?.let { format(if (animating.value) reading.value.toDouble() else it) } ?: Format.MISSING,
+        modifier, style = style, color = color, maxLines = 1,
     )
 }
 
-/** A metric tile: an icon and label over a value and its unit. */
+/** A reading with a baseline-aligned, dimmed [unit] at 60% of the value size. */
+@Composable
+fun MetricNumber(
+    value: String,
+    unit: String? = null,
+    style: TextStyle = NumberStyles.Medium,
+    color: Color = StressColors.Text,
+) {
+    val text = buildAnnotatedString {
+        append(value)
+        if (unit != null && value != Format.MISSING) {
+            withStyle(SpanStyle(color = StressColors.TextDim, fontSize = 0.6.em)) { append(" $unit") }
+        }
+    }
+    BasicText(
+        text,
+        style = style.copy(color = color),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize, stepSize = 1.sp),
+    )
+}
+
+/** An outlined reading with a live [statusColor] dot and an optional [meter] or Code [caption]. */
+@Composable
+fun MetricTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    unit: String? = null,
+    color: Color = StressColors.Text,
+    statusColor: Color? = null,
+    caption: String? = null,
+    captionColor: Color = StressColors.TextDim,
+    meter: Float? = null,
+    style: TextStyle = NumberStyles.Medium,
+    padding: Dp = 12.dp,
+) {
+    Panel(modifier, padding = padding) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(4.dp), Alignment.CenterVertically) {
+                Text(label.upper(), Modifier.weight(1f), color = StressColors.TextDim, style = StressType.Label)
+                if (statusColor != null) Box(Modifier.size(6.dp).background(statusColor, CircleShape))
+            }
+            MetricNumber(value, unit, style, color)
+            if (meter != null) {
+                MeterBar(meter, color = color)
+            } else if (caption != null) {
+                Text(caption, style = StressType.Code, color = captionColor, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/** Compatibility entry point for the existing result tiles. */
 @Composable
 fun StatTile(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
     unit: String? = null,
-    icon: ImageVector? = null,
     accent: Color = StressColors.Text,
     footnote: String? = null,
     footnoteColor: Color = StressColors.TextFaint,
 ) {
-    GlassCard(modifier = modifier, padding = 14.dp, shape = TileShape) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                Icon(icon, null, tint = StressColors.TextFaint, modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = StressColors.TextDim,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(value, style = NumberStyles.Medium, color = accent, maxLines = 1)
-            if (unit != null) {
-                Text(unit, style = MaterialTheme.typography.labelMedium, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 2.dp))
-            }
-        }
-        if (footnote != null) {
-            Text(footnote, style = MaterialTheme.typography.labelSmall, color = footnoteColor, maxLines = 2)
-        }
-    }
+    MetricTile(label, value, modifier, unit = unit, color = accent, caption = footnote, captionColor = footnoteColor)
 }
 
-/** Two tiles side by side. */
+/** Two or three tiles side by side, with an 8 dp gap. */
 @Composable
-fun TileRow(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), content = content)
+fun TileRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), content = content)
 }
 
-/** A column with the app's vertical rhythm. */
+/** A column with the vertical rhythm for screen content. */
 @Composable
-fun Stack(modifier: Modifier = Modifier, spacing: Int = 12, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+fun Stack(modifier: Modifier = Modifier, spacing: Int = 12, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing.dp), content = content)
 }

@@ -373,4 +373,15 @@
     <string name="compare_chart_cpu">CPU performansı</string>
     <string name="compare_battery_max">En sıcak pil</string>
     <string name="compare_first_throttle">İlk kısılma</string>
+    <string name="tab_device">Cihaz</string>
+    <string name="home_scenes">Sahneler</string>
+    <string name="home_protection_limit">%1$d°C koruma</string>
+    <string name="home_duration_short">%1$d dk</string>
+    <string name="home_best_power">En iyi %1$s&#160;W</string>
+    <string name="home_missing_readings">Telefon buradaki ölçümlerin hepsini bildirmiyor.</string>
+    <string name="home_mode_full_detail">CPU, GPU ve bellek</string>
+    <string name="home_mode_cinematic_detail">Gerçek zamanlı 3D sahne</string>
+    <string name="home_mode_cpu_detail">Tüm çekirdekler</string>
+    <string name="home_mode_gpu_detail">Grafik yükü</string>
+    <string name="home_mode_dry_detail">Hafif işlem</string>
 </resources>

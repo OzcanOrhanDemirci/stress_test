@@ -373,4 +373,15 @@
     <string name="compare_chart_cpu">CPU performance</string>
     <string name="compare_battery_max">Hottest battery</string>
     <string name="compare_first_throttle">First throttle</string>
+    <string name="tab_device">Device</string>
+    <string name="home_scenes">Scenes</string>
+    <string name="home_protection_limit">%1$d°C protection</string>
+    <string name="home_duration_short">%1$dm</string>
+    <string name="home_best_power">Best %1$s&#160;W</string>
+    <string name="home_missing_readings">The phone doesn’t report every reading shown here.</string>
+    <string name="home_mode_full_detail">CPU, GPU and memory</string>
+    <string name="home_mode_cinematic_detail">Real-time 3D scene</string>
+    <string name="home_mode_cpu_detail">All cores</string>
+    <string name="home_mode_gpu_detail">Graphics load</string>
+    <string name="home_mode_dry_detail">Light work</string>
 </resources>

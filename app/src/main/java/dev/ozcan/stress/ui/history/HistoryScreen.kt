@@ -26,7 +26,6 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,7 +52,6 @@ import dev.ozcan.stress.R
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.StressMode
-import dev.ozcan.stress.ui.BottomBarSpace
 import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
@@ -63,6 +61,7 @@ import dev.ozcan.stress.ui.components.GlassCard
 import dev.ozcan.stress.ui.components.IconBadge
 import dev.ozcan.stress.ui.components.Pill
 import dev.ozcan.stress.ui.components.Sparkline
+import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
@@ -116,7 +115,7 @@ fun HistoryScreen(onOpen: (String) -> Unit) {
             list == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             list.isEmpty() -> Empty()
             else -> LazyColumn(
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = BottomBarSpace + 24.dp),
+                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 itemsIndexed(list, key = { _, r -> r.id }) { index, record ->
@@ -135,7 +134,7 @@ fun HistoryScreen(onOpen: (String) -> Unit) {
     }
 
     deleting?.let { record ->
-        AlertDialog(
+        StressDialog(
             onDismissRequest = { deleting = null },
             icon = { Icon(Icons.Rounded.DeleteOutline, null, tint = StressColors.Bad) },
             title = { Text(stringResource(R.string.history_delete_title)) },
@@ -147,16 +146,15 @@ fun HistoryScreen(onOpen: (String) -> Unit) {
                 }) { Text(stringResource(R.string.delete), color = StressColors.Bad) }
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.cancel)) } },
-            containerColor = StressColors.SurfaceHigh,
         )
     }
 }
 
 @Composable
 private fun Empty() {
-    CenteredBox(Modifier.padding(bottom = BottomBarSpace)) {
+    CenteredBox() {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            GaugeMark(Modifier.size(84.dp), reading = 0.15f, color = StressColors.TextFaint)
+            GaugeMark(Modifier.size(84.dp), color = StressColors.TextFaint)
             Text(stringResource(R.string.history_empty_title), style = MaterialTheme.typography.titleMedium)
             Text(
                 stringResource(R.string.history_empty_text),

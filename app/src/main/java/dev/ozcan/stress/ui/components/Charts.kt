@@ -1,34 +1,28 @@
 package dev.ozcan.stress.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -40,22 +34,27 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.theme.StressColors
-import dev.ozcan.stress.ui.theme.StressFonts
+import dev.ozcan.stress.ui.theme.StressType
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
 
-data class ChartSeries(val name: String, val color: Color, val values: List<Double?>)
+/** A sampled line. Set [unit] and [range] to plot a secondary reading on its own scale. */
+data class ChartSeries(
+    val name: String,
+    val color: Color,
+    val values: List<Double?>,
+    val unit: String? = null,
+    val range: ClosedFloatingPointRange<Double>? = null,
+)
 
 /** The step [niceTicks] uses: a round number about a [count]th of the range. */
 fun niceStep(min: Double, max: Double, count: Int = 4): Double {
@@ -93,13 +92,14 @@ private val TIME_STEPS = listOf(10.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900
 fun timeStep(spanSeconds: Double, maxLabels: Int = 7): Double =
     TIME_STEPS.firstOrNull { spanSeconds / it <= maxLabels.coerceAtLeast(1) } ?: TIME_STEPS.last()
 
+private val AxisWidth = 44.dp
+private val AxisEnd = 12.dp
+
 /**
- * A time chart: one line per series against [seconds], gaps (nulls) break
- * the line. The first series gets a gradient fill. Touching and dragging
- * shows the values at that moment. The lines draw in from the left the first
- * time the chart is shown.
+ * A time plot over [seconds], with the axis for the primary series and null readings drawn as gaps.
+ * Touch or drag to inspect a sample in the strip above the plot. Use [SegmentedControl] to
+ * switch series above the chart, and a [ChartSeries.range] for an independent secondary scale.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TimeChart(
     seconds: List<Double>,
@@ -110,167 +110,175 @@ fun TimeChart(
     yMin: Double? = null,
     yMax: Double? = null,
     decimals: Int = 1,
-    timeLabel: (Double) -> String = { Format.elapsedShort(it) },
+    timeLabel: (Double) -> String = { Format.elapsedShort(it).padStart(5, '0') },
 ) {
     val measurer = rememberTextMeasurer()
-    val axisStyle = TextStyle(color = StressColors.TextFaint, fontSize = 10.sp, fontFamily = StressFonts.Mono)
-    val tipStyle = TextStyle(color = StressColors.Text, fontSize = 11.sp, fontFamily = StressFonts.Mono)
-    val values = series.flatMap { it.values.filterNotNull() }
-    val low = yMin ?: values.minOrNull() ?: 0.0
-    val high = yMax ?: values.maxOrNull() ?: 1.0
-    val pad = if (high > low) (high - low) * 0.1 else 1.0
-    val bottom = if (yMin != null) low else low - pad
-    val top = if (yMax != null) high else high + pad
+    val axisStyle = StressType.Code.copy(color = StressColors.TextFaint)
+    val primaryRange = remember(series, yMin, yMax) {
+        series.firstOrNull()?.range ?: chartRange(series.filter { it.range == null }, yMin, yMax)
+    }
     val span = seconds.lastOrNull()?.takeIf { it > 0 } ?: 1.0
-    val reveal = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { reveal.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
-    var touch by remember { mutableStateOf<Float?>(null) }
+    var cursor by remember(seconds, series) { mutableIntStateOf(-1) }
+    val readout = cursor.takeIf { it in seconds.indices } ?: seconds.lastIndex
 
-    Column(modifier = modifier) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(height)
-                .pointerInput(seconds) {
-                    detectTapGestures(onPress = { offset ->
-                        touch = offset.x
-                        tryAwaitRelease()
-                        touch = null
-                    })
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (readout >= 0) {
+            Row(
+                Modifier.fillMaxWidth().background(StressColors.SurfaceLow).padding(horizontal = 8.dp, vertical = 4.dp),
+                Arrangement.spacedBy(8.dp), Alignment.CenterVertically,
+            ) {
+                Text("t = ${timeLabel(seconds[readout])}", style = StressType.Code, color = StressColors.TextDim)
+                FlowRow(
+                    Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                ) {
+                    series.forEachIndexed { index, line ->
+                        if (index > 0) Text("//", style = StressType.Code, color = StressColors.TextDim)
+                        val value = Format.number(line.values.getOrNull(readout), decimals)
+                        val reading = if (value == Format.MISSING) value else "$value ${line.unit ?: unit}".trimEnd()
+                        Text(reading, style = StressType.Code, color = line.color)
+                    }
                 }
-                .pointerInput(seconds) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { touch = it.x },
-                        onDragEnd = { touch = null },
-                        onDragCancel = { touch = null },
-                        onHorizontalDrag = { change, _ -> touch = change.position.x },
-                    )
+            }
+        }
+        Canvas(
+            Modifier.fillMaxWidth().height(height).background(StressColors.SurfaceLow)
+                .pointerInput(seconds, series) {
+                    if (seconds.isEmpty()) return@pointerInput
+                    fun select(x: Float) {
+                        val width = (size.width - AxisWidth.toPx() - AxisEnd.toPx()).coerceAtLeast(1f)
+                        val time = ((x - AxisWidth.toPx()) / width).coerceIn(0f, 1f) * span
+                        cursor = seconds.indices.minBy { abs(seconds[it] - time) }
+                    }
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        select(down.position.x)
+                        try {
+                            val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                            if (drag != null) {
+                                select(drag.position.x)
+                                horizontalDrag(drag.id) { change ->
+                                    select(change.position.x)
+                                    change.consume()
+                                }
+                            }
+                        } finally {
+                            cursor = -1
+                        }
+                    }
                 },
         ) {
-            val left = 40.dp.toPx()
-            val bottomPad = 20.dp.toPx()
-            val topPad = 6.dp.toPx()
-            val w = size.width - left
-            val h = size.height - bottomPad - topPad
-            fun x(t: Double) = left + (t / span).toFloat() * w
-            fun y(v: Double) = topPad + h - ((v - bottom) / (top - bottom)).toFloat() * h
+            val left = AxisWidth.toPx()
+            val right = size.width - AxisEnd.toPx()
+            val top = 12.dp.toPx()
+            val bottom = size.height - 24.dp.toPx()
+            val width = right - left
+            val plotHeight = bottom - top
+            if (width <= 0 || plotHeight <= 0) return@Canvas
 
-            // Grid and y labels.
-            val yStep = niceStep(bottom, top)
-            for (tick in niceTicks(bottom, top)) {
+            fun x(time: Double) = left + (time / span).toFloat() * width
+            fun y(value: Double, range: ClosedFloatingPointRange<Double> = primaryRange): Float {
+                val spanY = (range.endInclusive - range.start).takeIf { it > 0 } ?: 1.0
+                return bottom - ((value - range.start) / spanY).toFloat() * plotHeight
+            }
+            val yStep = niceStep(primaryRange.start, primaryRange.endInclusive)
+            val dashes = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))
+            for (tick in niceTicks(primaryRange.start, primaryRange.endInclusive)) {
                 val py = y(tick)
-                drawLine(
-                    StressColors.Outline,
-                    Offset(left, py),
-                    Offset(size.width, py),
-                    strokeWidth = 1f,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
-                )
-                drawText(measurer, tickLabel(tick, yStep), Offset(0f, py - 7.sp.toPx()), axisStyle)
-            }
-            // x labels, as many as fit with room between them.
-            val labelWidth = measurer.measure(timeLabel(span), axisStyle).size.width + 14.dp.toPx()
-            val step = timeStep(span, (w / labelWidth).toInt())
-            var t = 0.0
-            while (t <= span + 1e-9) {
-                val px = x(t)
-                val text = timeLabel(t)
-                val measured = measurer.measure(text, axisStyle)
-                val lx = (px - measured.size.width / 2).coerceIn(left - 4f, size.width - measured.size.width)
-                drawText(measured, topLeft = Offset(lx, topPad + h + 5.dp.toPx()))
-                t += step
+                drawLine(StressColors.Outline, Offset(left, py), Offset(right, py), 1.dp.toPx(), pathEffect = dashes)
+                val label = measurer.measure(tickLabel(tick, yStep), axisStyle)
+                drawText(label, topLeft = Offset((left - label.size.width - 4.dp.toPx()).coerceAtLeast(0f), py - label.size.height / 2f))
             }
 
-            clipRect(left = 0f, top = 0f, right = left + w * reveal.value, bottom = size.height) {
-                series.forEachIndexed { index, s ->
-                    val line = Path()
+            val labelWidth = measurer.measure(timeLabel(span), axisStyle).size.width + 12.dp.toPx()
+            val step = timeStep(span, (width / labelWidth).toInt())
+            val lastRegular = floor(span / step) * step
+            val ticks = generateSequence(0.0) { it + step }
+                .takeWhile { it < span && (it < lastRegular || x(span) - x(it) >= labelWidth) }
+                .toList() + span
+            for (time in ticks) {
+                val label = measurer.measure(timeLabel(time), axisStyle)
+                val lx = (x(time) - label.size.width / 2f).coerceIn(0f, (size.width - label.size.width).coerceAtLeast(0f))
+                drawText(label, topLeft = Offset(lx, bottom + 4.dp.toPx()))
+            }
+
+            clipRect(left, top - 2.dp.toPx(), right, bottom + 2.dp.toPx()) {
+                series.forEachIndexed { index, line ->
+                    val path = Path()
                     val fill = Path()
-                    var drawing = false
-                    var startX = 0f
+                    val range = line.range ?: primaryRange
+                    val filled = index == 0 && line.color == StressColors.Accent
+                    var startX: Float? = null
                     var lastX = 0f
-                    // Only a lone line gets a fill: under several it muddies the others.
-                    val filled = index == 0 && series.size == 1
-                    fun closeFill() {
-                        if (filled && drawing) {
-                            fill.lineTo(lastX, topPad + h)
-                            fill.lineTo(startX, topPad + h)
+                    fun finishSegment() {
+                        val start = startX ?: return
+                        if (filled) {
+                            fill.lineTo(lastX, bottom)
+                            fill.lineTo(start, bottom)
                             fill.close()
                         }
+                        startX = null
                     }
-                    s.values.forEachIndexed { i, v ->
-                        val time = seconds.getOrNull(i) ?: return@forEachIndexed
-                        if (v == null) {
-                            closeFill()
-                            drawing = false
-                        } else {
-                            val px = x(time)
-                            val py = y(v)
-                            if (!drawing) {
-                                line.moveTo(px, py)
-                                if (filled) fill.moveTo(px, py)
-                                startX = px
-                                drawing = true
-                            } else {
-                                line.lineTo(px, py)
-                                if (filled) fill.lineTo(px, py)
-                            }
-                            lastX = px
+                    for (i in 0 until minOf(seconds.size, line.values.size)) {
+                        val value = line.values[i]?.takeIf { it.isFinite() }
+                        if (value == null) {
+                            finishSegment()
+                            continue
                         }
+                        val px = x(seconds[i])
+                        val py = y(value, range)
+                        if (startX == null) {
+                            path.moveTo(px, py)
+                            if (filled) fill.moveTo(px, py)
+                            startX = px
+                        } else {
+                            path.lineTo(px, py)
+                            if (filled) fill.lineTo(px, py)
+                        }
+                        lastX = px
                     }
-                    closeFill()
+                    finishSegment()
                     if (filled) {
-                        drawPath(fill, Brush.verticalGradient(listOf(s.color.copy(alpha = 0.32f), s.color.copy(alpha = 0.0f)), topPad, topPad + h))
+                        drawPath(fill, Brush.verticalGradient(listOf(line.color.copy(alpha = 0.22f), Color.Transparent), top, bottom))
                     }
-                    drawPath(line, s.color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    drawPath(path, line.color, style = Stroke(
+                        width = if (index == 0) 2.dp.toPx() else 1.5.dp.toPx(),
+                        join = StrokeJoin.Round, pathEffect = dashes.takeIf { index > 0 },
+                    ))
                 }
             }
-
-            // The touched moment: a line and the values there.
-            val tx = touch
-            if (tx != null && seconds.isNotEmpty()) {
-                val time = ((tx - left) / w * span).coerceIn(0.0, span)
-                val i = seconds.indices.minBy { abs(seconds[it] - time) }
-                val px = x(seconds[i])
-                drawLine(StressColors.TextDim, Offset(px, topPad), Offset(px, topPad + h), strokeWidth = 1.5f)
-                val lines = buildList {
-                    add(timeLabel(seconds[i]))
-                    series.forEach { s ->
-                        val v = s.values.getOrNull(i)
-                        add("${s.name}  ${if (v == null) Format.MISSING else Format.number(v, decimals)} $unit")
+            if (cursor in seconds.indices) {
+                val px = x(seconds[cursor])
+                drawLine(StressColors.TextDim, Offset(px, top), Offset(px, bottom), 1.dp.toPx())
+                series.forEach { line ->
+                    line.values.getOrNull(cursor)?.takeIf { it.isFinite() }?.let { value ->
+                        val py = y(value, line.range ?: primaryRange)
+                        if (py in top..bottom) drawCircle(line.color, 3.dp.toPx(), Offset(px, py))
                     }
-                }
-                series.forEach { s ->
-                    s.values.getOrNull(i)?.let { v -> drawCircle(s.color, 4.dp.toPx(), Offset(px, y(v))) }
-                }
-                val measured = lines.map { measurer.measure(it, tipStyle) }
-                val boxW = measured.maxOf { it.size.width } + 16.dp.toPx()
-                val boxH = measured.sumOf { it.size.height } + 12.dp.toPx()
-                val bx = if (px + 12.dp.toPx() + boxW < size.width) px + 12.dp.toPx() else px - 12.dp.toPx() - boxW
-                val by = topPad
-                drawRoundRect(StressColors.SurfaceHighest.copy(alpha = 0.95f), Offset(bx, by), Size(boxW, boxH), CornerRadius(8.dp.toPx()))
-                var ly = by + 6.dp.toPx()
-                measured.forEachIndexed { k, m ->
-                    val color = if (k == 0) StressColors.TextDim else series[k - 1].color
-                    drawText(m, color = color, topLeft = Offset(bx + 8.dp.toPx(), ly))
-                    ly += m.size.height
                 }
             }
         }
         if (series.size > 1) {
-            FlowRow(
-                modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                series.forEach { s ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(Modifier.size(width = 14.dp, height = 3.dp).background(s.color, CircleShape))
-                        Text(s.name, style = MaterialTheme.typography.labelSmall, color = StressColors.TextDim)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                series.forEach { line ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(width = 12.dp, height = 2.dp).background(line.color))
+                        Text(line.name, style = StressType.Label, color = StressColors.TextDim)
                     }
                 }
             }
         }
     }
+}
+
+private fun chartRange(series: List<ChartSeries>, yMin: Double?, yMax: Double?): ClosedFloatingPointRange<Double> {
+    val values = series.flatMap { line -> line.values.filterNotNull().filter { it.isFinite() } }
+    val low = yMin ?: values.minOrNull() ?: 0.0
+    val high = yMax ?: values.maxOrNull() ?: 1.0
+    val padding = if (high > low) (high - low) * 0.1 else 1.0
+    val bottom = yMin ?: low - padding
+    val top = yMax ?: high + padding
+    return bottom..top.coerceAtLeast(bottom + 1e-9)
 }
 
 /** A bare line of recent values with a soft fill, for live displays. */
@@ -296,7 +304,7 @@ fun Sparkline(values: List<Double>, color: Color, modifier: Modifier = Modifier,
         }
         fill.lineTo(size.width, size.height)
         fill.close()
-        drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.3f), Color.Transparent)))
+        drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.22f), Color.Transparent)))
         drawPath(line, color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }

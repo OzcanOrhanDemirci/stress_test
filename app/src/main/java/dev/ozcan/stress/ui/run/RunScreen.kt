@@ -1,16 +1,11 @@
 package dev.ozcan.stress.ui.run
 
-import dev.ozcan.stress.ui.upper
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -44,7 +39,6 @@ import androidx.compose.material.icons.rounded.GppBad
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -59,17 +53,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -89,6 +82,7 @@ import dev.ozcan.stress.run.StressDuration
 import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.safety.SafetyCheck
 import dev.ozcan.stress.safety.SafetyLevel
+import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.telemetry.ThermalGroup
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.GpuSurface
@@ -102,13 +96,18 @@ import dev.ozcan.stress.ui.components.MeterBar
 import dev.ozcan.stress.ui.components.Pill
 import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.components.ProgressRing
-import dev.ozcan.stress.ui.components.SecondaryButton
 import dev.ozcan.stress.ui.components.Sparkline
+import dev.ozcan.stress.ui.components.StopButton
+import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressMotion
+import dev.ozcan.stress.ui.upper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+
+private val Limits = SafetyLimits()
 
 @Composable
 fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -> Unit, onLeave: () -> Unit) {
@@ -199,11 +198,9 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     BottomHud(live, mode)
-                    SecondaryButton(
+                    StopButton(
                         text = stringResource(R.string.run_stop),
                         onClick = { confirmStop = true },
-                        icon = Icons.Rounded.Stop,
-                        color = StressColors.Bad,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -228,7 +225,7 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
     }
 
     if (confirmStop) {
-        AlertDialog(
+        StressDialog(
             onDismissRequest = { confirmStop = false },
             icon = { Icon(Icons.Rounded.Stop, null, tint = StressColors.Bad) },
             title = { Text(stringResource(R.string.run_stop_title)) },
@@ -240,7 +237,6 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
                 }) { Text(stringResource(R.string.run_stop_confirm), color = StressColors.Bad) }
             },
             dismissButton = { TextButton(onClick = { confirmStop = false }) { Text(stringResource(R.string.run_stop_continue)) } },
-            containerColor = StressColors.SurfaceHigh,
         )
     }
 }
@@ -255,13 +251,13 @@ private fun phaseOf(state: RunState): Phase = when (state) {
     is RunState.Failed -> Phase.Failed
 }
 
-private val HudShape = RoundedCornerShape(22.dp)
+private val HudShape = RoundedCornerShape(8.dp)
 
 @Composable
-private fun Modifier.glass(): Modifier = this
+private fun Modifier.hudPanel(): Modifier = this
     .clip(HudShape)
-    .background(Brush.verticalGradient(listOf(Color(0xCC0B0D12), Color(0xB3080A0E))))
-    .border(1.dp, Color.White.copy(alpha = 0.08f), HudShape)
+    .background(StressColors.Surface)
+    .border(1.dp, StressColors.Outline, HudShape)
 
 @Composable
 private fun BaselineCard(mode: StressMode, state: RunState.Baseline?, now: Long, idle: Double?, onCancel: () -> Unit) {
@@ -269,7 +265,7 @@ private fun BaselineCard(mode: StressMode, state: RunState.Baseline?, now: Long,
     val total = RunController.BASELINE_SECONDS.toDouble()
     val remaining = state?.let { ((it.endsAtNanos - now) / 1e9).coerceIn(0.0, total) } ?: total
     Column(
-        Modifier.padding(24.dp).widthIn(max = 360.dp).glass().padding(24.dp),
+        Modifier.padding(24.dp).widthIn(max = 360.dp).hudPanel().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -306,7 +302,7 @@ private fun BaselineCard(mode: StressMode, state: RunState.Baseline?, now: Long,
 @Composable
 private fun MessageCard(icon: androidx.compose.ui.graphics.vector.ImageVector?, text: String, color: Color, progress: Boolean = false) {
     Column(
-        Modifier.padding(24.dp).glass().padding(horizontal = 28.dp, vertical = 24.dp),
+        Modifier.padding(24.dp).hudPanel().padding(horizontal = 28.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -323,7 +319,7 @@ private fun FinishedCard(state: RunState.Finished?) {
     val reason = record?.let(Labels::endReasonOf) ?: EndReason.Completed
     val safetyStop = reason == EndReason.Safety
     Column(
-        Modifier.padding(24.dp).widthIn(max = 360.dp).glass().padding(horizontal = 28.dp, vertical = 24.dp),
+        Modifier.padding(24.dp).widthIn(max = 360.dp).hudPanel().padding(horizontal = 28.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -363,7 +359,7 @@ private fun FailedCard(state: RunState.Failed?, onLeave: () -> Unit) {
         null -> "" to ""
     }
     Column(
-        Modifier.padding(24.dp).widthIn(max = 380.dp).glass().padding(24.dp),
+        Modifier.padding(24.dp).widthIn(max = 380.dp).hudPanel().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -396,7 +392,7 @@ private fun TopHud(
     val context = context()
     val elapsed = ((now - state.startedAtNanos) / 1e9).coerceAtLeast(0.0)
     val total = state.endsAtNanos?.let { (it - state.startedAtNanos) / 1e9 }
-    Column(Modifier.fillMaxWidth().glass().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth().hudPanel().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GaugeMark(Modifier.size(18.dp))
             Text(
@@ -453,19 +449,8 @@ private fun SafetyChip(safety: SafetyCheck, enabled: Boolean) {
         safety.level == SafetyLevel.Ok -> Triple(StressColors.Good, Icons.Rounded.Shield, stringResource(R.string.run_safety_ok))
         else -> Triple(StressColors.Warn, Icons.Rounded.Warning, Labels.safetyFinding(context, safety))
     }
-    val animated by animateColorAsState(color, label = "safetyColor")
-    if (enabled && safety.level == SafetyLevel.Warn) {
-        // A warning pulses; a quiet chip stays still, so the overlay is not redrawn every frame.
-        val pulse by rememberInfiniteTransition(label = "safety").animateFloat(
-            initialValue = 0.6f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-            label = "pulse",
-        )
-        Pill(text, animated.copy(alpha = pulse), icon = icon)
-    } else {
-        Pill(text, animated, icon = icon)
-    }
+    val animated by animateColorAsState(color, StressMotion.state(), label = "safetyColor")
+    Pill(text, animated, icon = icon)
 }
 
 /** Temperatures, clocks, rates: small at the bottom, so the middle of the screen belongs to the scene. */
@@ -473,12 +458,12 @@ private fun SafetyChip(safety: SafetyCheck, enabled: Boolean) {
 private fun BottomHud(live: LiveView?, mode: StressMode) {
     val context = context()
     val temps = live?.temperatures.orEmpty()
-    Column(Modifier.fillMaxWidth().glass().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().hudPanel().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TempCell(stringResource(R.string.temp_cpu), temps[ThermalGroup.Cpu], StressColors.Accent)
-            TempCell(stringResource(R.string.temp_gpu), temps[ThermalGroup.Gpu], StressColors.Cool)
-            TempCell(stringResource(R.string.temp_battery), live?.batteryCelsius, StressColors.AccentHot)
-            TempCell(stringResource(R.string.temp_skin), temps[ThermalGroup.Skin], StressColors.Good)
+            TempCell(stringResource(R.string.temp_cpu), temps[ThermalGroup.Cpu], Limits.chipWarn, Limits.chipStop)
+            TempCell(stringResource(R.string.temp_gpu), temps[ThermalGroup.Gpu], Limits.chipWarn, Limits.chipStop)
+            TempCell(stringResource(R.string.temp_battery), live?.batteryCelsius, Limits.batteryWarn, Limits.batteryStop)
+            TempCell(stringResource(R.string.temp_skin), temps[ThermalGroup.Skin], Limits.skinWarn, Limits.skinStop)
         }
         live?.clusters?.takeIf { it.isNotEmpty() }?.let { clusters ->
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -523,7 +508,8 @@ private fun BottomHud(live: LiveView?, mode: StressMode) {
 }
 
 @Composable
-private fun TempCell(label: String, celsius: Double?, color: Color) {
+private fun TempCell(label: String, celsius: Double?, warning: Double, stop: Double) {
+    val color = StressColors.temperature(celsius, warning, stop)
     val hot = (celsius ?: 0.0) >= 90.0
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label.upper(), style = MaterialTheme.typography.labelSmall, color = StressColors.TextDim, letterSpacing = 1.sp, maxLines = 1)
@@ -546,7 +532,7 @@ private fun Metric(label: String, value: String) {
 /**
  * What CPU-only runs show instead of a scene: the power gauge (its scale
  * grows with the highest reading), and, with the HUD hidden (its clock bars
- * say the same), a cell for every core glowing with its cluster's clock.
+ * say the same), a cell for every core filled to its cluster's clock.
  */
 @Composable
 private fun CpuInstrument(live: LiveView?, peak: Double?, cpuCount: Int, showCores: Boolean, modifier: Modifier) {
@@ -562,6 +548,7 @@ private fun CpuInstrument(live: LiveView?, peak: Double?, cpuCount: Int, showCor
                     value = Format.number(watts, 2),
                     unit = "W",
                     caption = stringResource(R.string.run_gauge_power),
+                    valueColor = StressColors.Accent,
                 )
             } else {
                 HeroGauge(
@@ -569,7 +556,7 @@ private fun CpuInstrument(live: LiveView?, peak: Double?, cpuCount: Int, showCor
                     value = chip?.let { Format.number(it, 0) } ?: Format.MISSING,
                     unit = "°C",
                     caption = stringResource(R.string.run_gauge_chip),
-                    valueColor = StressColors.Accent,
+                    valueColor = StressColors.temperature(chip, Limits.chipWarn, Limits.chipStop),
                 )
             }
             AnimatedVisibility(showCores, enter = fadeIn(), exit = fadeOut()) {
@@ -591,12 +578,6 @@ private fun CpuInstrument(live: LiveView?, peak: Double?, cpuCount: Int, showCor
 @Composable
 private fun CoreGrid(live: LiveView?, cpuCount: Int) {
     val clusters = live?.clusters.orEmpty()
-    val shimmer by rememberInfiniteTransition(label = "cores").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Restart),
-        label = "shimmer",
-    )
     val columns = when {
         cpuCount <= 4 -> cpuCount
         cpuCount <= 8 -> 4
@@ -616,10 +597,9 @@ private fun CoreGrid(live: LiveView?, cpuCount: Int) {
             val row = cpu / columns
             val x = col * (cellW + gap)
             val y = row * (cellH + gap)
-            val wave = 0.5f + 0.5f * kotlin.math.sin((shimmer + cpu * 0.13f) * 2f * Math.PI.toFloat())
             drawRoundRect(StressColors.SurfaceHigh, Offset(x, y), Size(cellW, cellH), CornerRadius(8.dp.toPx()))
             drawRoundRect(
-                color.copy(alpha = (0.25f + 0.55f * load) * (0.75f + 0.25f * wave)),
+                color.copy(alpha = 0.25f + 0.55f * load),
                 Offset(x, y + cellH * (1 - load)),
                 Size(cellW, cellH * load),
                 CornerRadius(8.dp.toPx()),

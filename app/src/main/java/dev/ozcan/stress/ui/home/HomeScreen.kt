@@ -1,50 +1,38 @@
 package dev.ozcan.stress.ui.home
 
-import dev.ozcan.stress.ui.upper
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
-import androidx.compose.material.icons.rounded.BatteryStd
 import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GppBad
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,22 +40,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -83,25 +70,36 @@ import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.StressDuration
 import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.safety.SafetyCheck
+import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.safety.SafetyPolicy
 import dev.ozcan.stress.settings.Settings
-import dev.ozcan.stress.ui.BottomBarSpace
 import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
-import dev.ozcan.stress.ui.components.GaugeMark
-import dev.ozcan.stress.ui.components.GlassCard
-import dev.ozcan.stress.ui.components.Wordmark
+import dev.ozcan.stress.ui.components.ChoiceChips
+import dev.ozcan.stress.ui.components.CodeTag
+import dev.ozcan.stress.ui.components.Hairline
 import dev.ozcan.stress.ui.components.IconBadge
-import dev.ozcan.stress.ui.components.Pill
+import dev.ozcan.stress.ui.components.MetricTile
+import dev.ozcan.stress.ui.components.Panel
 import dev.ozcan.stress.ui.components.PrimaryButton
-import dev.ozcan.stress.ui.components.SectionHeader
+import dev.ozcan.stress.ui.components.SceneCard
+import dev.ozcan.stress.ui.components.SectionLabel
 import dev.ozcan.stress.ui.components.SegmentedControl
+import dev.ozcan.stress.ui.components.StatusChip
+import dev.ozcan.stress.ui.components.StressDialog
+import dev.ozcan.stress.ui.components.TileRow
+import dev.ozcan.stress.ui.components.TopBar
+import dev.ozcan.stress.ui.components.Wordmark
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressMotion
+import dev.ozcan.stress.ui.theme.StressType
+import dev.ozcan.stress.ui.upper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -113,7 +111,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class HomeViewModel(private val graph: AppGraph) : ViewModel() {
+internal data class HomeHistory(
+    val last: RunRecord? = null,
+    val bestWatts: Map<StressMode, Double> = emptyMap(),
+)
+
+private val StressMode.homeGroup: StressMode get() = if (scene != null) StressMode.Cinematic else this
+
+internal class HomeViewModel(private val graph: AppGraph) : ViewModel() {
 
     val settings: StateFlow<Settings> = graph.settings.settings
 
@@ -127,17 +132,35 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
     private val _device = MutableStateFlow<DeviceInfo?>(null)
     val device: StateFlow<DeviceInfo?> = _device.asStateFlow()
 
-    private val _last = MutableStateFlow<RunRecord?>(null)
-    val last: StateFlow<RunRecord?> = _last.asStateFlow()
+    private val history = MutableStateFlow(HomeHistory())
+    val runs: StateFlow<HomeHistory> = history.asStateFlow()
+    private var historyRefresh: Job? = null
 
     init {
         viewModelScope.launch { _capabilities.value = graph.capabilities.await() }
         viewModelScope.launch { _device.value = graph.device.await() }
-        refreshLast()
     }
 
-    fun refreshLast() {
-        viewModelScope.launch { _last.value = withContext(Dispatchers.IO) { graph.runs.list().firstOrNull() } }
+    fun refreshHistory() {
+        historyRefresh?.cancel()
+        historyRefresh = viewModelScope.launch {
+            val device = graph.device.await()
+            history.value = withContext(Dispatchers.IO) {
+                val records = graph.runs.list()
+                val best = mutableMapOf<StressMode, Double>()
+                for (record in records) {
+                    val mode = StressMode.of(record.mode) ?: continue
+                    val peak = record.summary.peakWatts?.takeIf(Double::isFinite) ?: continue
+                    if (!record.summary.powerValid) continue
+                    // Older files without device metadata still belong to this private, non-backed-up store.
+                    val measuredOn = record.device
+                    if (measuredOn != null && (measuredOn.manufacturer != device.manufacturer || measuredOn.model != device.model)) continue
+                    val card = mode.homeGroup
+                    best[card] = maxOf(best[card] ?: peak, peak)
+                }
+                HomeHistory(records.firstOrNull(), best)
+            }
+        }
     }
 
     fun choose(mode: StressMode? = null, duration: StressDuration? = null, quality: SceneQuality? = null) {
@@ -164,40 +187,64 @@ class HomeViewModel(private val graph: AppGraph) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(1_000), null)
 }
 
+
+private val Limits = SafetyLimits()
+private val HomeModes = StressMode.entries.map { it.homeGroup }.distinct()
+
 @Composable
 fun HomeScreen(
     onStart: (StressMode, StressDuration) -> Unit,
     onOpenRun: (String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    val graph = context().graph
+    val context = context()
+    val graph = context.graph
     val model: HomeViewModel = viewModel { HomeViewModel(graph) }
     val settings by model.settings.collectAsStateWithLifecycle()
     val live by model.live.collectAsStateWithLifecycle()
     val capabilities by model.capabilities.collectAsStateWithLifecycle()
     val device by model.device.collectAsStateWithLifecycle()
-    val last by model.last.collectAsStateWithLifecycle()
+    val runs by model.runs.collectAsStateWithLifecycle()
     val gate by model.block.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
     var blocked by remember { mutableStateOf<SafetyCheck?>(null) }
-    // Back from a run or the history: the newest run may have changed.
-    LaunchedEffect(Unit) { model.refreshLast() }
+    var cinematic by rememberSaveable { mutableStateOf(settings.lastMode.takeIf { it.scene != null } ?: StressMode.Cinematic) }
+    LaunchedEffect(Unit) { model.refreshHistory() }
 
-    val gpuOk = capabilities?.gpuTests != false
-    val mode = settings.lastMode.takeIf { gpuOk || !it.usesGpu } ?: StressMode.Cpu
+    val gpuOk = capabilities?.gpuTests == true
+    val mode = settings.lastMode.takeIf { capabilities?.gpuTests != false || !it.usesGpu } ?: StressMode.Cpu
     val duration = settings.lastDuration
+    val quality = settings.quality
+    val safety = settings.deviceSafety
+    val summary = listOfNotNull(
+        Labels.modeName(context, mode),
+        stringResource(Labels.duration(duration)),
+        if (mode.scene != null) stringResource(Labels.quality(quality)) else null,
+    ).joinToString(" · ")
 
-    Box(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        TopBar(
+            caption = device?.let(::deviceCaption) ?: stringResource(R.string.home_tagline),
+            brand = { Wordmark(version = "v${graph.appVersion}") },
+            actions = {
+                StatusChip(
+                    text = if (safety) {
+                        stringResource(R.string.home_protection_limit, Limits.chipStop.toInt())
+                    } else {
+                        stringResource(R.string.safety_off_short)
+                    },
+                    color = if (safety) StressColors.Good else StressColors.Bad,
+                    icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
+                    onClick = onOpenSettings,
+                )
+            },
+        )
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp)
-                .padding(top = 10.dp, bottom = BottomBarSpace + 96.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Header(device, settings.deviceSafety, onOpenSettings)
+            SelectedTest(mode, duration, quality, device?.vulkan)
             LiveStatus(live)
             if (live?.plugged == true) {
                 Notice(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_plugged), StressColors.Warn)
@@ -206,54 +253,74 @@ fun HomeScreen(
                 Notice(Icons.Rounded.Info, stringResource(R.string.home_no_vulkan), StressColors.Cool)
             }
             gate?.let { check ->
-                val context = context()
                 Notice(Icons.Rounded.Shield, stringResource(R.string.home_cooling, Labels.safetyFinding(context, check)), StressColors.Warn)
             }
 
-            SectionHeader(stringResource(R.string.home_section_mode))
-            ModeCard(StressMode.Full, mode == StressMode.Full, enabled = gpuOk, badge = stringResource(R.string.home_badge_max)) {
-                model.choose(mode = StressMode.Full)
-            }
-            CinematicCard(
-                selected = mode.scene != null,
-                current = if (mode.scene != null) mode else StressMode.Cinematic,
-                quality = settings.quality,
-                enabled = gpuOk,
-                onPick = { model.choose(mode = it) },
-                onQuality = { model.choose(quality = it) },
-            )
-            ModeCard(StressMode.Cpu, mode == StressMode.Cpu) { model.choose(mode = StressMode.Cpu) }
-            ModeCard(StressMode.Gpu, mode == StressMode.Gpu, enabled = gpuOk) { model.choose(mode = StressMode.Gpu) }
-            ModeCard(StressMode.Dry, mode == StressMode.Dry, badge = stringResource(R.string.home_badge_reference)) {
-                model.choose(mode = StressMode.Dry)
+            SectionLabel(stringResource(R.string.home_section_mode))
+            ModeGrid(mode.homeGroup, gpuOk, runs.bestWatts) {
+                model.choose(mode = if (it == StressMode.Cinematic) cinematic else it)
             }
 
-            SectionHeader(stringResource(R.string.home_section_duration))
-            SegmentedControl(
+            AnimatedVisibility(
+                visible = mode.scene != null,
+                enter = expandVertically(StressMotion.enter()) + fadeIn(StressMotion.enter()),
+                exit = shrinkVertically(StressMotion.exit()) + fadeOut(StressMotion.exit()),
+            ) {
+                val scene = mode.scene ?: cinematic.scene ?: SceneKind.Pool
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(stringResource(R.string.home_scenes))
+                    Row(Modifier.fillMaxWidth().selectableGroup(), Arrangement.spacedBy(8.dp)) {
+                        StressMode.cinematic.forEach { choice ->
+                            val kind = requireNotNull(choice.scene)
+                            SceneCard(
+                                image = kind.still(),
+                                name = stringResource(Labels.scene(kind)),
+                                selected = scene == kind,
+                                modifier = Modifier.weight(1f).heightIn(min = 72.dp),
+                                onClick = {
+                                    cinematic = choice
+                                    model.choose(mode = choice)
+                                },
+                            )
+                        }
+                    }
+                    Text(stringResource(Labels.sceneDetail(scene)), style = StressType.BodySmall, color = StressColors.TextDim)
+                    SectionLabel(stringResource(R.string.home_quality))
+                    SegmentedControl(
+                        options = SceneQuality.entries,
+                        selected = quality,
+                        onSelect = { model.choose(quality = it) },
+                        label = {
+                            "${stringResource(Labels.quality(it))} ${Format.percentValue(it.scalePercent(scene))}"
+                        },
+                    )
+                    Text(stringResource(Labels.qualityDetail(quality)), style = StressType.BodySmall, color = StressColors.TextDim)
+                }
+            }
+
+            SectionLabel(stringResource(R.string.home_section_duration))
+            ChoiceChips(
                 options = StressDuration.entries,
                 selected = duration,
                 onSelect = { model.choose(duration = it) },
-                label = { stringResource(Labels.duration(it)) },
+                label = { it.seconds?.let { seconds -> stringResource(R.string.home_duration_short, seconds / 60) }
+                    ?: stringResource(R.string.duration_endless) },
+                accessibleLabel = { stringResource(Labels.duration(it)) },
             )
 
-            last?.let { LastRun(it) { onOpenRun(it.id) } }
+            runs.last?.let { LastRun(it) { onOpenRun(it.id) } }
         }
 
-        // The call to action stays above the tab bar, over a fade of the content.
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, StressColors.Background.copy(alpha = 0.92f), StressColors.Background)))
-                .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = BottomBarSpace - 8.dp),
+        Hairline()
+        Column(
+            Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val context = context()
             PrimaryButton(
                 text = stringResource(R.string.home_start),
-                subtitle = "${Labels.modeName(context, mode)} · ${stringResource(Labels.duration(duration))}" +
-                    if (mode.scene != null) " · ${stringResource(Labels.quality(settings.quality))}" else "",
                 icon = Icons.Rounded.PlayArrow,
+                enabled = !mode.usesGpu || gpuOk,
                 onClick = {
                     val block = model.startBlock()
                     if (block != null) {
@@ -265,283 +332,211 @@ fun HomeScreen(
                     }
                 },
             )
+            Text(summary, style = StressType.Code, color = StressColors.TextDim, textAlign = TextAlign.Center)
         }
     }
 
     blocked?.let { check ->
-        val context = context()
-        AlertDialog(
+        StressDialog(
             onDismissRequest = { blocked = null },
             icon = { Icon(Icons.Rounded.Shield, null, tint = StressColors.Warn) },
             title = { Text(stringResource(R.string.home_blocked_title)) },
-            text = {
-                Text(
-                    stringResource(R.string.home_blocked_text, Labels.safetyFinding(context, check)),
-                    color = StressColors.TextDim,
-                )
-            },
+            text = { Text(stringResource(R.string.home_blocked_text, Labels.safetyFinding(context, check))) },
             confirmButton = { TextButton(onClick = { blocked = null }) { Text(stringResource(R.string.ok)) } },
-            containerColor = StressColors.SurfaceHigh,
         )
+    }
+}
+
+private fun deviceCaption(device: DeviceInfo): String {
+    val soc = device.soc?.let { it.substringAfterLast('(', it).removeSuffix(")") }
+    val gpu = device.gpu?.let { name ->
+        if (name.contains("SwiftShader", ignoreCase = true)) {
+            "SwiftShader"
+        } else {
+            name.replace(" (TM)", "", ignoreCase = true).replace(" (R)", "", ignoreCase = true)
+                .removePrefix("ANGLE ").substringBefore(" /").substringBefore(" (")
+        }
+    }
+    val parts = listOfNotNull(device.title, soc, gpu).map(String::trim).filter(String::isNotEmpty)
+    val budget = 44 - 4 * (parts.size - 1)
+    val share = budget / parts.size.coerceAtLeast(1)
+    var spare = parts.sumOf { (share - it.length).coerceAtLeast(0) }
+    return parts.joinToString(" // ") { part ->
+        val extra = (part.length - share).coerceIn(0, spare)
+        spare -= extra
+        val limit = share + extra
+        val short = if (part.length <= limit) part else part.take(limit - 1).trimEnd() + "…"
+        short.upper()
     }
 }
 
 @Composable
-private fun Header(device: DeviceInfo?, safety: Boolean, onOpenSettings: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        GaugeMark(Modifier.size(42.dp))
-        Column(Modifier.weight(1f)) {
-            Wordmark(letterSpacing = 5.sp)
-            Text(
-                device?.let { d -> listOfNotNull(d.title, d.soc).joinToString(" · ") } ?: stringResource(R.string.home_tagline),
-                style = MaterialTheme.typography.bodySmall,
-                color = StressColors.TextDim,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+private fun SelectedTest(mode: StressMode, duration: StressDuration, quality: SceneQuality, vulkan: String?) {
+    val scene = mode.scene
+    val selectedDuration = duration.seconds?.let { Format.clock(it.toDouble()).padStart(5, '0') }
+        ?: stringResource(R.string.duration_endless)
+    val settings = if (scene == null) selectedDuration else
+        "${stringResource(Labels.quality(quality))} ${Format.percentValue(quality.scalePercent(scene))} // $selectedDuration"
+    Panel(Modifier.fillMaxWidth(), padding = 0.dp) {
+        Box(Modifier.fillMaxWidth().heightIn(min = if (scene == null) 112.dp else 168.dp)) {
+            if (scene != null) {
+                Image(
+                    painterResource(scene.still()), null,
+                    Modifier.matchParentSize().padding(1.dp), contentScale = ContentScale.Crop,
+                )
+                Box(
+                    Modifier.matchParentSize().padding(1.dp).background(
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.36f),
+                            0.30f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.94f),
+                        ),
+                    ),
+                )
+            }
+            Column(Modifier.align(if (scene != null) Alignment.TopStart else Alignment.CenterStart).padding(16.dp)) {
+                if (scene != null) {
+                    val api = vulkan?.split('.')?.take(2)?.joinToString(".") ?: Format.MISSING
+                    CodeTag(
+                        "VULKAN $api // ${stringResource(R.string.mode_cinematic).upper()}",
+                        StressColors.Cool, background = StressColors.Background.copy(alpha = 0.92f),
+                    )
+                    // Leave room for the still and let the hero grow if a title wraps.
+                    Spacer(Modifier.height(32.dp))
+                }
+                Text(
+                    stringResource(scene?.let(Labels::scene) ?: Labels.modeTitle(mode)).upper(),
+                    style = StressType.Display,
+                )
+                Text(
+                    mode.recipe.replace("+", " + "),
+                    style = StressType.Code,
+                    color = if (scene == null) StressColors.TextDim else StressColors.Text,
+                )
+                Text(settings.upper(), style = StressType.Code, color = StressColors.TextDim)
+            }
         }
-        Pill(
-            text = stringResource(if (safety) R.string.safety_on_short else R.string.safety_off_short),
-            color = if (safety) StressColors.Good else StressColors.Bad,
-            icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
-            modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenSettings),
-        )
     }
 }
 
-/** The phone right now: battery, chip temperature, power. */
 @Composable
 private fun LiveStatus(live: LiveView?) {
-    GlassCard(padding = 14.dp) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            LiveItem(
-                icon = if (live?.plugged == true) Icons.Rounded.BatteryChargingFull else Icons.Rounded.BatteryStd,
-                label = stringResource(R.string.home_live_battery),
-                value = Format.percentValue(live?.levelPercent),
-                sub = Format.celsius(live?.batteryCelsius),
-                tint = StressColors.Good,
-            )
-            LiveItem(
-                icon = Icons.Rounded.Thermostat,
-                label = stringResource(R.string.home_live_chip),
-                value = live?.chipCelsius?.let { Format.number(it, 0) + "°" } ?: Format.MISSING,
-                sub = live?.let { stringResource(R.string.home_live_thermal, stringResource(Labels.thermalStatus(it.thermalStatus))) }
-                    ?: Format.MISSING,
-                tint = StressColors.Accent,
-            )
-            LiveItem(
-                icon = Icons.Rounded.Bolt,
-                label = stringResource(R.string.home_live_power),
-                value = when {
-                    live == null -> Format.MISSING
-                    live.plugged -> stringResource(R.string.home_live_charging)
-                    else -> Format.number(live.watts, 2)
-                },
-                sub = if (live != null && !live.plugged && live.watts != null) "W" else " ",
-                tint = StressColors.Cool,
-            )
+    val plugged = live?.plugged == true
+    val chip = live?.chipCelsius
+    val battery = live?.batteryCelsius
+    val chipColor = StressColors.temperature(chip, Limits.chipWarn, Limits.chipStop)
+    val batteryColor = StressColors.temperature(battery, Limits.batteryWarn, Limits.batteryStop)
+    TileRow(Modifier.height(IntrinsicSize.Min)) {
+        MetricTile(
+            stringResource(R.string.home_live_power),
+            if (plugged) stringResource(R.string.home_live_charging) else Format.number(live?.watts, 1),
+            Modifier.weight(1f).fillMaxHeight(), unit = if (plugged) null else "W",
+            color = if (plugged) StressColors.Warn else StressColors.Accent,
+            statusColor = when {
+                plugged -> StressColors.Warn
+                live?.watts != null -> StressColors.Accent
+                else -> null
+            },
+            caption = live?.volts?.let { "${Format.number(it, 2)} V" },
+            padding = 8.dp,
+        )
+        MetricTile(
+            stringResource(R.string.home_live_chip), Format.number(chip, 0), Modifier.weight(1f).fillMaxHeight(),
+            unit = "°C", color = chipColor, statusColor = chipColor.takeIf { chip != null },
+            caption = live?.let { stringResource(Labels.thermalStatus(it.thermalStatus)) } ?: Format.MISSING,
+            padding = 8.dp,
+        )
+        MetricTile(
+            stringResource(R.string.home_live_battery), Format.percentValue(live?.levelPercent), Modifier.weight(1f).fillMaxHeight(),
+            statusColor = StressColors.Text.takeIf { live?.levelPercent != null },
+            caption = Format.celsius(battery, 0), captionColor = batteryColor, padding = 8.dp,
+        )
+    }
+    if (live != null && (chip == null || battery == null || live.levelPercent == null || (!plugged && live.watts == null))) {
+        Text(stringResource(R.string.home_missing_readings), style = StressType.BodySmall, color = StressColors.TextDim)
+    }
+}
+
+@Composable
+private fun Notice(icon: ImageVector, text: String, color: Color) {
+    Panel(Modifier.fillMaxWidth(), padding = 12.dp) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
+            Text(text, style = StressType.BodySmall, color = StressColors.TextDim)
         }
     }
 }
 
 @Composable
-private fun LiveItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, sub: String, tint: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(14.dp))
-            Text(label.upper(), style = MaterialTheme.typography.labelSmall, color = StressColors.TextDim, letterSpacing = 1.sp)
-        }
-        Text(value, style = NumberStyles.Medium, color = StressColors.Text, maxLines = 1)
-        Text(sub, style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint, maxLines = 1)
-    }
-}
-
-@Composable
-private fun Notice(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, color: Color) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(color.copy(alpha = 0.10f))
-            .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
-        Text(text, style = MaterialTheme.typography.bodySmall, color = StressColors.Text)
-    }
-}
-
-/** The radio mark on the right of a mode card: a ring, filled with a check when chosen. */
-@Composable
-private fun Selector(selected: Boolean) {
-    val fill by animateFloatAsState(if (selected) 1f else 0f, tween(220), label = "selector")
-    val ring by animateColorAsState(if (selected) StressColors.Accent else StressColors.OutlineBright, label = "ring")
-    Box(
-        Modifier.size(24.dp).border(2.dp, ring, CircleShape).padding(3.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = fill
-                    scaleY = fill
-                    alpha = fill
-                }
-                .background(StressColors.Heat, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
-        }
-    }
-}
-
-@Composable
-private fun ModeTags(mode: StressMode) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (mode.usesCpu) Pill("CPU", StressColors.Accent)
-        if (mode.usesGpu) Pill("GPU", StressColors.Cool)
-    }
-}
-
-@Composable
-private fun ModeCard(mode: StressMode, selected: Boolean, enabled: Boolean = true, badge: String? = null, onClick: () -> Unit) {
-    GlassCard(
-        modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = if (enabled) 1f else 0.45f },
-        highlight = selected,
-        onClick = if (enabled) onClick else null,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            IconBadge(Labels.modeIcon(mode), if (selected) StressColors.Accent else StressColors.TextDim, size = 44.dp)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(Labels.modeTitle(mode)), style = MaterialTheme.typography.titleMedium)
-                    if (badge != null) Pill(badge, if (mode == StressMode.Full) StressColors.AccentHot else StressColors.TextDim)
-                }
-                Text(stringResource(Labels.modeDetail(mode)), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-                ModeTags(mode)
-            }
-            Selector(selected)
-        }
-    }
-}
-
-@Composable
-private fun CinematicCard(
-    selected: Boolean,
-    current: StressMode,
-    quality: SceneQuality,
-    enabled: Boolean,
-    onPick: (StressMode) -> Unit,
-    onQuality: (SceneQuality) -> Unit,
-) {
-    GlassCard(
-        modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = if (enabled) 1f else 0.45f },
-        highlight = selected,
-        onClick = if (enabled) ({ onPick(current) }) else null,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            IconBadge(Labels.modeIcon(current), if (selected) StressColors.Accent else StressColors.TextDim, size = 44.dp)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(stringResource(R.string.mode_cinematic), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.mode_cinematic_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-                ModeTags(current)
-            }
-            Selector(selected)
-        }
-        AnimatedVisibility(
-            visible = selected && enabled,
-            enter = expandVertically(tween(320)) + fadeIn(tween(320)),
-            exit = shrinkVertically(tween(260)) + fadeOut(tween(200)),
-        ) {
-            Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StressMode.cinematic.forEach { m ->
-                        SceneThumb(m.scene!!, m == current, Modifier.weight(1f)) { onPick(m) }
+private fun ModeGrid(selected: StressMode, gpuOk: Boolean, bestWatts: Map<StressMode, Double>, onSelect: (StressMode) -> Unit) {
+    val (large, compact) = HomeModes.partition { it == StressMode.Full || it.scene != null }
+    Column(Modifier.fillMaxWidth().selectableGroup(), Arrangement.spacedBy(12.dp)) {
+        for ((width, modes) in listOf(2 to large, 3 to compact)) {
+            for (row in modes.chunked(width)) {
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), Arrangement.spacedBy(12.dp)) {
+                    row.forEach { mode ->
+                        ModeCard(mode, mode == selected, gpuOk || !mode.usesGpu, bestWatts[mode], Modifier.weight(1f).fillMaxHeight()) {
+                            onSelect(mode)
+                        }
                     }
+                    repeat(width - row.size) { Spacer(Modifier.weight(1f)) }
                 }
-                Text(
-                    stringResource(Labels.sceneDetail(current.scene ?: SceneKind.Pool)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = StressColors.TextDim,
-                )
-                Text(
-                    stringResource(R.string.home_quality).upper(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = StressColors.TextDim,
-                    letterSpacing = 1.4.sp,
-                )
-                SegmentedControl(
-                    options = SceneQuality.entries,
-                    selected = quality,
-                    onSelect = onQuality,
-                    label = { stringResource(Labels.quality(it)) },
-                    height = 40.dp,
-                )
-                Text(stringResource(Labels.qualityDetail(quality)), style = MaterialTheme.typography.bodySmall, color = StressColors.TextFaint)
             }
         }
     }
 }
 
 @Composable
-private fun SceneThumb(kind: SceneKind, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val border by animateColorAsState(if (selected) StressColors.Accent else StressColors.Outline, label = "thumb")
-    val scale by animateFloatAsState(if (selected) 1f else 0.95f, label = "thumbScale")
-    val shape = RoundedCornerShape(14.dp)
-    Box(
-        modifier
-            .aspectRatio(0.72f)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(shape)
-            .border(if (selected) 2.dp else 1.dp, border, shape)
-            .clickable(onClick = onClick),
+private fun ModeCard(mode: StressMode, selected: Boolean, enabled: Boolean, best: Double?, modifier: Modifier, onClick: () -> Unit) {
+    val titleColor = when {
+        !enabled -> StressColors.TextDim
+        selected -> StressColors.Accent
+        else -> StressColors.Text
+    }
+    Panel(
+        modifier, padding = 12.dp, selected = selected, selectionColor = StressColors.Accent,
+        enabled = enabled, onClick = onClick,
     ) {
-        Image(
-            painter = painterResource(
-                when (kind) {
-                    SceneKind.Pool -> R.drawable.scene_pool
-                    SceneKind.Forest -> R.drawable.scene_forest
-                    SceneKind.White -> R.drawable.scene_white
-                    SceneKind.Hole -> R.drawable.scene_hole
-                },
-            ),
-            contentDescription = stringResource(Labels.scene(kind)),
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (selected) 1f else 0.7f },
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.85f))),
-        )
-        Text(
-            stringResource(Labels.scene(kind)),
-            modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
-            style = MaterialTheme.typography.labelLarge,
-            color = Color.White,
-        )
-        if (selected) {
-            Box(
-                Modifier.align(Alignment.TopEnd).padding(8.dp).size(22.dp).background(StressColors.Heat, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(Labels.modeTitle(mode)), style = StressType.Heading, color = titleColor)
+            Text(stringResource(shortDetail(mode)), style = StressType.BodySmall, color = StressColors.TextDim)
+            val hardware = parts(mode)
+            if (hardware.isNotEmpty()) Text(hardware, style = StressType.Code, color = StressColors.TextDim)
+            if (best != null) {
+                Text(
+                    stringResource(R.string.home_best_power, Format.number(best, 1)).upper(),
+                    style = StressType.Code,
+                    color = StressColors.Accent,
+                )
             }
         }
     }
+}
+
+private fun shortDetail(mode: StressMode): Int = when (mode) {
+    StressMode.Full -> R.string.home_mode_full_detail
+    StressMode.Cinematic -> R.string.home_mode_cinematic_detail
+    StressMode.Cpu -> R.string.home_mode_cpu_detail
+    StressMode.Gpu -> R.string.home_mode_gpu_detail
+    StressMode.Dry -> R.string.home_mode_dry_detail
+    else -> Labels.modeDetail(mode)
+}
+
+private fun parts(mode: StressMode): String =
+    listOfNotNull("CPU".takeIf { mode.usesCpu }, "GPU".takeIf { mode.usesGpu }).joinToString(" + ")
+
+private fun SceneKind.still(): Int = when (this) {
+    SceneKind.Pool -> R.drawable.scene_pool
+    SceneKind.Forest -> R.drawable.scene_forest
+    SceneKind.White -> R.drawable.scene_white
+    SceneKind.Hole -> R.drawable.scene_hole
 }
 
 @Composable
 private fun LastRun(record: RunRecord, onClick: () -> Unit) {
     val context = context()
-    SectionHeader(stringResource(R.string.home_section_last))
-    GlassCard(Modifier.fillMaxWidth(), onClick = onClick) {
+    SectionLabel(stringResource(R.string.home_section_last))
+    Panel(Modifier.fillMaxWidth(), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconBadge(
                 StressMode.of(record.mode)?.let(Labels::modeIcon) ?: Icons.Rounded.Bolt,
@@ -549,16 +544,16 @@ private fun LastRun(record: RunRecord, onClick: () -> Unit) {
                 size = 38.dp,
             )
             Column(Modifier.weight(1f)) {
-                Text(Labels.recordModeName(context, record), style = MaterialTheme.typography.titleSmall)
+                Text(Labels.recordModeName(context, record), style = StressType.Heading)
                 Text(
                     "${Dates.short(record.startedAtMillis)} · ${Format.clock(record.loadSeconds)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = StressType.BodySmall,
                     color = StressColors.TextDim,
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(Format.watts(record.summary.peakWatts ?: record.summary.meanWatts), style = NumberStyles.Medium, color = StressColors.Accent)
-                Text(stringResource(R.string.home_last_peak), style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
+                Text(stringResource(R.string.home_last_peak), style = StressType.Label, color = StressColors.TextDim)
             }
         }
         if (record.summary.computationErrors > 0) {
@@ -571,7 +566,7 @@ private fun LastRun(record: RunRecord, onClick: () -> Unit) {
                         record.summary.computationErrors.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                         record.summary.computationErrors,
                     ),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = StressType.Label,
                     color = StressColors.Bad,
                 )
             }

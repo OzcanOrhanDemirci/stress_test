@@ -134,9 +134,9 @@ object Labels {
     fun temperatureColor(key: String): Color = when (key) {
         ThermalGroup.Cpu.key, "A715" -> StressColors.Accent
         ThermalGroup.Gpu.key, "GPU" -> StressColors.Cool
-        ThermalGroup.Memory.key, "DDR" -> StressColors.Violet
-        ThermalGroup.Skin.key, "A510" -> StressColors.Good
-        RunAnalysis.BATTERY, "Pil" -> StressColors.AccentHot
+        ThermalGroup.Memory.key, "DDR" -> StressColors.TextDim
+        ThermalGroup.Skin.key, "A510" -> StressColors.TextFaint
+        RunAnalysis.BATTERY, "Pil" -> StressColors.Text
         else -> StressColors.TextDim
     }
 
@@ -150,9 +150,9 @@ object Labels {
     }
 
     fun clusterColor(index: Int, count: Int): Color {
-        val palette = listOf(StressColors.Good, StressColors.Cool, StressColors.Accent, StressColors.AccentHot)
+        val palette = listOf(StressColors.TextFaint, StressColors.TextDim, StressColors.Cool, StressColors.Accent)
         if (count <= 1) return StressColors.Accent
-        return palette.getOrElse(index + (palette.size - count).coerceAtLeast(0)) { StressColors.Violet }
+        return palette.getOrElse(index + (palette.size - count).coerceAtLeast(0)) { StressColors.Text }
     }
 
     @StringRes
