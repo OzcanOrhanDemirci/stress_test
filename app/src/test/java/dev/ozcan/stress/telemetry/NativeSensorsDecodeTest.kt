@@ -1,5 +1,7 @@
 package dev.ozcan.stress.telemetry
 
+import dev.ozcan.stress.TestSamples
+import dev.ozcan.stress.ui.LiveView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -53,8 +55,8 @@ class NativeSensorsDecodeTest {
         val percent = layout.copy(gpuBusyFormat = GpuBusyFormat.Percent)
         val values = LongArray(14) { missing }.also { it[12] = 37 }
         assertEquals(0.37, NativeSensors.decode(percent, values).gpuBusy!!.fraction!!, 1e-9)
-        // MediaTek's "loading idle block": the first number is the load.
-        val mediatek = LongArray(14) { missing }.also { it[12] = 35; it[13] = 65 }
+        // MediaTek GED's "loading blocking idle": the first number is the load.
+        val mediatek = LongArray(14) { missing }.also { it[12] = 35; it[13] = 0 }
         assertEquals(0.35, NativeSensors.decode(percent, mediatek).gpuBusy!!.fraction!!, 1e-9)
     }
 
@@ -73,5 +75,45 @@ class NativeSensorsDecodeTest {
         assertNull(NativeSensors.celsius(0))
         assertNull(NativeSensors.celsius(-273_000))
         assertNull(NativeSensors.celsius(400_000))
+        for (raw in listOf(-40L, -400L, -40_000L, 127L, 1270L, 127_000L)) {
+            assertNull(NativeSensors.celsius(raw))
+        }
+        assertEquals(110.0, NativeSensors.celsius(110_000)!!, 0.0)
+    }
+
+    @Test
+    fun `a stopped policy recovers its real frequency and unreadable zones never become chip heat`() {
+        val thermal = layout.copy(clusters = layout.clusters.map { it.copy(fallbackFreqPath = "${it.currentFreqPath}/alt") })
+        val values = LongArray(18) { missing }
+        values[0] = 1_804_800
+        values[2] = 0
+        values[4] = 127_000
+        values[6] = -40_000
+        values[8] = 0
+        values[10] = 45_000
+        values[14] = 1_700_000
+        values[16] = 2_630_400
+        val reading = NativeSensors.decode(thermal, values)
+        assertEquals(listOf(1_804_800L, 2_630_400L), reading.clusterFreqKhz)
+        assertEquals(mapOf(ThermalGroup.Memory to 45.0), reading.temperatures)
+        val first = TestSamples.sample(0.0).copy(sysfs = reading)
+        assertNull(LiveView.from(listOf(first), thermal)!!.chipCelsius)
+    }
+
+    @Test
+    fun `a missing or invalid busy counter falls back to the renderer's own frame time`() {
+        val first = TestSamples.sample(0.0, gpu = TestSamples.gpu(null, 10))
+        val last = TestSamples.sample(1.0, gpu = TestSamples.gpu(null, 30))
+        for ((busy, total) in listOf(0L to 0L, 101L to 100L, missing to missing)) {
+            val sysfs = NativeSensors.decode(layout, LongArray(14) { missing }.also { it[12] = busy; it[13] = total })
+            assertNull(sysfs.gpuBusy)
+            val live = LiveView.from(listOf(first, last.copy(sysfs = sysfs)), layout)!!
+            assertEquals(0.8, live.gpuLoad!!, 1e-9)
+        }
+        val untimed = last.copy(
+            gpu = last.gpu.copy(gpuNanos = first.gpu.gpuNanos),
+            sysfs = last.sysfs.copy(gpuBusy = null),
+        )
+        assertNull(LiveView.from(listOf(first, untimed), layout)!!.gpuLoad)
     }
 }

@@ -63,6 +63,7 @@ data class CpuCluster(
     val currentFreqPath: String,
     /** The core's marketing name ("Cortex-A715"), or null when the CPU does not say. */
     val coreName: String? = null,
+    val fallbackFreqPath: String? = null,
 )
 
 data class ThermalZone(val type: String, val group: ThermalGroup, val tempPath: String)
@@ -77,37 +78,57 @@ enum class GpuBusyFormat { Pair, Percent }
 data class SysfsLayout(
     val clusters: List<CpuCluster>,
     val zones: List<ThermalZone>,
-    /** The GPU load file, the first of [GPU_BUSY_CANDIDATES] that exists; null when there is none. */
+    /** The first recognized GPU load file the app can read. */
     val gpuBusyPath: String?,
     val gpuBusyFormat: GpuBusyFormat = GpuBusyFormat.Pair,
     /** CPUs the kernel can bring online, so the load has a thread for every one. */
     val cpuCount: Int = clusters.flatMap { it.cpus }.maxOrNull()?.plus(1) ?: 1,
+    /** Also keeps names of CPUs whose clock policy was hidden. */
+    val cpuNames: Map<Int, String> = emptyMap(),
 ) {
-    /** Every file to read, in a fixed order: cluster clocks, zone temperatures, the GPU load file. */
-    val paths: List<String> get() = clusters.map { it.currentFreqPath } + zones.map { it.tempPath } + listOfNotNull(gpuBusyPath)
+    /** Cluster clocks, zone temperatures, GPU load, then any alternative clocks. */
+    val paths: List<String> get() = clusters.map { it.currentFreqPath } + zones.map { it.tempPath } +
+        listOfNotNull(gpuBusyPath) + clusters.mapNotNull { it.fallbackFreqPath }
+    internal val fallbackClockStart: Int get() = clusters.size + zones.size + if (gpuBusyPath == null) 0 else 1
 
     companion object {
         /** More zones than this are not read: each costs a system call at 10 Hz. */
         private const val MAX_ZONES = 64
+        private const val MAX_CPU_ID = 4095
+        private val cpuDirName = Regex("cpu([0-9]+)")
+        private val cpuRange = Regex("([0-9]+)(?:-([0-9]+))?")
+        private val gpuDevice = Regex("(^|[-_.])(gpu|mali[0-9]*|pvr|powervr|pvrsrvkm|sgpu|xclipse)([-_.]|$)")
 
         /**
          * GPU load files, most informative first: Adreno's busy/total pair,
          * then the percentages of Adreno, Samsung, MediaTek and Mali kernels.
          */
-        val GPU_BUSY_CANDIDATES: List<Pair<String, GpuBusyFormat>> = listOf(
+        private val GPU_BUSY_CANDIDATES: List<Pair<String, GpuBusyFormat>> = listOf(
             "sys/class/kgsl/kgsl-3d0/gpubusy" to GpuBusyFormat.Pair,
             "sys/class/kgsl/kgsl-3d0/gpu_busy_percentage" to GpuBusyFormat.Percent,
             "sys/kernel/gpu/gpu_busy" to GpuBusyFormat.Percent,
             "sys/kernel/ged/hal/gpu_utilization" to GpuBusyFormat.Percent,
+            "sys/module/ged/parameters/gpu_loading" to GpuBusyFormat.Percent,
+            "sys/devices/platform/gpusysfs/gpu_busy" to GpuBusyFormat.Percent,
             "sys/class/misc/mali0/device/utilization" to GpuBusyFormat.Percent,
+            "sys/class/misc/mali0/device/utilisation" to GpuBusyFormat.Percent,
+            "sys/class/misc/pvrsrvkm/device/utilisation" to GpuBusyFormat.Percent,
+            "sys/class/pvr/gpu_utilisation" to GpuBusyFormat.Percent,
+            "sys/class/pvr/utilisation" to GpuBusyFormat.Percent,
         )
 
         fun discover(root: File = File("/")): SysfsLayout {
             val cpuDir = File(root, "sys/devices/system/cpu")
             val names = CpuParts.namesByCpu(cpuDir, File(root, "proc/cpuinfo"))
-            val clusters = discoverClusters(File(cpuDir, "cpufreq"), names)
+            val cpuDirs = cpuDir.listFiles().orEmpty().mapNotNull { dir ->
+                val id = cpuDirName.matchEntire(dir.name)?.groupValues?.get(1)?.toIntOrNull()
+                    ?.takeIf { it in 0..MAX_CPU_ID } ?: return@mapNotNull null
+                id to dir
+            }.toMap()
+            val clusters = discoverClusters(cpuDir, cpuDirs, names)
             val possible = readText(File(cpuDir, "possible"))?.let(::parseCpuList).orEmpty()
-            val highest = (possible + clusters.flatMap { it.cpus }).maxOrNull()
+                .ifEmpty { readText(File(cpuDir, "present"))?.let(::parseCpuList).orEmpty() }
+            val highest = (possible + cpuDirs.keys + names.keys + clusters.flatMap { it.cpus }).maxOrNull()
             val gpu = discoverGpuBusy(root)
             return SysfsLayout(
                 clusters = clusters,
@@ -115,37 +136,48 @@ data class SysfsLayout(
                 gpuBusyPath = gpu?.first,
                 gpuBusyFormat = gpu?.second ?: GpuBusyFormat.Pair,
                 cpuCount = highest?.plus(1) ?: Runtime.getRuntime().availableProcessors(),
+                cpuNames = names,
             )
         }
 
         /** "0-3,6,8-9" -> [0, 1, 2, 3, 6, 8, 9]; malformed parts are skipped. */
         fun parseCpuList(text: String): List<Int> =
-            text.split(',', ' ', '\n').map { it.trim() }.filter { it.isNotEmpty() }.flatMap { part ->
-                val bounds = part.split('-').mapNotNull { it.trim().toIntOrNull() }
-                when (bounds.size) {
-                    1 -> listOf(bounds[0])
-                    2 -> if (bounds[0] <= bounds[1]) (bounds[0]..bounds[1]).toList() else emptyList()
-                    else -> emptyList()
-                }
+            text.split(Regex("[,\\s]+")).flatMap { part ->
+                val match = cpuRange.matchEntire(part) ?: return@flatMap emptyList()
+                val first = match.groupValues[1].toIntOrNull() ?: return@flatMap emptyList()
+                val last = (match.groups[2]?.value ?: match.groupValues[1]).toIntOrNull() ?: return@flatMap emptyList()
+                if (first > last || last > MAX_CPU_ID) emptyList() else (first..last).toList()
             }.distinct().sorted()
 
-        private fun discoverClusters(dir: File, names: Map<Int, String>): List<CpuCluster> =
-            dir.listFiles { f -> f.name.startsWith("policy") }.orEmpty()
-                .mapNotNull { policyDir ->
-                    val policy = policyDir.name.removePrefix("policy").toIntOrNull() ?: return@mapNotNull null
-                    val cpus = (readText(File(policyDir, "related_cpus")) ?: readText(File(policyDir, "affected_cpus")))
-                        ?.let(::parseCpuList)
-                        .orEmpty()
-                        .ifEmpty { return@mapNotNull null }
-                    CpuCluster(
-                        policy = policy,
-                        cpus = cpus,
-                        maxFreqKhz = readText(File(policyDir, "cpuinfo_max_freq"))?.toLongOrNull() ?: 0L,
-                        currentFreqPath = File(policyDir, "scaling_cur_freq").path,
-                        coreName = names[cpus.first()],
-                    )
-                }
-                .sortedBy { it.policy }
+        private fun discoverClusters(cpuDir: File, cpuDirs: Map<Int, File>, names: Map<Int, String>): List<CpuCluster> {
+            val found = mutableListOf<CpuCluster>()
+            val claimed = mutableSetOf<Int>()
+            fun add(policy: Int, dir: File) {
+                // related_cpus includes offline CPUs; affected_cpus lists only online ones.
+                val cpus = readText(File(dir, "related_cpus"))?.let(::parseCpuList).orEmpty()
+                    .ifEmpty { readText(File(dir, "affected_cpus"))?.let(::parseCpuList).orEmpty() }
+                if (cpus.isEmpty() || cpus.any { it in claimed } || found.any { it.policy == policy }) return
+                claimed += cpus
+                val core = cpus.mapNotNull(names::get).distinct().singleOrNull()
+                val max = readText(File(dir, "cpuinfo_max_freq"))?.toLongOrNull()?.takeIf { it > 0 }
+                found += CpuCluster(
+                    policy = policy,
+                    cpus = cpus,
+                    maxFreqKhz = max ?: 0L,
+                    currentFreqPath = File(dir, "scaling_cur_freq").path,
+                    coreName = core,
+                    fallbackFreqPath = File(dir, "cpuinfo_cur_freq").takeIf { it.exists() }?.path,
+                )
+            }
+            val policies = File(cpuDir, "cpufreq").listFiles().orEmpty().mapNotNull { dir ->
+                if (!dir.name.startsWith("policy")) return@mapNotNull null
+                dir.name.removePrefix("policy").toIntOrNull()?.takeIf { it in 0..MAX_CPU_ID }?.let { it to dir }
+            }
+            for ((policy, dir) in policies.sortedBy { it.first }) add(policy, dir)
+            // Older or restricted kernels may expose only the per-CPU cpufreq symlink.
+            for ((cpu, dir) in cpuDirs.toSortedMap()) if (cpu !in claimed) add(cpu, File(dir, "cpufreq"))
+            return found.sortedBy { it.policy }
+        }
 
         private fun discoverZones(dir: File): List<ThermalZone> =
             dir.listFiles { f -> f.name.startsWith("thermal_zone") }.orEmpty()
@@ -158,12 +190,32 @@ data class SysfsLayout(
                 .take(MAX_ZONES)
 
         private fun discoverGpuBusy(root: File): Pair<String, GpuBusyFormat>? {
-            GPU_BUSY_CANDIDATES.firstOrNull { File(root, it.first).exists() }?.let { return File(root, it.first).path to it.second }
-            // Mali kernels keep the file under the GPU's platform device, whose name varies.
-            return File(root, "sys/devices/platform").listFiles { f -> "mali" in f.name.lowercase(Locale.ROOT) }.orEmpty()
-                .map { File(it, "utilization") }
-                .firstOrNull { it.exists() }
-                ?.let { it.path to GpuBusyFormat.Percent }
+            fun usable(file: File, format: GpuBusyFormat): Boolean {
+                val fields = readText(file)?.split(Regex("\\s+")) ?: return false
+                val busy = fields.first().removeSuffix("%").toLongOrNull() ?: return false
+                if (format == GpuBusyFormat.Percent) return busy in 0..100
+                val total = fields.getOrNull(1)?.toLongOrNull() ?: return false
+                // KGSL returns an empty interval when the GPU is idle.
+                return total >= 0 && busy in 0..total
+            }
+            for ((path, format) in GPU_BUSY_CANDIDATES) {
+                val file = File(root, path)
+                if (usable(file, format)) return file.path to format
+            }
+            val drm = File(root, "sys/class/drm").listFiles { f -> f.name.matches(Regex("card[0-9]+")) }.orEmpty()
+            for (card in drm.sortedBy { it.name }) {
+                val file = File(card, "device/gpu_busy_percent")
+                if (usable(file, GpuBusyFormat.Percent)) return file.path to GpuBusyFormat.Percent
+            }
+            // Mali and similar drivers hang these files off their platform or devfreq device.
+            for (path in listOf("sys/devices/platform", "sys/class/devfreq")) {
+                val nodes = File(root, path).listFiles { f -> gpuDevice.containsMatchIn(f.name.lowercase(Locale.ROOT)) }.orEmpty()
+                for (node in nodes.sortedBy { it.name }) for (name in listOf("utilization", "utilisation", "gpu_busy")) {
+                    val file = File(node, name)
+                    if (usable(file, GpuBusyFormat.Percent)) return file.path to GpuBusyFormat.Percent
+                }
+            }
+            return null
         }
 
         private fun readText(file: File): String? =

@@ -21,17 +21,24 @@ public:
     // opened and read once.
     std::vector<bool> open(const std::vector<std::string>& paths);
 
-    // Fills kValuesPerFile values per path: the first two integers found in the
+    // Fills kValuesPerFile values per path: the first two numeric fields in the
     // file (e.g. gpubusy holds "busy total"). Missing values are kMissing.
-    void read(int64_t* out, size_t outLength) const;
+    void read(int64_t* out, size_t outLength);
 
     void close();
 
 private:
     void closeLocked();
 
+    struct File {
+        int fd;
+        // Sysfs may remove a CPU clock file during hotplug. Other denied or
+        // absent files are never reopened by the sampling loop.
+        std::string clockPath;
+    };
+
     mutable std::mutex mutex_;
-    std::vector<int> fds_;
+    std::vector<File> files_;
 };
 
 }  // namespace stress
