@@ -51,7 +51,7 @@ class GpuEngineDeviceTest {
         return engine.snapshot().also { engine.request(null) }
     }
 
-    private fun run(burner: GpuBurner?, millis: Long): GpuSnapshot = run(GpuRequest(burner), millis)
+    private fun run(burner: GpuBurner?, millis: Long): GpuSnapshot = run(GpuRequest(burner, scene = false), millis)
 
     private companion object {
         const val TAG = "GpuEngineDeviceTest"
@@ -72,7 +72,7 @@ class GpuEngineDeviceTest {
                 val s = run(request, millis)
                 assertEquals("$kind $quality state", GpuState.Running, s.state)
                 assertTrue("$kind $quality frames ${s.frames}", s.frames > 3)
-                assertTrue("$kind $quality untimed", s.timed)
+                assertTrue("$kind $quality no frame timing", s.gpuNanos > 0)
                 Log.i(TAG, "$kind $quality %.1f ms a frame".format(s.gpuNanos / 1e6 / s.frames.coerceAtLeast(1)))
             }
         }
