@@ -24,7 +24,7 @@
         <item quantity="one">The load has computed %1$d wrong result so far.</item>
         <item quantity="other">The load has computed %1$d wrong results so far.</item>
     </plurals>
-    <string name="run_log_run">Run</string>
+    <string name="run_log_run">Test</string>
     <string name="run_log_power">Power and battery</string>
     <string name="run_log_thermal">Temperatures</string>
     <string name="run_log_clusters">Clusters and clocks</string>

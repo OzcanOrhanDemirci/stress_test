@@ -56,7 +56,7 @@
     <string name="home_tagline">CPU, GPU and power benchmark</string>
     <string name="home_section_mode">Test mode</string>
     <string name="home_section_duration">Duration</string>
-    <string name="home_section_last">Last run</string>
+    <string name="home_section_last">Last test</string>
     <string name="home_badge_max">Highest power</string>
     <string name="home_badge_reference">Reference</string>
     <string name="home_quality">Graphics quality</string>
@@ -141,7 +141,7 @@
     <string name="drawn_quality_reduced">Drawn at %1$s (%2$s requested)</string>
     <string name="drawn_quality_and_scale_reduced">Drawn at %1$s, %2$s scale (%3$s requested)</string>
     <string name="drawn_scale_reduced">Drawn at %1$s scale (%2$s requested)</string>
-    <string name="drawn_quality_unsettled">Run ended during the quality check</string>
+    <string name="drawn_quality_unsettled">Test ended during the quality check</string>
     <string name="run_analysis_failed">The result could not be prepared</string>
     <string name="run_analysis_failed_text">The load finished, but its numbers could not be worked out (%1$s).</string>
     <string name="run_power_caption">idle %1$s · load %2$s</string>
@@ -169,7 +169,7 @@
 
     <!-- Result -->
     <string name="result_title">Result</string>
-    <string name="result_missing">This run is no longer stored.</string>
+    <string name="result_missing">This test is no longer stored.</string>
     <string name="result_reference">On the same test, %1$s (%2$s) drew %3$s.</string>
     <string name="result_peak">Peak power</string>
     <string name="result_sustained">Sustained</string>
@@ -255,8 +255,8 @@
     <string name="export_share_title">Share</string>
     <string name="export_saved">Report saved</string>
     <string name="export_failed">The report could not be written</string>
-    <string name="report_title">Run report</string>
-    <string name="report_run_id">Run %1$s</string>
+    <string name="report_title">Test report</string>
+    <string name="report_run_id">Test %1$s</string>
     <string name="report_section_test">Test</string>
     <string name="report_section_device">Device</string>
     <string name="report_section_results">Results</string>
@@ -272,10 +272,10 @@
 
     <!-- History -->
     <string name="history_title">History</string>
-    <string name="history_count">Runs: %1$d</string>
-    <string name="history_empty_title">No runs yet</string>
+    <string name="history_count">Tests: %1$d</string>
+    <string name="history_empty_title">No tests yet</string>
     <string name="history_empty_text">Finished tests appear here with their results and charts.</string>
-    <string name="history_delete_title">Delete this run?</string>
+    <string name="history_delete_title">Delete this test?</string>
     <string name="history_delete_text">Its results and charts will be removed for good.</string>
 
     <!-- Settings -->
@@ -286,7 +286,7 @@
     <string name="settings_quality_detail">How hard the cinematic scenes work. Choose by the phone: every level keeps the GPU fully busy.</string>
     <string name="settings_quality_scale">Internal resolution: %1$d%% of the screen (forest %2$d%%)</string>
     <string name="settings_scene_burner">Fill the scene with the burner</string>
-    <string name="settings_scene_burner_detail">Experiment: the FP32 burner fills what a scene\'s frame leaves, so a cinematic test draws more. Compare a run with it on and off.</string>
+    <string name="settings_scene_burner_detail">Experiment: the FP32 burner fills what a scene\'s frame leaves, so a cinematic test draws more. Compare tests with it on and off.</string>
     <string name="settings_section_test">Test</string>
     <string name="settings_display">Full brightness during tests</string>
     <string name="settings_display_detail">Maximum brightness and refresh rate, so the display adds the same load every time.</string>
@@ -306,9 +306,9 @@
     <string name="settings_device">Device info and sensors</string>
     <string name="settings_device_detail">Processor, GPU, live readings, which sensors the app can read, manual load tests.</string>
     <string name="settings_clear">Clear history</string>
-    <string name="settings_clear_detail">Deletes every stored run.</string>
+    <string name="settings_clear_detail">Deletes every stored test.</string>
     <string name="settings_clear_title">Clear the history?</string>
-    <string name="settings_clear_text">Every stored run, with its results and charts, will be deleted for good.</string>
+    <string name="settings_clear_text">Every stored test, with its results and charts, will be deleted for good.</string>
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_about_tagline">The stress test that finds your phone\'s real limits.</string>
@@ -371,9 +371,9 @@
     <string name="device_work">Work</string>
     <!-- Compare -->
     <string name="compare_title">Compare</string>
-    <string name="compare_button">Compare with another run</string>
+    <string name="compare_button">Compare with another test</string>
     <string name="compare_pick_title">Compare with</string>
-    <string name="compare_none">There is no other run to compare with yet.</string>
+    <string name="compare_none">There is no other test to compare with yet.</string>
     <string name="compare_metrics">Side by side</string>
     <string name="compare_hint">Δ is the change from A to B: for power, energy, performance, frame rate and stability as a percentage of A; for temperatures in °C, for times in seconds, for battery percentages in percentage points and for errors as a count. A dash means a measurement is missing or A is zero.</string>
     <string name="compare_seconds_difference">%1$s s</string>

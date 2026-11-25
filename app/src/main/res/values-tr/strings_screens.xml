@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="history_compare_pick">Karşılaştırmak için iki koşu seç.</string>
-    <string name="history_compare_more">Karşılaştırmak için iki koşu kaydet.</string>
+    <string name="history_compare_pick">Karşılaştırmak için iki test seç.</string>
+    <string name="history_compare_more">Karşılaştırmak için iki test kaydet.</string>
     <string name="history_compare_cancel">Seçimi iptal et</string>
     <string name="history_compare_selected">%1$d / 2 seçildi</string>
     <string name="history_power_invalid">Güç ölçümü geçersiz</string>
     <string name="history_power_missing">Güç ölçülemedi</string>
-    <string name="compare_same_run">Karşılaştırmak için iki farklı koşu seç.</string>
-    <string name="compare_run_missing">Koşulardan biri açılamadı. Geçmişten başka bir koşu seç.</string>
-    <string name="compare_peak_difference">A koşusundan B koşusuna tepe güç farkı %1$s.</string>
-    <string name="compare_peak_unavailable">Tepe gücü karşılaştırmak için iki koşuda da ölçüm gerekli.</string>
+    <string name="compare_same_run">Karşılaştırmak için iki farklı test seç.</string>
+    <string name="compare_run_missing">Testlerden biri açılamadı. Geçmişten başka bir test seç.</string>
+    <string name="compare_peak_difference">A testinden B testine tepe güç farkı %1$s.</string>
+    <string name="compare_peak_unavailable">Tepe gücü karşılaştırmak için iki testte de ölçüm gerekli.</string>
     <string name="compare_tab_chip">Çip</string>
     <string name="device_waiting">Anlık ölçümler bekleniyor.</string>
     <string name="device_waiting_hardware">Cihaz bilgileri okunuyor.</string>
@@ -49,5 +49,5 @@
     <string name="device_gpu_idle">Boşta</string>
     <string name="device_gpu_running">Çalışıyor</string>
     <string name="device_gpu_failed">Hata</string>
-    <string name="compare_not_eligible">Seçilen kalitenin altında çizilen ya da GPU\'su hata veren bir koşu adil karşılaştırılamaz.</string>
+    <string name="compare_not_eligible">Seçilen kalitenin altında çizilen ya da GPU\'su hata veren bir test adil karşılaştırılamaz.</string>
 </resources>

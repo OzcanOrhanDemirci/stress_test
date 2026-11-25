@@ -26,7 +26,7 @@
     <string name="result_log_end">End</string>
     <string name="result_log_safety_reason">Safety stop</string>
     <string name="result_log_safety">Device safety</string>
-    <string name="result_log_older_run">Runs saved by older versions do not hold every value.</string>
+    <string name="result_log_older_run">Tests saved by older versions do not hold every value.</string>
     <string name="result_log_battery_start">Battery at start</string>
     <string name="result_log_battery_end">Battery at end</string>
     <string name="result_log_power_source">Power measured from</string>
@@ -36,7 +36,7 @@
     <string name="result_log_from">start %1$s</string>
     <string name="result_log_thermal">Thermal</string>
     <string name="result_log_thermal_status">Android thermal status (highest)</string>
-    <string name="result_log_no_temperatures">The phone gave no temperature readings during this run.</string>
+    <string name="result_log_no_temperatures">The phone gave no temperature readings during this test.</string>
     <string name="result_log_no_status">The phone did not report Android\'s thermal status.</string>
     <string name="result_log_throttle">Throttling</string>
     <string name="result_log_never">never</string>
@@ -53,7 +53,7 @@
     <string name="result_log_scale_requested">Scale chosen</string>
     <string name="result_log_quality_drawn">Quality drawn</string>
     <string name="result_log_scale_drawn">Scale drawn</string>
-    <string name="result_log_scene_missing">Runs saved by older versions did not record the drawn scale.</string>
+    <string name="result_log_scene_missing">Tests saved by older versions did not record the drawn scale.</string>
     <string name="result_log_events">Events</string>
     <string name="result_event_start">START</string>
     <string name="result_event_throttle">THROTTLE</string>
@@ -67,7 +67,7 @@
     <string name="result_log_phone">Phone</string>
     <string name="result_log_device_missing">The phone did not report the values marked —.</string>
     <string name="result_log_record">Record</string>
-    <string name="result_log_id">Run ID</string>
+    <string name="result_log_id">Test ID</string>
     <string name="result_log_mode_key">Mode key</string>
     <string name="result_log_workload">Workload recipe</string>
     <string name="result_log_started">Started</string>

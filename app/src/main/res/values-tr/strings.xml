@@ -56,7 +56,7 @@
     <string name="home_tagline">CPU, GPU ve güç ölçümü</string>
     <string name="home_section_mode">Test modu</string>
     <string name="home_section_duration">Süre</string>
-    <string name="home_section_last">Son koşu</string>
+    <string name="home_section_last">Son test</string>
     <string name="home_badge_max">En yüksek güç</string>
     <string name="home_badge_reference">Referans</string>
     <string name="home_quality">Grafik kalitesi</string>
@@ -123,7 +123,7 @@
     <string name="role_big">Büyük</string>
     <string name="role_prime">Prime</string>
 
-    <!-- Koşu -->
+    <!-- Test -->
     <string name="run_baseline_title">Boşta ölçüm</string>
     <string name="run_baseline_text">Önce telefonun boştaki gücü ölçülüyor; yük hemen ardından başlayacak. Bu sırada telefona dokunma.</string>
     <string name="run_stop">Durdur</string>
@@ -141,7 +141,7 @@
     <string name="drawn_quality_reduced">%1$s kalitede çizildi (%2$s seçildi)</string>
     <string name="drawn_quality_and_scale_reduced">%1$s kalitede, %2$s ölçekte (%3$s seçildi)</string>
     <string name="drawn_scale_reduced">%1$s ölçekte çizildi (%2$s seçildi)</string>
-    <string name="drawn_quality_unsettled">Koşu, kalite denemesi bitmeden sona erdi</string>
+    <string name="drawn_quality_unsettled">Test, kalite denemesi bitmeden sona erdi</string>
     <string name="run_analysis_failed">Sonuç hazırlanamadı</string>
     <string name="run_analysis_failed_text">Yük bitti ama sayıları hesaplanamadı (%1$s).</string>
     <string name="run_power_caption">boşta %1$s · yük %2$s</string>
@@ -169,7 +169,7 @@
 
     <!-- Sonuç -->
     <string name="result_title">Sonuç</string>
-    <string name="result_missing">Bu koşu artık kayıtlı değil.</string>
+    <string name="result_missing">Bu test artık kayıtlı değil.</string>
     <string name="result_reference">Aynı testte %1$s (%2$s) %3$s çekti.</string>
     <string name="result_peak">Tepe güç</string>
     <string name="result_sustained">Sürekli</string>
@@ -255,8 +255,8 @@
     <string name="export_share_title">Paylaş</string>
     <string name="export_saved">Rapor kaydedildi</string>
     <string name="export_failed">Rapor yazılamadı</string>
-    <string name="report_title">Koşu raporu</string>
-    <string name="report_run_id">Koşu %1$s</string>
+    <string name="report_title">Test raporu</string>
+    <string name="report_run_id">Test %1$s</string>
     <string name="report_section_test">Test</string>
     <string name="report_section_device">Cihaz</string>
     <string name="report_section_results">Sonuçlar</string>
@@ -272,10 +272,10 @@
 
     <!-- Geçmiş -->
     <string name="history_title">Geçmiş</string>
-    <string name="history_count">%1$d koşu</string>
-    <string name="history_empty_title">Henüz koşu yok</string>
+    <string name="history_count">%1$d test</string>
+    <string name="history_empty_title">Henüz test yok</string>
     <string name="history_empty_text">Biten testler sonuçları ve grafikleriyle burada görünür.</string>
-    <string name="history_delete_title">Bu koşu silinsin mi?</string>
+    <string name="history_delete_title">Bu test silinsin mi?</string>
     <string name="history_delete_text">Sonuçları ve grafikleri kalıcı olarak silinecek.</string>
 
     <!-- Ayarlar -->
@@ -286,7 +286,7 @@
     <string name="settings_quality_detail">Sinematik sahnelerin ne kadar çalışacağı. Telefona göre seç: her seviye GPU\'yu tamamen meşgul eder.</string>
     <string name="settings_quality_scale">İç çözünürlük: %%%1$d (orman %%%2$d)</string>
     <string name="settings_scene_burner">Sahneyi yakıcıyla doldur</string>
-    <string name="settings_scene_burner_detail">Deney: FP32 yakıcısı sahnenin karesinin boş bıraktığı süreyi doldurur, sinematik test daha çok güç çeker. Açık ve kapalı koşuları karşılaştırın.</string>
+    <string name="settings_scene_burner_detail">Deney: FP32 yakıcısı sahnenin karesinin boş bıraktığı süreyi doldurur, sinematik test daha çok güç çeker. Açık ve kapalı testleri karşılaştırın.</string>
     <string name="settings_section_test">Test</string>
     <string name="settings_display">Testte en yüksek parlaklık</string>
     <string name="settings_display_detail">En yüksek parlaklık ve yenileme hızı: ekran her testte aynı yükü katsın.</string>
@@ -306,9 +306,9 @@
     <string name="settings_device">Cihaz bilgisi ve sensörler</string>
     <string name="settings_device_detail">İşlemci, GPU, canlı değerler, uygulamanın okuyabildiği sensörler, elle yük denemeleri.</string>
     <string name="settings_clear">Geçmişi temizle</string>
-    <string name="settings_clear_detail">Kayıtlı bütün koşuları siler.</string>
+    <string name="settings_clear_detail">Kayıtlı bütün testleri siler.</string>
     <string name="settings_clear_title">Geçmiş temizlensin mi?</string>
-    <string name="settings_clear_text">Kayıtlı bütün koşular, sonuç ve grafikleriyle birlikte kalıcı olarak silinecek.</string>
+    <string name="settings_clear_text">Kayıtlı bütün testler, sonuç ve grafikleriyle birlikte kalıcı olarak silinecek.</string>
     <string name="settings_section_about">Hakkında</string>
     <string name="settings_version">Sürüm %1$s</string>
     <string name="settings_about_tagline">Telefonunun gerçek sınırlarını ölçen stres testi.</string>
@@ -371,9 +371,9 @@
     <string name="device_work">İş</string>
     <!-- Karşılaştırma -->
     <string name="compare_title">Karşılaştır</string>
-    <string name="compare_button">Başka bir koşuyla karşılaştır</string>
-    <string name="compare_pick_title">Karşılaştırılacak koşu</string>
-    <string name="compare_none">Karşılaştırılacak başka bir koşu henüz yok.</string>
+    <string name="compare_button">Başka bir testle karşılaştır</string>
+    <string name="compare_pick_title">Karşılaştırılacak test</string>
+    <string name="compare_none">Karşılaştırılacak başka bir test henüz yok.</string>
     <string name="compare_metrics">Yan yana</string>
     <string name="compare_hint">Δ, A\'dan B\'ye değişimdir: güç, enerji, performans, kare hızı ve kararlılıkta A\'nın yüzdesi olarak; sıcaklıkta °C, sürelerde saniye, pil yüzdelerinde yüzde puanı, hatalarda adet olarak. Bir ölçüm eksikse veya A sıfırsa çizgi görünür.</string>
     <string name="compare_seconds_difference">%1$s sn</string>
