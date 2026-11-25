@@ -94,11 +94,13 @@ fun timeStep(spanSeconds: Double, maxLabels: Int = 7): Double =
 
 private val AxisWidth = 44.dp
 private val AxisEnd = 12.dp
+private val UnitAxisWidth = 60.dp
 
 /**
  * A time plot over [seconds], with the axis for the primary series and null readings drawn as gaps.
  * Touch or drag to inspect a sample in the strip above the plot. Use [SegmentedControl] to
  * switch series above the chart, and a [ChartSeries.range] for an independent secondary scale.
+ * With [showAxisUnits], that independent scale is labelled on the right.
  */
 @Composable
 fun TimeChart(
@@ -114,31 +116,37 @@ fun TimeChart(
     xEnd: Double? = null,
     xStep: Double? = null,
     xReadoutPrefix: String = "t = ",
+    showAxisUnits: Boolean = false,
 ) {
     val measurer = rememberTextMeasurer()
     val axisStyle = StressType.Code.copy(color = StressColors.TextFaint)
     val primaryRange = remember(series, yMin, yMax) {
         series.firstOrNull()?.range ?: chartRange(series.filter { it.range == null }, yMin, yMax)
     }
+    val secondary = if (showAxisUnits) series.getOrNull(1) else null
+    val secondaryRange = secondary?.range
+    val leftInset = if (showAxisUnits) UnitAxisWidth else AxisWidth
+    val rightInset = if (secondaryRange != null) UnitAxisWidth else AxisEnd
     val span = xEnd ?: seconds.lastOrNull()?.takeIf { it > 0 } ?: 1.0
     var cursor by remember(seconds, series) { mutableIntStateOf(-1) }
     val readout = cursor.takeIf { it in seconds.indices } ?: seconds.lastIndex
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (readout >= 0) {
-            Row(
+            FlowRow(
                 Modifier.fillMaxWidth().background(StressColors.SurfaceLow).padding(horizontal = 8.dp, vertical = 4.dp),
-                Arrangement.spacedBy(8.dp), Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text("$xReadoutPrefix${timeLabel(seconds[readout])}", style = StressType.Code, color = StressColors.TextDim)
-                FlowRow(
-                    Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
-                ) {
-                    series.forEachIndexed { index, line ->
-                        if (index > 0) Text("//", style = StressType.Code, color = StressColors.TextDim)
-                        val value = Format.number(line.values.getOrNull(readout), decimals)
-                        val reading = if (value == Format.MISSING) value else "$value ${line.unit ?: unit}".trimEnd()
+                Text(
+                    "$xReadoutPrefix${timeLabel(seconds[readout])}",
+                    style = StressType.Code, color = StressColors.TextDim,
+                )
+                series.forEach { line ->
+                    val value = Format.number(line.values.getOrNull(readout), decimals)
+                    val reading = if (value == Format.MISSING) value else "$value ${line.unit ?: unit}".trimEnd()
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (series.size > 1) Text(line.name, style = StressType.Label, color = StressColors.TextDim)
                         Text(reading, style = StressType.Code, color = line.color)
                     }
                 }
@@ -146,11 +154,11 @@ fun TimeChart(
         }
         Canvas(
             Modifier.fillMaxWidth().height(height).background(StressColors.SurfaceLow)
-                .pointerInput(seconds, series) {
+                .pointerInput(seconds, series, span, leftInset, rightInset) {
                     if (seconds.isEmpty()) return@pointerInput
                     fun select(x: Float) {
-                        val width = (size.width - AxisWidth.toPx() - AxisEnd.toPx()).coerceAtLeast(1f)
-                        val time = ((x - AxisWidth.toPx()) / width).coerceIn(0f, 1f) * span
+                        val width = (size.width - leftInset.toPx() - rightInset.toPx()).coerceAtLeast(1f)
+                        val time = ((x - leftInset.toPx()) / width).coerceIn(0f, 1f) * span
                         cursor = seconds.indices.minBy { abs(seconds[it] - time) }
                     }
                     awaitEachGesture {
@@ -171,8 +179,8 @@ fun TimeChart(
                     }
                 },
         ) {
-            val left = AxisWidth.toPx()
-            val right = size.width - AxisEnd.toPx()
+            val left = leftInset.toPx()
+            val right = size.width - rightInset.toPx()
             val top = 12.dp.toPx()
             val bottom = size.height - 24.dp.toPx()
             val width = right - left
@@ -189,8 +197,19 @@ fun TimeChart(
             for (tick in niceTicks(primaryRange.start, primaryRange.endInclusive)) {
                 val py = y(tick)
                 drawLine(StressColors.Outline, Offset(left, py), Offset(right, py), 1.dp.toPx(), pathEffect = dashes)
-                val label = measurer.measure(tickLabel(tick, yStep), axisStyle)
+                val number = tickLabel(tick, yStep)
+                val label = measurer.measure(if (showAxisUnits) "$number $unit" else number, axisStyle)
                 drawText(label, topLeft = Offset((left - label.size.width - 4.dp.toPx()).coerceAtLeast(0f), py - label.size.height / 2f))
+            }
+            if (secondaryRange != null) {
+                val style = axisStyle.copy(color = secondary.color)
+                val step = niceStep(secondaryRange.start, secondaryRange.endInclusive)
+                for (tick in niceTicks(secondaryRange.start, secondaryRange.endInclusive)) {
+                    val py = y(tick, secondaryRange)
+                    val label = measurer.measure("${tickLabel(tick, step)} ${secondary.unit.orEmpty()}".trimEnd(), style)
+                    drawLine(secondary.color, Offset(right, py), Offset(right + 4.dp.toPx(), py), 1.dp.toPx())
+                    drawText(label, topLeft = Offset(right + 8.dp.toPx(), py - label.size.height / 2f))
+                }
             }
 
             val labelWidth = measurer.measure(timeLabel(span), axisStyle).size.width + 12.dp.toPx()
