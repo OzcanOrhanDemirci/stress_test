@@ -347,7 +347,7 @@
     <string name="device_thermal_status">Termal durum</string>
     <string name="device_headroom">Termal pay</string>
     <string name="device_unreadable">Bu telefonda okunamıyor.</string>
-    <string name="device_sensors_detail">Bu uygulamanın bu telefonda okuyabildikleri. Telefonlar bazı sensörleri uygulamalara kapatır; uygulama o zaman onlarsız ölçer.</string>
+    <string name="device_sensors_detail">Bu liste, uygulamanın hangi sensör dosyalarını okuyabildiğini gösterir. Testler telefonun sunduğu ölçümleri kullanır.</string>
     <string name="device_clock_of">Frekans · %1$s</string>
     <string name="device_gpu_counter">GPU yük sayacı</string>
     <string name="device_readable">okunuyor</string>
