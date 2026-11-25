@@ -96,6 +96,7 @@
     <string name="safety_reason_chip_hot">Chip temperature</string>
     <string name="safety_reason_skin_hot">Case temperature</string>
     <string name="safety_reason_thermal">Android thermal status</string>
+    <string name="safety_reason_headroom">Android thermal headroom</string>
     <string name="safety_reason_battery_low">Battery</string>
 
     <!-- Thermal status -->

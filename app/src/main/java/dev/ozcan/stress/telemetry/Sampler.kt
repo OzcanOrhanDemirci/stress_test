@@ -20,10 +20,12 @@ data class Sample(
     val battery: BatteryReading,
     val sysfs: SysfsReading,
     val thermalStatus: Int,
-    /** Refreshed once a second; the value between refreshes is the last one read. */
+    /** The last headroom reading, retained between framework polls. */
     val thermalHeadroom: Float?,
     val cpu: CpuSnapshot,
     val gpu: GpuSnapshot,
+    /** When the headroom was actually polled, which may be older than this sample. */
+    val thermalHeadroomTimeNanos: Long? = null,
 )
 
 /**
@@ -94,6 +96,9 @@ class Sampler(
     @Synchronized
     fun start() {
         if (executor != null) return
+        headroom = null
+        headroomReadNanos = null
+        _latest.value = null
         battery.start()
         executor = Executors.newSingleThreadScheduledExecutor { runnable ->
             Thread({
@@ -141,6 +146,7 @@ class Sampler(
             thermalHeadroom = headroom,
             cpu = cpu.snapshot(),
             gpu = gpu.snapshot(),
+            thermalHeadroomTimeNanos = headroomReadNanos.takeIf { headroom != null },
         )
         log.add(sample)
         _latest.value = sample
@@ -149,6 +155,6 @@ class Sampler(
     companion object {
         const val DEFAULT_PERIOD_MILLIS = 100L
         private const val TAG = "stress-sampler"
-        private const val HEADROOM_INTERVAL_NANOS = 1_000_000_000L
+        private const val HEADROOM_INTERVAL_NANOS = 10_000_000_000L
     }
 }

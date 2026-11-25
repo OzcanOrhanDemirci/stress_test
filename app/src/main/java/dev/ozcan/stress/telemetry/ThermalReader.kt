@@ -10,13 +10,21 @@ class ThermalReader(context: Context) {
     private val power = context.getSystemService(PowerManager::class.java)
 
     /** One of the `PowerManager.THERMAL_STATUS_*` constants. */
-    fun status(): Int = power.currentThermalStatus
+    fun status(): Int = runCatching { power?.currentThermalStatus }.getOrNull()
+        ?.takeIf { it in PowerManager.THERMAL_STATUS_NONE..PowerManager.THERMAL_STATUS_SHUTDOWN } ?: UNAVAILABLE
 
     /**
-     * 1.0 means the device is at its throttling threshold (Android 11 and
-     * later). The platform returns NaN when asked more often than about once
-     * a second, so the sampler asks at 1 Hz.
+     * 1.0 is Android's severe throttling threshold (Android 11 and later).
+     * The platform can return NaN for an unsupported device or a fast poll.
      */
     fun headroom(): Float? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) power.getThermalHeadroom(0).takeUnless { it.isNaN() } else null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching { power?.getThermalHeadroom(0) }.getOrNull()?.takeIf { it.isFinite() && it >= 0f }
+        } else {
+            null
+        }
+
+    companion object {
+        const val UNAVAILABLE = -1
+    }
 }

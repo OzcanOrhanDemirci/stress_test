@@ -134,6 +134,21 @@ class RunControllerTest {
     }
 
     @Test
+    fun `a first valid headroom reading arriving during baseline can block the load`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver()
+        val controller = controller(source, driver, store())
+        val samples = emit(source) { t ->
+            val s = sample(t, temperatures = emptyMap())
+            if (t < 1.0) s else s.copy(thermalHeadroom = 1.05f, thermalHeadroomTimeNanos = 1_000_000_000L)
+        }
+        controller.run(StressMode.Cpu, StressDuration.One, RunOptions())
+        samples.cancel()
+        assertEquals(SafetyReason.ThermalHeadroom, (controller.state.value as RunState.Failed.Blocked).check.reason)
+        assertEquals(0, driver.started)
+    }
+
+    @Test
     fun `a stop during the baseline starts no load`() = runTest {
         val source = StubSource()
         val driver = StubDriver()

@@ -129,6 +129,16 @@ class RunController(
             return@coroutineScope
         }
         val baselineEnd = now()
+        // The first headroom poll or battery broadcast may have arrived
+        // during the baseline. Apply the same start limits before the load.
+        if (options.deviceSafety) {
+            val block = sampler.latest.value?.let { SafetyPolicy.startBlock(it) }
+            if (block != null) {
+                watcher.cancel()
+                _state.value = RunState.Failed.Blocked(block)
+                return@coroutineScope
+            }
+        }
 
         val settings = LoadSettings(quality = options.quality)
         val outcome = driver.start(workload, settings)

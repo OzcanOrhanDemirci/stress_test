@@ -94,6 +94,9 @@ class SysfsLayoutTest {
             // MediaTek
             "mtktscpu" to ThermalGroup.Cpu,
             "cpu-little-core0" to ThermalGroup.Cpu,
+            "cpu-big-core0" to ThermalGroup.Cpu,
+            "soc_max" to ThermalGroup.Cpu,
+            "mtk-gpu-thermal" to ThermalGroup.Gpu,
             "mtktsAP" to null,
             "gpu1" to ThermalGroup.Gpu,
             "apu" to ThermalGroup.Npu,
@@ -105,9 +108,15 @@ class SysfsLayoutTest {
             "ISP" to ThermalGroup.Camera,
             "NPU" to ThermalGroup.Npu,
             "TPU" to ThermalGroup.Npu,
+            "VIRTUAL-SKIN" to ThermalGroup.Skin,
+            "VIRTUAL-SKIN-SUB-0" to null,
+            "sgpu" to ThermalGroup.Gpu,
             // Unisoc
             "cputop-thmzone" to ThermalGroup.Cpu,
             "gpu-thmzone" to ThermalGroup.Gpu,
+            // Kirin
+            "cluster0" to ThermalGroup.Cpu,
+            "gpu-thermal" to ThermalGroup.Gpu,
             // Qualcomm extras
             "skin-msm-therm" to ThermalGroup.Skin,
             "xo-therm" to ThermalGroup.Skin,
@@ -119,6 +128,13 @@ class SysfsLayoutTest {
             "bcl_warn" to null,
             "pm8550-bcl-lvl0" to null,
             "charger" to null,
+            "gpu-charging" to null,
+            "cpu-ambient" to null,
+            "cpu-gold-pa0" to null,
+            "cpu-big-usr" to null,
+            "G3D_usr" to null,
+            "cpu-skin" to ThermalGroup.Skin,
+            "soc_therm" to null,
             "" to null,
         )
         for ((type, group) in expected) assertEquals(type, group, ThermalGroup.of(type))
