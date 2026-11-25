@@ -172,8 +172,8 @@ internal fun homeLog(context: Context, f: HomeFacts): HomeLog {
         HomeLine(s(R.string.home_key_raw_current), live?.currentRaw?.toString()),
         HomeLine(s(R.string.home_key_voltage), Format.number(live?.volts, 3), "V"),
         HomeLine(
-            s(R.string.home_key_charger),
-            live?.let { s(if (it.plugged) R.string.home_val_plugged else R.string.home_val_unplugged) },
+            s(R.string.charger),
+            live?.let { s(if (it.plugged) R.string.charger_connected else R.string.charger_not_connected) },
             color = if (plugged) StressColors.Warn else StressColors.Text,
         ),
         HomeLine(s(R.string.home_key_level), Format.percentValue(live?.levelPercent)),

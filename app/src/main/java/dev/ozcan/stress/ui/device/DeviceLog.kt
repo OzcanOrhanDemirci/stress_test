@@ -161,15 +161,15 @@ private fun powerBlock(live: LiveView): DeviceBlock = DeviceBlock(
         ),
         DeviceLine(
             stringResource(R.string.device_current), Format.number(live.dischargeAmps, 3), "A",
-            reason = stringResource(if (live.plugged) R.string.device_current_plugged else R.string.device_current_missing),
+            reason = stringResource(if (live.plugged) R.string.device_power_plugged else R.string.device_current_missing),
         ),
         DeviceLine(
             stringResource(R.string.device_voltage), Format.number(live.volts, 3), "V",
             reason = stringResource(R.string.device_voltage_missing),
         ),
         DeviceLine(
-            stringResource(R.string.device_v2_charger),
-            stringResource(if (live.plugged) R.string.device_v2_plugged else R.string.device_v2_unplugged),
+            stringResource(R.string.charger),
+            stringResource(if (live.plugged) R.string.charger_connected else R.string.charger_not_connected),
             color = if (live.plugged) StressColors.Warn else StressColors.Text,
         ),
     ),

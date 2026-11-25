@@ -57,9 +57,6 @@
     <string name="run_line_peak">Tepe güç</string>
     <string name="run_line_current_raw">CURRENT_NOW, ham</string>
     <string name="run_line_battery_temp">Pil sıcaklığı</string>
-    <string name="run_line_charger">Şarj aleti</string>
-    <string name="run_charger_on">Takılı</string>
-    <string name="run_charger_off">Takılı değil</string>
     <string name="run_line_chip">Çip, en sıcak</string>
     <string name="run_line_thermal_status">Android termal durumu</string>
     <string name="run_line_headroom">Termal pay</string>
@@ -84,8 +81,8 @@
         <item quantity="one">Toplam %1$d yanlış sonuç</item>
         <item quantity="other">Toplam %1$d yanlış sonuç</item>
     </plurals>
-    <string name="run_event_plugged">Şarj aleti takıldı</string>
-    <string name="run_event_unplugged">Şarj aleti çıkarıldı</string>
+    <string name="run_event_plugged">Şarj kablosu takıldı</string>
+    <string name="run_event_unplugged">Şarj kablosu çıkarıldı</string>
     <string name="run_charge_log_charge">Şarj testi</string>
     <string name="run_charge_log_readings">Pil okumaları</string>
     <string name="run_charge_line_status">Durum</string>
