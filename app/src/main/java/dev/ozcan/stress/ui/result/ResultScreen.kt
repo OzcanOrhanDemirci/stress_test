@@ -4,16 +4,13 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,41 +18,32 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.PictureAsPdf
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,21 +68,28 @@ import dev.ozcan.stress.ui.InsightText
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.components.CenteredBox
 import dev.ozcan.stress.ui.components.ChartSeries
-import dev.ozcan.stress.ui.components.CountUpNumber
-import dev.ozcan.stress.ui.components.GlassCard
-import dev.ozcan.stress.ui.components.IconBadge
+import dev.ozcan.stress.ui.components.Hairline
 import dev.ozcan.stress.ui.components.InfoRow
-import dev.ozcan.stress.ui.components.Pill
+import dev.ozcan.stress.ui.components.InsightRow
+import dev.ozcan.stress.ui.components.MetricNumber
+import dev.ozcan.stress.ui.components.MetricTile
+import dev.ozcan.stress.ui.components.Panel
 import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.components.SecondaryButton
-import dev.ozcan.stress.ui.components.SectionHeader
-import dev.ozcan.stress.ui.components.StatTile
+import dev.ozcan.stress.ui.components.SectionLabel
+import dev.ozcan.stress.ui.components.SegmentedControl
+import dev.ozcan.stress.ui.components.StabilityArc
+import dev.ozcan.stress.ui.components.Stack
+import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TimeChart
+import dev.ozcan.stress.ui.components.TopBar
+import dev.ozcan.stress.ui.components.TopBarAction
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -134,46 +129,55 @@ fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit)
     val record = loaded?.record
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(record, onBack, onDeleted = onBack, model = model, onCompare = onCompare)
+        ResultTopBar(record, onBack, model, onCompare)
         when {
             loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
-            else -> ResultBody(record, loaded!!.insights)
+            else -> {
+                val insights = loaded?.insights.orEmpty()
+                ResultBody(record, insights, Modifier.weight(1f))
+                ReportActions(record, insights)
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit, model: ResultViewModel, onCompare: (String) -> Unit) {
+private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultViewModel, onCompare: (String) -> Unit) {
     val context = context()
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
     var others by remember { mutableStateOf<List<RunRecord>?>(null) }
-    Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
-        Text(stringResource(R.string.result_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        if (record != null) {
-            IconButton(onClick = { scope.launch { others = model.others() } }) {
-                Icon(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), tint = StressColors.TextDim)
-            }
-            IconButton(onClick = { confirmDelete = true }) {
-                Icon(Icons.Rounded.Delete, stringResource(R.string.delete), tint = StressColors.TextDim)
-            }
-        }
+    val caption = record?.let {
+        val scene = StressMode.of(it.mode)?.scene
+        val mode = if (scene != null) stringResource(Labels.scene(scene)) else Labels.recordModeName(context, it)
+        listOfNotNull(mode, Format.clock(it.loadSeconds).padStart(5, '0'), it.device?.model)
+            .joinToString(" // ").upper()
     }
+    TopBar(
+        title = stringResource(R.string.result_title),
+        caption = caption,
+        onBack = onBack,
+        modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
+        actions = {
+            if (record != null) {
+                TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
+                    scope.launch { others = model.others() }
+                })
+                TopBarAction(Icons.Rounded.Delete, stringResource(R.string.delete), { confirmDelete = true })
+            }
+        },
+    )
     others?.let { list ->
-        ModalBottomSheet(onDismissRequest = { others = null }, containerColor = StressColors.SurfaceHigh) {
-            Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ModalBottomSheet(onDismissRequest = { others = null }, containerColor = StressColors.Surface, shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.compare_pick_title), style = MaterialTheme.typography.titleMedium)
                 if (list.isEmpty()) {
                     Text(stringResource(R.string.compare_none), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
                 }
                 list.take(30).forEach { other ->
-                    GlassCard(
+                    Panel(
                         Modifier.fillMaxWidth(),
                         padding = 12.dp,
                         onClick = {
@@ -211,7 +215,7 @@ private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit
                     confirmDelete = false
                     scope.launch {
                         model.delete()
-                        onDeleted()
+                        onBack()
                     }
                 }) { Text(stringResource(R.string.delete), color = StressColors.Bad) }
             },
@@ -221,199 +225,141 @@ private fun TopBar(record: RunRecord?, onBack: () -> Unit, onDeleted: () -> Unit
 }
 
 @Composable
-private fun ResultBody(record: RunRecord, insights: List<Insight>) {
-    val context = context()
-    val s = record.summary
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp)
-            .navigationBarsPadding()
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+private fun ResultBody(record: RunRecord, insights: List<Insight>, modifier: Modifier = Modifier) {
+    Stack(
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Reveal(shown, 0) { Header(record) }
-        Reveal(shown, 1) { Hero(record) }
-
-        Reveal(shown, 2) { Tiles(record) }
-
-        Reveal(shown, 3) { InsightsCard(insights) }
-
-        Reveal(shown, 4) { Charts(record) }
-
-        Reveal(shown, 5) { DeviceCard(record) }
-
-        Reveal(shown, 6) { ExportCard(record, insights) }
-    }
-}
-
-/** Sections of the result rise in one after another. */
-@Composable
-private fun Reveal(shown: Boolean, index: Int, content: @Composable () -> Unit) {
-    AnimatedVisibility(
-        visible = shown,
-        enter = fadeIn(tween(420, delayMillis = 70 * index)) + slideInVertically(tween(480, delayMillis = 70 * index)) { it / 6 },
-    ) {
-        content()
-    }
-}
-
-/** One metric of the result grid. */
-private data class Tile(
-    val label: String,
-    val value: String,
-    val unit: String? = null,
-    val accent: androidx.compose.ui.graphics.Color = StressColors.Text,
-    val footnote: String? = null,
-)
-
-/** The headline metrics, two to a row; a run shows the ones it measured. */
-@Composable
-private fun Tiles(record: RunRecord) {
-    val context = context()
-    val s = record.summary
-    val mode = StressMode.of(record.mode)
-    val chip = listOfNotNull(s.maxTemperatures["cpu"], s.maxTemperatures["gpu"], s.maxTemperatures["A715"], s.maxTemperatures["A510"], s.maxTemperatures["GPU"]).maxOrNull()
-    val tiles = buildList {
-        add(Tile(stringResource(R.string.result_mean), Format.number(s.meanWatts, 2), "W"))
-        add(Tile(stringResource(R.string.result_idle), Format.number(s.idleWatts, 2), "W"))
-        add(Tile(stringResource(R.string.result_energy), Format.number(s.energyWattHours, 2), "Wh"))
-        add(
-            Tile(
-                stringResource(R.string.result_battery),
-                "${Format.percentValue(s.batteryStartPercent)} → ${Format.percentValue(s.batteryEndPercent)}",
-            ),
-        )
-        add(Tile(stringResource(R.string.result_battery_life), s.batteryLifeHours?.let { hoursText(context, it) } ?: Format.MISSING))
-        add(
-            Tile(
-                stringResource(R.string.result_hottest),
-                Format.number(chip, 1),
-                "°C",
-                accent = StressColors.temperature(chip, Limits.chipWarn, Limits.chipStop),
-            ),
-        )
-        if (mode?.usesCpu != false && s.cpuMeanRate != null) {
-            val (value, unit) = Format.rateParts(s.cpuMeanRate, Labels.rateSymbol(context, s.cpuUnit))
-            add(Tile(stringResource(R.string.result_cpu_perf), value, unit))
-        }
-        if (s.gpuMeanRate != null) {
-            val (value, unit) = Format.rateParts(s.gpuMeanRate, Labels.rateSymbol(context, s.gpuUnit))
-            add(Tile(stringResource(R.string.result_gpu_perf), value, unit))
-        }
-        if (s.meanFps != null) {
-            add(
-                Tile(
-                    stringResource(R.string.result_fps),
-                    Format.number(s.meanFps, 1),
-                    "FPS",
-                    footnote = s.minFps?.let { stringResource(R.string.result_fps_min, Format.number(it, 1)) },
-                ),
-            )
-        }
-        (s.cpuStability ?: s.gpuStability)?.let {
-            add(Tile(stringResource(R.string.result_stability), Format.percent(it)))
-        }
-        add(
-            Tile(
-                stringResource(R.string.result_errors),
-                s.computationErrors.toString(),
-                accent = if (s.computationErrors > 0) StressColors.Bad else StressColors.Good,
-            ),
-        )
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        tiles.chunked(2).forEach { row ->
-            TileRow {
-                row.forEach { t ->
-                    StatTile(t.label, t.value, Modifier.weight(1f), unit = t.unit, accent = t.accent, footnote = t.footnote)
-                }
-            }
-        }
+        Summary(record)
+        PowerTiles(record)
+        MainChart(record)
+        InsightsCard(insights)
+        MoreTiles(record)
+        DetailCharts(record)
+        DeviceCard(record)
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Header(record: RunRecord) {
+private fun Summary(record: RunRecord) {
     val context = context()
-    val mode = StressMode.of(record.mode)
+    val s = record.summary
     val reason = Labels.endReasonOf(record)
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        IconBadge(mode?.let(Labels::modeIcon) ?: Icons.Rounded.Bolt, StressColors.Accent, size = 48.dp)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(Labels.recordModeName(context, record), style = MaterialTheme.typography.titleLarge)
-            Text(
-                "${Dates.long(record.startedAtMillis)} · ${Format.clock(record.loadSeconds)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = StressColors.TextDim,
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 4.dp),
-            ) {
-                Pill(stringResource(Labels.endReason(reason)), Labels.endReasonColor(reason))
-                record.quality?.let { q -> SceneQuality.entries.firstOrNull { it.name == q } }?.let {
-                    Pill(stringResource(Labels.quality(it)), StressColors.Cool)
+    val peak = s.peakWatts.takeIf { s.powerValid }
+    val sustained = s.sustainedWatts.takeIf { s.powerValid }
+    val stability = s.cpuStability ?: s.gpuStability
+    Panel(Modifier.fillMaxWidth()) {
+        Stack(spacing = 8) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                StatusChip(stringResource(Labels.endReason(reason)), Labels.endReasonColor(reason))
+                record.quality?.let { name -> SceneQuality.entries.firstOrNull { it.name == name } }?.let {
+                    StatusChip(stringResource(Labels.quality(it)), StressColors.Cool)
                 }
                 record.safetyEnabled?.let { on ->
-                    Pill(
+                    StatusChip(
                         stringResource(if (on) R.string.safety_on_short else R.string.safety_off_short),
                         if (on) StressColors.Good else StressColors.Bad,
                     )
                 }
             }
+            Text(Dates.long(record.startedAtMillis), style = StressType.Code, color = StressColors.TextDim)
+            Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
+                Stack(Modifier.weight(1f), spacing = 4) {
+                    SectionLabel(stringResource(R.string.result_peak))
+                    MetricNumber(Format.number(peak, 2), "W", NumberStyles.Hero, StressColors.Accent)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.result_sustained), style = StressType.BodySmall, color = StressColors.TextDim)
+                        MetricNumber(Format.number(sustained, 2), "W", NumberStyles.Small, StressColors.Accent)
+                    }
+                }
+                StabilityArc(stability, stringResource(R.string.result_stability))
+            }
+            StressMode.of(record.mode)?.let { mode ->
+                ReferenceDevices.forMode(context, mode)?.let { (device, watts) ->
+                    Text(
+                        stringResource(R.string.result_reference, device.name, device.chipset, Format.watts(watts)),
+                        style = StressType.BodySmall, color = StressColors.TextDim,
+                    )
+                }
+            }
+            val missing = when {
+                !s.powerValid -> R.string.insight_charging_detail
+                s.powerFromCounter -> R.string.insight_counter_detail
+                peak == null || sustained == null || stability == null || s.meanWatts == null ||
+                    s.idleWatts == null || s.energyWattHours == null || s.batteryStartPercent == null ||
+                    s.batteryEndPercent == null || s.batteryLifeHours == null || s.hottestChip() == null ||
+                    s.maxTemperatures[RunAnalysis.BATTERY] == null && s.maxTemperatures["Pil"] == null ->
+                    R.string.result_unavailable
+                else -> null
+            }
+            if (missing != null) Text(stringResource(missing), style = StressType.BodySmall, color = StressColors.TextDim)
         }
     }
 }
 
 @Composable
-private fun Hero(record: RunRecord) {
+private fun PowerTiles(record: RunRecord) {
     val s = record.summary
+    TileRow(Modifier.height(IntrinsicSize.Min)) {
+        val cell = Modifier.weight(1f).fillMaxHeight()
+        val color = StressColors.Accent
+        MetricTile(
+            stringResource(R.string.result_mean_short), Format.number(s.meanWatts.takeIf { s.powerValid }, 2),
+            cell, unit = "W", color = color, padding = 8.dp,
+        )
+        MetricTile(
+            stringResource(R.string.result_idle), Format.number(s.idleWatts.takeIf { s.powerValid }, 2),
+            cell, unit = "W", color = color, padding = 8.dp,
+        )
+        MetricTile(
+            stringResource(R.string.result_energy), Format.number(s.energyWattHours.takeIf { s.powerValid }, 2),
+            cell, unit = "Wh", color = color, padding = 8.dp,
+        )
+    }
+}
+
+@Composable
+private fun MoreTiles(record: RunRecord) {
     val context = context()
-    GlassCard(Modifier.fillMaxWidth(), highlight = true, padding = 20.dp) {
-        if (!s.powerValid) {
-            Text(stringResource(R.string.result_power_invalid), style = MaterialTheme.typography.titleMedium, color = StressColors.Warn)
-            Text(stringResource(R.string.insight_charging_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-            return@GlassCard
+    val s = record.summary
+    val chip = s.hottestChip()
+    val battery = s.maxTemperatures[RunAnalysis.BATTERY] ?: s.maxTemperatures["Pil"]
+    val mode = StressMode.of(record.mode)
+    Stack(spacing = 8) {
+        TileRow(Modifier.height(IntrinsicSize.Min)) {
+            val cell = Modifier.weight(1f).fillMaxHeight()
+            MetricTile(
+                stringResource(R.string.result_battery),
+                "${Format.percentValue(s.batteryStartPercent)} → ${Format.percentValue(s.batteryEndPercent)}",
+                cell,
+                caption = stringResource(
+                    R.string.result_battery_estimate,
+                    s.batteryLifeHours?.takeIf { s.powerValid }?.let { hoursText(context, it) } ?: Format.MISSING,
+                ),
+            )
+            MetricTile(
+                stringResource(R.string.result_hottest), Format.number(chip, 1), cell, unit = "°C",
+                color = StressColors.temperature(chip, Limits.chipWarn, Limits.chipStop),
+                caption = "${stringResource(R.string.temp_battery)} ${Format.celsius(battery)}",
+                captionColor = StressColors.temperature(battery, Limits.batteryWarn, Limits.batteryStop),
+            )
         }
-        if (s.meanWatts == null && s.peakWatts == null) {
-            Text(stringResource(R.string.power_unavailable), style = MaterialTheme.typography.titleMedium, color = StressColors.Warn)
-            return@GlassCard
-        }
-        Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                val powerLabel = if (s.peakWatts == null) R.string.result_mean else R.string.result_peak
-                Text(stringResource(powerLabel).upper(), style = MaterialTheme.typography.labelMedium, color = StressColors.TextDim, letterSpacing = 1.6.sp)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    CountUpNumber(s.peakWatts ?: s.meanWatts, { Format.number(it, 2) }, style = NumberStyles.Hero, color = StressColors.Accent)
-                    Text(" W", style = MaterialTheme.typography.headlineSmall, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 10.dp))
-                }
+        TileRow(Modifier.height(IntrinsicSize.Min)) {
+            val cell = Modifier.weight(1f).fillMaxHeight()
+            if (mode?.usesCpu != false && s.cpuMeanRate != null) {
+                val (value, unit) = Format.rateParts(s.cpuMeanRate, Labels.rateSymbol(context, s.cpuUnit))
+                MetricTile(stringResource(R.string.result_cpu_perf), value, cell, unit = unit)
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(stringResource(R.string.result_sustained).upper(), style = MaterialTheme.typography.labelMedium, color = StressColors.TextDim, letterSpacing = 1.6.sp)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    CountUpNumber(s.sustainedWatts, { Format.number(it, 2) }, style = NumberStyles.Large, color = StressColors.Text, delayMillis = 150)
-                    Text(" W", style = MaterialTheme.typography.titleMedium, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 4.dp))
-                }
+            if (s.gpuMeanRate != null) {
+                val (value, unit) = Format.rateParts(s.gpuMeanRate, Labels.rateSymbol(context, s.gpuUnit))
+                MetricTile(stringResource(R.string.result_gpu_perf), value, cell, unit = unit)
             }
-        }
-        StressMode.of(record.mode)?.let { mode ->
-            ReferenceDevices.forMode(context, mode)?.let { (device, watts) ->
-                Text(
-                    stringResource(R.string.result_reference, device.name, device.chipset, Format.watts(watts)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = StressColors.TextDim,
+            if (s.meanFps != null) {
+                MetricTile(
+                    stringResource(R.string.result_fps), Format.number(s.meanFps, 1), cell, unit = "FPS",
+                    caption = s.minFps?.let { stringResource(R.string.result_fps_min, Format.number(it, 1)) },
                 )
             }
-        }
-        if (s.powerFromCounter) {
-            Text(stringResource(R.string.insight_counter_detail), style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
         }
     }
 }
@@ -421,23 +367,95 @@ private fun Hero(record: RunRecord) {
 @Composable
 private fun InsightsCard(insights: List<Insight>) {
     val context = context()
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeader(stringResource(R.string.result_analysis))
-        GlassCard(Modifier.fillMaxWidth()) {
-            insights.forEachIndexed { i, insight ->
-                if (i > 0) Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val color = InsightText.color(insight.severity)
-                    Box(
-                        Modifier.size(34.dp).background(color.copy(alpha = 0.14f), RoundedCornerShape(4.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(InsightText.icon(insight), null, tint = color, modifier = Modifier.size(18.dp))
+    Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.result_analysis)) {
+        insights.forEachIndexed { index, insight ->
+            val title = when (insight) {
+                is Insight.Throttled -> stringResource(R.string.result_insight_throttled)
+                is Insight.PerformanceDrop -> stringResource(R.string.result_insight_drop)
+                is Insight.Stability -> stringResource(R.string.result_insight_stability, stringResource(InsightText.grade(insight.grade)))
+                is Insight.ChipPeak -> stringResource(R.string.result_insight_chip, Labels.temperature(context, insight.key))
+                is Insight.BatteryWarmed -> stringResource(R.string.result_insight_battery)
+                is Insight.BatteryDrain -> stringResource(R.string.result_insight_drain)
+                is Insight.ComputationErrors -> stringResource(R.string.result_errors)
+                is Insight.FrameRate -> stringResource(R.string.result_insight_fps)
+                else -> InsightText.title(context, insight)
+            }
+            val value = when (insight) {
+                is Insight.Throttled -> Format.clock(insight.seconds)
+                is Insight.PerformanceDrop -> Format.percent(insight.drop)
+                is Insight.Stability -> Format.percent(insight.value, 1)
+                is Insight.ChipPeak -> Format.celsius(insight.celsius)
+                is Insight.BatteryWarmed -> "${Format.number(insight.from, 0)} → ${Format.celsius(insight.to, 0)}"
+                is Insight.BatteryDrain -> Format.percent(insight.percentPerHour / 100.0)
+                is Insight.ComputationErrors -> insight.count.toString()
+                is Insight.FrameRate -> "${Format.number(insight.mean, 1)} FPS"
+                else -> null
+            }
+            val color = when (insight) {
+                is Insight.ChipPeak -> StressColors.temperature(insight.celsius, Limits.chipWarn, Limits.chipStop)
+                is Insight.BatteryWarmed -> StressColors.temperature(insight.to, Limits.batteryWarn, Limits.batteryStop)
+                else -> InsightText.color(insight.severity)
+            }
+            InsightRow(
+                title, value, valueColor = color, divider = index != insights.lastIndex,
+                detail = when (insight) {
+                    Insight.Charging, Insight.PowerFromCounter -> null // The summary gives the reason beside the missing reading.
+                    else -> InsightText.detail(context, insight)
+                },
+            )
+        }
+    }
+}
+
+private enum class MainSeries(val label: Int) {
+    Power(R.string.chart_power),
+    Temperature(R.string.chart_temperature),
+}
+
+@Composable
+private fun MainChart(record: RunRecord) {
+    val context = context()
+    val series = record.series
+    val chip = remember(series) { series.chipTemperatures() }
+    val chipValues = remember(chip) { chip.filterNotNull() }
+    val batteryLabel = stringResource(R.string.temp_battery)
+    val temperatures = remember(series, context, batteryLabel) {
+        (series.temperatures.map { (key, values) ->
+            ChartSeries(Labels.temperature(context, key), Labels.temperatureColor(key), values)
+        } + ChartSeries(batteryLabel, Labels.temperatureColor(RunAnalysis.BATTERY), series.batteryCelsius))
+            .filter { line -> line.values.any { it != null } }
+    }
+    val hasPower = record.summary.powerValid && series.watts.any { it != null }
+    val hasHeat = temperatures.isNotEmpty()
+    var selected by rememberSaveable(record.id) {
+        mutableStateOf(if (hasPower || !hasHeat) MainSeries.Power else MainSeries.Temperature)
+    }
+    Panel(Modifier.fillMaxWidth(), padding = 12.dp) {
+        Stack(spacing = 8) {
+            SegmentedControl(
+                options = MainSeries.entries, selected = selected,
+                onSelect = { selected = it }, label = { stringResource(it.label) },
+            )
+            when (selected) {
+                MainSeries.Power -> if (hasPower) {
+                    val powerLabel = stringResource(R.string.chart_power)
+                    val chipLabel = stringResource(R.string.run_chart_chip)
+                    val lines = buildList {
+                        add(ChartSeries(powerLabel, StressColors.Accent, series.watts, "W"))
+                        if (chipValues.isNotEmpty()) {
+                            val range = (chipValues.min() - 5)..(chipValues.max() + 5)
+                            add(ChartSeries(chipLabel, StressColors.Cool, chip, "°C", range))
+                        }
                     }
-                    Column(Modifier.weight(1f)) {
-                        Text(InsightText.title(context, insight), style = MaterialTheme.typography.titleSmall)
-                        Text(InsightText.detail(context, insight), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-                    }
+                    TimeChart(series.seconds, lines, "W", height = 160.dp, yMin = 0.0, decimals = 2)
+                } else {
+                    Text(Format.MISSING, style = StressType.Code, color = StressColors.TextDim)
+                }
+                MainSeries.Temperature -> if (hasHeat) {
+                    if (temperatures.size == 1) SectionLabel(temperatures.single().name, caption = "°C")
+                    TimeChart(series.seconds, temperatures, "°C", height = 160.dp)
+                } else {
+                    Text(Format.MISSING, style = StressType.Code, color = StressColors.TextDim)
                 }
             }
         }
@@ -445,24 +463,9 @@ private fun InsightsCard(insights: List<Insight>) {
 }
 
 @Composable
-private fun Charts(record: RunRecord) {
-    val context = context()
+private fun DetailCharts(record: RunRecord) {
     val series = record.series
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeader(stringResource(R.string.result_charts))
-        if (series.watts.any { it != null }) {
-            ChartCard(stringResource(R.string.chart_power)) {
-                TimeChart(series.seconds, listOf(ChartSeries(stringResource(R.string.chart_power), StressColors.Accent, series.watts)), "W", yMin = 0.0, decimals = 2)
-            }
-        }
-        val temperatures = series.temperatures.map { (key, values) ->
-            ChartSeries(Labels.temperature(context, key), Labels.temperatureColor(key), values)
-        } + ChartSeries(Labels.temperature(context, RunAnalysis.BATTERY), Labels.temperatureColor(RunAnalysis.BATTERY), series.batteryCelsius)
-        if (temperatures.any { s -> s.values.any { it != null } }) {
-            ChartCard(stringResource(R.string.chart_temperature)) {
-                TimeChart(series.seconds, temperatures.filter { s -> s.values.any { it != null } }, "°C")
-            }
-        }
+    Stack {
         if (series.clocksMhz.values.any { v -> v.any { it != null } }) {
             ChartCard(stringResource(R.string.chart_clock)) {
                 val entries = series.clocksMhz.entries.toList()
@@ -505,10 +508,8 @@ private fun Charts(record: RunRecord) {
 
 @Composable
 private fun ChartCard(title: String, hint: String? = null, content: @Composable () -> Unit) {
-    GlassCard(Modifier.fillMaxWidth(), padding = 14.dp) {
-        Text(title, style = MaterialTheme.typography.titleSmall)
-        if (hint != null) Text(hint, style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
-        Spacer(Modifier.height(10.dp))
+    Panel(Modifier.fillMaxWidth(), title = title, padding = 12.dp) {
+        if (hint != null) Text(hint, style = StressType.BodySmall, color = StressColors.TextDim)
         content()
     }
 }
@@ -517,8 +518,8 @@ private fun ChartCard(title: String, hint: String? = null, content: @Composable 
 private fun DeviceCard(record: RunRecord) {
     val device = record.device ?: return
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeader(stringResource(R.string.result_device))
-        GlassCard(Modifier.fillMaxWidth()) {
+        SectionLabel(stringResource(R.string.result_device))
+        Panel(Modifier.fillMaxWidth()) {
             Text(device.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
             device.soc?.let { InfoRow(stringResource(R.string.device_soc), it) }
@@ -534,7 +535,7 @@ private fun DeviceCard(record: RunRecord) {
 }
 
 @Composable
-private fun ExportCard(record: RunRecord, insights: List<Insight>) {
+private fun ReportActions(record: RunRecord, insights: List<Insight>) {
     val context = context()
     val graph = context.graph
     val scope = rememberCoroutineScope()
@@ -565,23 +566,38 @@ private fun ExportCard(record: RunRecord, insights: List<Insight>) {
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.export_share_title)))
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionHeader(stringResource(R.string.result_export))
-        GlassCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBadge(Icons.Rounded.PictureAsPdf, StressColors.Accent)
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.export_pdf_title), style = MaterialTheme.typography.titleSmall)
-                    Text(stringResource(R.string.export_pdf_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-                }
-                if (busy) CircularProgressIndicator(Modifier.size(22.dp), color = StressColors.Accent, strokeWidth = 2.dp)
-            }
-            Spacer(Modifier.height(12.dp))
-            PrimaryButton(
-                text = stringResource(R.string.export_share_pdf),
-                icon = Icons.Rounded.Share,
-                height = 52.dp,
+    Column(Modifier.fillMaxWidth().background(StressColors.SurfaceLow)) {
+        Hairline()
+        Row(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SecondaryButton(
+                text = stringResource(R.string.result_csv),
+                icon = Icons.Rounded.TableChart,
                 enabled = !busy,
+                modifier = Modifier.weight(0.8f),
+                onClick = {
+                    scope.launch {
+                        busy = true
+                        val file = withContext(Dispatchers.IO) {
+                            runCatching { ReportCsv.write(record, graph.reportDir) }.getOrNull()
+                        }
+                        busy = false
+                        if (file != null) share(file, "text/csv") else Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                    }
+                },
+            )
+            SecondaryButton(
+                text = stringResource(R.string.export_save_pdf),
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
+                onClick = { savePdf.launch(ReportPdf.fileName(record)) },
+            )
+            PrimaryButton(
+                text = stringResource(R.string.result_share_pdf),
+                enabled = !busy,
+                modifier = Modifier.weight(1.15f),
                 onClick = {
                     scope.launch {
                         busy = true
@@ -593,30 +609,6 @@ private fun ExportCard(record: RunRecord, insights: List<Insight>) {
                     }
                 },
             )
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SecondaryButton(
-                    text = stringResource(R.string.export_save_pdf),
-                    icon = Icons.Rounded.Download,
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                    onClick = { savePdf.launch(ReportPdf.fileName(record)) },
-                )
-                SecondaryButton(
-                    text = stringResource(R.string.export_csv),
-                    icon = Icons.Rounded.TableChart,
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        scope.launch {
-                            val file = withContext(Dispatchers.IO) {
-                                runCatching { ReportCsv.write(record, graph.reportDir) }.getOrNull()
-                            }
-                            if (file != null) share(file, "text/csv") else Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                )
-            }
         }
     }
 }
