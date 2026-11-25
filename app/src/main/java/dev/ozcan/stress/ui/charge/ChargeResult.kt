@@ -112,13 +112,16 @@ private fun ChargeFindings(record: RunRecord) {
     val details = record.charge
     val findings = buildList {
         if (peak != null && peak > 0.0) {
-            val speed = when (ChargeAnalysis.speed(peak)) {
-                ChargeSpeed.UsbPort -> R.string.charge_speed_usb
-                ChargeSpeed.Standard -> R.string.charge_speed_standard
-                ChargeSpeed.Fast -> R.string.charge_speed_fast
-                ChargeSpeed.HighPower -> R.string.charge_speed_high
-            }
-            add(stringResource(speed, Format.watts(peak)))
+            val watts = Format.watts(peak)
+            val standardMin = Format.number(ChargeAnalysis.STANDARD_MIN_WATTS, 1)
+            val fastMin = Format.number(ChargeAnalysis.FAST_MIN_WATTS, 0)
+            val fastMax = Format.number(ChargeAnalysis.FAST_MAX_WATTS, 0)
+            add(when (ChargeAnalysis.speed(peak)) {
+                ChargeSpeed.UsbPort -> stringResource(R.string.charge_speed_usb, watts, standardMin)
+                ChargeSpeed.Standard -> stringResource(R.string.charge_speed_standard, watts, standardMin, fastMin)
+                ChargeSpeed.Fast -> stringResource(R.string.charge_speed_fast, watts, fastMin, fastMax)
+                ChargeSpeed.HighPower -> stringResource(R.string.charge_speed_high, watts, fastMax)
+            })
         }
         if (details?.slowdownWhileHot == true) add(stringResource(R.string.charge_heat_finding))
         if ((record.summary.batteryStartPercent ?: 0) > 80) add(stringResource(R.string.charge_high_start))
