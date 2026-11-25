@@ -375,7 +375,7 @@
     <string name="compare_pick_title">Karşılaştırılacak koşu</string>
     <string name="compare_none">Karşılaştırılacak başka bir koşu henüz yok.</string>
     <string name="compare_metrics">Yan yana</string>
-    <string name="compare_hint">Δ, B\'nin A\'ya göre farkı. Yeşil: daha çok güç ve iş, daha serin telefon, daha geç kısılma; sarı: tersi.</string>
+    <string name="compare_hint">Δ, A\'dan B\'ye yüzde değişimi gösterir. Bir ölçüm eksikse veya A sıfırsa çizgi görünür.</string>
     <string name="compare_chart_chip">En sıcak çip</string>
     <string name="compare_chart_battery">Pil sıcaklığı</string>
     <string name="compare_chart_cpu">CPU performansı</string>
