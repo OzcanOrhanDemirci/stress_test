@@ -94,7 +94,7 @@ fun MetricNumber(
     )
 }
 
-/** An outlined reading with a live [statusColor] dot and an optional [meter] or Code [caption]. */
+/** A readout tile (flat `Surface`, no rule) with a live [statusColor] dot and an optional [meter] or Code [caption]. */
 @Composable
 fun MetricTile(
     label: String,

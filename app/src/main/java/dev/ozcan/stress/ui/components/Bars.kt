@@ -86,7 +86,7 @@ private fun BarCaption(text: String, modifier: Modifier = Modifier) {
 fun TopBarAction(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.size(48.dp).clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Box(
-            Modifier.size(40.dp).clip(ButtonShape).background(StressColors.Surface)
+            Modifier.size(40.dp).clip(ButtonShape).background(StressColors.SurfaceHigh)
                 .border(1.dp, StressColors.OutlineStrong, ButtonShape),
             contentAlignment = Alignment.Center,
         ) {
