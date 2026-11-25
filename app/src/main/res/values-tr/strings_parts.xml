@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="parts_engineering_view">Mühendislik görünümü</string>
+    <string name="parts_engineering">Mühendislik</string>
+    <string name="parts_close">Kapat</string>
+    <plurals name="parts_values">
+        <item quantity="one">%d değer</item>
+        <item quantity="other">%d değer</item>
+    </plurals>
+    <string name="parts_tag_ok">TAMAM</string>
+    <string name="parts_tag_na">YOK</string>
+    <string name="parts_tag_warn">UYARI</string>
+    <string name="parts_tag_stop">DUR</string>
+</resources>
