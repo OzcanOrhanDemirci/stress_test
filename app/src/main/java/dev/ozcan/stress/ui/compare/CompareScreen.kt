@@ -91,6 +91,8 @@ fun CompareScreen(first: String, second: String, onBack: () -> Unit) {
         when {
             pair == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             a == null || b == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
+            !Comparison.isEligible(a) || !Comparison.isEligible(b) ->
+                CenteredBox { Text(stringResource(R.string.compare_none), color = StressColors.TextDim) }
             else -> Body(a, b)
         }
     }

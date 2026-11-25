@@ -2,6 +2,7 @@ package dev.ozcan.stress.lab
 
 import android.os.SystemClock
 import android.util.Log
+import dev.ozcan.stress.engine.GpuRunStatus
 import dev.ozcan.stress.engine.LoadDriver
 import dev.ozcan.stress.engine.LoadSettings
 import dev.ozcan.stress.engine.Workload
@@ -136,6 +137,7 @@ class LabRunner(
         val outcome = driver.start(run.load, settings)
         val loadStart = now()
         var loadEnd = loadStart
+        val gpuStatus: GpuRunStatus
         try {
             if (outcome == STARTED) {
                 _state.value = LabState.Measuring(run.index, run.count, label, LabState.Phase.Load, loadStart + seconds(spec.loadSeconds))
@@ -144,12 +146,12 @@ class LabRunner(
             }
         } finally {
             // Also after a failed start, to stop the parts that did start.
-            driver.stop()
+            gpuStatus = driver.stop()
         }
 
         val idle = sampler.log.between(idleStart, idleEnd)
         val load = sampler.log.between(loadStart, loadEnd)
-        val result = LabAnalysis.analyze(spec, run, outcome, idle, load, layout.clusters)
+        val result = LabAnalysis.analyze(spec, run, outcome, idle, load, layout.clusters, gpuStatus)
         val name = "%02d_%s".format(Locale.ROOT, run.index, label.replace(Regex("[^A-Za-z0-9._-]"), "_"))
         val file = withContext(Dispatchers.IO) {
             File(dir, "$name.csv").bufferedWriter().use { out ->

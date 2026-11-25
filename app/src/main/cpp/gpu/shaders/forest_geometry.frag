@@ -68,7 +68,7 @@ vec2 rainRings(vec2 xz, float time) {
             vec2 d = xz - (cell + 0.2 + 0.6 * vec2(h, fract(h * 13.7))) * CELL;
             float r = length(d) + 1e-4;
             float front = age * 0.32;
-            float ring = sin((r - front) * 70.0) * exp(-age * 3.5) * smoothstep(front + 0.05, front, r);
+            float ring = sin((r - front) * 70.0) * exp(-age * 3.5) * (1.0 - smoothstep(front, front + 0.05, r));
             slope += d / r * ring * 0.25;
         }
     }
@@ -165,7 +165,7 @@ void main() {
     vec3 c = albedo * (sunLight + skyLight) + SUN * sheen * 0.5;
     if (puddle > 0.0) {
         // The sky in the water, dimmed by the canopy that hangs over most of it.
-        float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
+        float fresnel = 0.02 + 0.98 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 5.0);
         c += sky(reflect(-v, n)) * fresnel * puddle * mix(0.12, 0.6, sunlit);
     }
 

@@ -37,7 +37,7 @@ data class RunRecord(
     val summary: RunSummary,
     val series: RunSeries,
     val device: DeviceInfo? = null,
-    /** The scene's quality (SceneQuality's name) for cinematic runs. */
+    /** The requested quality (SceneQuality's name) for cinematic runs. */
     val quality: String? = null,
     /** Whether device safety watched the run. */
     val safetyEnabled: Boolean? = null,
@@ -48,6 +48,10 @@ data class RunRecord(
     val safetyValue: Double? = null,
     /** The app's version that measured it. */
     val appVersion: String? = null,
+    /** Lowest settled quality. Null in a new cinematic run if it ended during the probe. */
+    val drawnQuality: String? = quality,
+    /** Smallest scale drawn at [drawnQuality], as a percent of the screen in each direction. */
+    val drawnScalePercent: Double? = null,
 )
 
 @Serializable

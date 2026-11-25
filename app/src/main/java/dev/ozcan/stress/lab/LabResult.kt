@@ -18,7 +18,7 @@ data class LabResult(
     val batchMillis: Int,
     val scene: Boolean,
     val sceneScalePercent: Int,
-    /** The scenes' quality (SceneQuality's name). */
+    /** The requested scene quality (SceneQuality's name). */
     val quality: String = "Medium",
     val idleSeconds: Int,
     val loadSeconds: Int,
@@ -43,6 +43,9 @@ data class LabResult(
     val cadence: Cadence,
     /** CPU and GPU computation errors together. */
     val computationErrors: Long,
+    /** Lowest settled scene quality and smallest scale drawn at that quality. */
+    val drawnQuality: String? = null,
+    val drawnScalePercent: Double? = null,
 )
 
 @Serializable

@@ -426,7 +426,7 @@ vec3 radianceWhite(vec3 ro, vec3 rd, out float depth) {
             // Two light lines inlaid along the path, in the zone's colour.
             float along;
             int zone = zoneOf(p.z, along);
-            float line = smoothstep(0.035, 0.02, abs(abs(p.x) - 0.9));
+            float line = 1.0 - smoothstep(0.02, 0.035, abs(abs(p.x) - 0.9));
             c = mix(c, zoneTint(zone) * 2.6, line);
         } else {
             vec3 n = solidNormal(p);
@@ -452,7 +452,8 @@ float openness(float z) {
     float along;
     int zone = zoneOf(z, along);
     bool open = zone == 0 || zone == 3;
-    float inside = smoothstep(MARGIN - 2.0, MARGIN + 6.0, along) * smoothstep(ZONE - MARGIN + 2.0, ZONE - MARGIN - 6.0, along);
+    float inside = smoothstep(MARGIN - 2.0, MARGIN + 6.0, along)
+                 * (1.0 - smoothstep(ZONE - MARGIN - 6.0, ZONE - MARGIN + 2.0, along));
     return open ? inside : 0.0;
 }
 

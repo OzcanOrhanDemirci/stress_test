@@ -1,6 +1,8 @@
 package dev.ozcan.stress.analysis
 
 import android.content.Context
+import dev.ozcan.stress.engine.SceneQuality
+import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.StressMode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -20,6 +22,14 @@ data class ReferenceDevice(
     val watts: Map<String, Double>,
 ) {
     fun wattsFor(mode: StressMode): Double? = watts[mode.name]
+
+    fun wattsFor(record: RunRecord): Double? {
+        val mode = StressMode.of(record.mode) ?: return null
+        if (!Comparison.isEligible(record)) return null
+        // The bundled cinematic reading is the original pool scene at 45%.
+        if (mode.scene != null && record.drawnQuality != null && record.drawnQuality != SceneQuality.Medium.name) return null
+        return wattsFor(mode)
+    }
 }
 
 /** The bundled reference measurements; the app stays offline, so they travel with it. */
@@ -39,9 +49,9 @@ object ReferenceDevices {
         return devices
     }
 
-    /** The first reference device that measured [mode], with its watts. */
-    fun forMode(context: Context, mode: StressMode): Pair<ReferenceDevice, Double>? =
-        load(context).firstNotNullOfOrNull { device -> device.wattsFor(mode)?.let { device to it } }
+    /** The first reference device that measured this workload, with its watts. */
+    fun forRun(context: Context, record: RunRecord): Pair<ReferenceDevice, Double>? =
+        load(context).firstNotNullOfOrNull { device -> device.wattsFor(record)?.let { device to it } }
 
     private const val FILE = "reference_devices.json"
 }

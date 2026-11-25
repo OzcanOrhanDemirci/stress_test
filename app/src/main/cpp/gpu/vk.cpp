@@ -95,6 +95,17 @@ bool Context::createImage(VkExtent2D size, VkFormat format, VkImageUsageFlags us
     return createView(out.image, format, out.view);
 }
 
+bool Context::supportsImage(VkExtent2D size, VkFormat format, VkImageUsageFlags usage,
+                            VkFormatFeatureFlags features) const {
+    VkFormatProperties formatProperties{};
+    vkGetPhysicalDeviceFormatProperties(physical, format, &formatProperties);
+    if ((formatProperties.optimalTilingFeatures & features) != features) return false;
+    VkImageFormatProperties limits{};
+    return vkGetPhysicalDeviceImageFormatProperties(physical, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
+                                                    usage, 0, &limits) == VK_SUCCESS &&
+           size.width <= limits.maxExtent.width && size.height <= limits.maxExtent.height;
+}
+
 bool Context::createView(VkImage image, VkFormat format, VkImageView& out) const {
     VkImageViewCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -273,7 +284,8 @@ bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipe
     return true;
 }
 
-bool Context::computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const {
+bool Context::computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out,
+                              const VkSpecializationInfo* constants) const {
     VkShaderModule module;
     if (!shaderModule(code, module)) return false;
     VkComputePipelineCreateInfo info{};
@@ -282,6 +294,7 @@ bool Context::computePipeline(VkPipelineLayout layout, std::span<const uint32_t>
     info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     info.stage.module = module;
     info.stage.pName = "main";
+    info.stage.pSpecializationInfo = constants;
     info.layout = layout;
     const VkResult result = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &out);
     vkDestroyShaderModule(device, module, nullptr);

@@ -78,6 +78,19 @@ class RunStoreTest {
     }
 
     @Test
+    fun `old records use the requested quality and an explicit unsettled draw remains unknown`() {
+        val dir = tmp.newFolder("runs")
+        val store = RunStore(dir)
+        File(dir, "legacy.json").writeText(firstVersion.replaceFirst("{", """{"quality":"High","""))
+        val legacy = store.load("legacy")!!
+        assertEquals("High", legacy.drawnQuality)
+        assertEquals("High", store.list().single().drawnQuality)
+
+        store.save(legacy.copy(id = "unsettled", drawnQuality = null))
+        assertNull(store.load("unsettled")!!.drawnQuality)
+    }
+
+    @Test
     fun `the list carries the watts line but not the other curves`() {
         val dir = tmp.newFolder("runs")
         val store = RunStore(dir)

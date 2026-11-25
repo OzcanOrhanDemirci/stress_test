@@ -47,11 +47,15 @@ class GpuEngineDeviceTest {
         engine.attach(reader.surface)
         engine.request(request)
         assertEquals("$request did not start", GpuStartResult.Started, engine.lastStart)
+        return finishRun(millis)
+    }
+
+    private fun finishRun(millis: Long): GpuSnapshot {
         Thread.sleep(millis)
         return engine.snapshot().also { engine.request(null) }
     }
 
-    private fun run(burner: GpuBurner?, millis: Long): GpuSnapshot = run(GpuRequest(burner), millis)
+    private fun run(burner: GpuBurner?, millis: Long): GpuSnapshot = run(GpuRequest(burner, scene = false), millis)
 
     private companion object {
         const val TAG = "GpuEngineDeviceTest"
@@ -72,7 +76,7 @@ class GpuEngineDeviceTest {
                 val s = run(request, millis)
                 assertEquals("$kind $quality state", GpuState.Running, s.state)
                 assertTrue("$kind $quality frames ${s.frames}", s.frames > 3)
-                assertTrue("$kind $quality untimed", s.timed)
+                assertTrue("$kind $quality no frame timing", s.gpuNanos > 0)
                 Log.i(TAG, "$kind $quality %.1f ms a frame".format(s.gpuNanos / 1e6 / s.frames.coerceAtLeast(1)))
             }
         }
@@ -87,9 +91,30 @@ class GpuEngineDeviceTest {
     }
 
     @Test
+    fun aReattachedSurfaceResumesTheRequestedPreview() {
+        engine.attach(reader.surface)
+        engine.request(GpuRequest(null, scene = false))
+        assertEquals(GpuStartResult.Started, engine.lastStart)
+        engine.detach()
+        assertEquals(GpuState.Idle, engine.snapshot().state)
+        engine.attach(reader.surface)
+        assertEquals(GpuStartResult.Started, engine.lastStart)
+        val resumed = finishRun(1_000)
+        assertEquals(GpuState.Running, resumed.state)
+        assertTrue(resumed.frames > 3)
+    }
+
+    @Test
     fun everyBurnerRunsWithoutErrorsAndFillsItsFrame() {
         for (burner in engine.burners) {
-            val s = run(burner, 3_000)
+            engine.attach(reader.surface)
+            engine.request(GpuRequest(burner, scene = false))
+            if (burner.key == "gpu_fp16" && engine.lastStart == GpuStartResult.Unsupported) {
+                engine.request(null)
+                continue
+            }
+            assertEquals("${burner.key} did not start", GpuStartResult.Started, engine.lastStart)
+            val s = finishRun(3_000)
             val name = burner.code
             assertEquals("$name state", GpuState.Running, s.state)
             assertEquals("$name reported burner", burner, s.burner)

@@ -163,7 +163,11 @@ object ReportPdf {
         val test = buildList {
             add(context.getString(R.string.report_mode) to Labels.recordModeName(context, record))
             record.quality?.let { q -> SceneQuality.entries.firstOrNull { it.name == q } }?.let {
-                add(context.getString(R.string.home_quality) to context.getString(Labels.quality(it)))
+                add(context.getString(R.string.report_requested_quality) to context.getString(Labels.quality(it)))
+                val drawn = SceneQuality.entries.firstOrNull { it.name == record.drawnQuality }
+                val label = if (drawn != null) context.getString(Labels.quality(drawn)) else Format.MISSING
+                val scale = record.drawnScalePercent?.let { Format.percent(it / 100, decimals = if (it % 1 == 0.0) 0 else 2) }
+                add(context.getString(R.string.report_drawn_quality) to listOfNotNull(label, scale).joinToString(" · "))
             }
             add(context.getString(R.string.report_duration) to buildString {
                 append(Format.clock(record.loadSeconds))

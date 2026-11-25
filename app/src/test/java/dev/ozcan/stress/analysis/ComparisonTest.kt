@@ -4,6 +4,7 @@ import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.RunSeries
 import dev.ozcan.stress.run.RunSummary
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -54,6 +55,25 @@ class ComparisonTest {
         val row = Comparison.rows(record(peak = 10.0), record(peak = 9.0, powerValid = false)).first { it.metric == Comparison.Metric.PeakPower }
         assertNull(row.b)
         assertNull(row.change)
+    }
+
+    @Test
+    fun `comparisons exclude reductions in tier or scale and unsettled probes`() {
+        val medium = record(peak = 10.0).copy(mode = "Cinematic", quality = "Medium", drawnQuality = "Medium")
+        assertTrue(Comparison.isEligible(medium))
+        assertTrue(Comparison.isEligible(medium.copy(drawnScalePercent = 45.0)))
+        assertFalse(Comparison.isEligible(medium.copy(quality = "High", drawnScalePercent = 45.0)))
+        assertFalse(Comparison.isEligible(medium.copy(drawnScalePercent = 44.75)))
+        assertFalse(Comparison.isEligible(medium.copy(drawnQuality = null)))
+    }
+
+    @Test
+    fun `reference scene watts apply only to a full scale medium pool run`() {
+        val honor = ReferenceDevice("Honor 400", "Adreno 720", "measurements", mapOf("Cinematic" to 8.9))
+        val medium = record(peak = 10.0).copy(mode = "Cinematic", quality = "Medium", drawnQuality = "Medium", drawnScalePercent = 45.0)
+        assertEquals(8.9, honor.wattsFor(medium))
+        assertNull(honor.wattsFor(medium.copy(quality = "High")))
+        assertNull(honor.wattsFor(medium.copy(quality = "High", drawnQuality = "High", drawnScalePercent = 65.0)))
     }
 
     @Test

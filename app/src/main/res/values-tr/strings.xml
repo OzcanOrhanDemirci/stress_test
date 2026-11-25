@@ -138,6 +138,10 @@
     <string name="run_cancelled_text">Test, yük başlamadan durduruldu; bir şey kaydedilmedi.</string>
     <string name="run_failed">Test başlatılamadı</string>
     <string name="run_failed_text">Yükün bir parçası başlamadı (%1$s).</string>
+    <string name="drawn_quality_reduced">%1$s kalitede çizildi (%2$s seçildi)</string>
+    <string name="drawn_quality_and_scale_reduced">%1$s kalitede, %2$s ölçekte (%3$s seçildi)</string>
+    <string name="drawn_scale_reduced">%1$s ölçekte çizildi (%2$s seçildi)</string>
+    <string name="drawn_quality_unsettled">Koşu, kalite denemesi bitmeden sona erdi</string>
     <string name="run_analysis_failed">Sonuç hazırlanamadı</string>
     <string name="run_analysis_failed_text">Yük bitti ama sayıları hesaplanamadı (%1$s).</string>
     <string name="run_power_caption">boşta %1$s · yük %2$s</string>
@@ -257,6 +261,8 @@
     <string name="report_section_device">Cihaz</string>
     <string name="report_section_results">Sonuçlar</string>
     <string name="report_mode">Mod</string>
+    <string name="report_requested_quality">Seçilen kalite</string>
+    <string name="report_drawn_quality">Çizilen kalite</string>
     <string name="report_duration">Süre</string>
     <string name="report_end">Bitiş</string>
     <string name="report_workload">İş yükü</string>

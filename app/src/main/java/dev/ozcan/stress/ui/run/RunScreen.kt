@@ -243,15 +243,16 @@ private fun FailedCard(state: RunState.Failed, onLeave: () -> Unit) {
             stringResource(R.string.run_cancelled) to stringResource(R.string.run_cancelled_text)
         }
         is RunState.Failed.LoadFailed -> stringResource(R.string.run_failed) to stringResource(R.string.run_failed_text, state.detail)
+        RunState.Failed.GpuFailed -> stringResource(R.string.end_gpu_failed) to stringResource(R.string.insight_gpu_failed_detail)
         is RunState.Failed.AnalysisFailed -> stringResource(R.string.run_analysis_failed) to
             stringResource(R.string.run_analysis_failed_text, state.detail)
     }
     Panel(Modifier.padding(16.dp).widthIn(max = 380.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(
-                if (state is RunState.Failed.LoadFailed) Icons.Rounded.ErrorOutline else Icons.Rounded.Shield,
+                if (state is RunState.Failed.LoadFailed || state == RunState.Failed.GpuFailed) Icons.Rounded.ErrorOutline else Icons.Rounded.Shield,
                 null,
-                tint = if (state is RunState.Failed.LoadFailed) StressColors.Bad else StressColors.Warn,
+                tint = if (state is RunState.Failed.LoadFailed || state == RunState.Failed.GpuFailed) StressColors.Bad else StressColors.Warn,
                 modifier = Modifier.size(52.dp),
             )
             Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)

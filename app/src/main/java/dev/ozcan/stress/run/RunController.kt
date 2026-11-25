@@ -6,7 +6,7 @@ import dev.ozcan.stress.analysis.CurrentConvention
 import dev.ozcan.stress.device.DeviceInfo
 import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.GpuBurner
-import dev.ozcan.stress.engine.GpuState
+import dev.ozcan.stress.engine.GpuRunStatus
 import dev.ozcan.stress.engine.LoadControl
 import dev.ozcan.stress.engine.LoadSettings
 import dev.ozcan.stress.engine.SceneQuality
@@ -51,6 +51,8 @@ sealed interface RunState {
         data class StoppedBeforeLoad(val reason: EndReason, val check: SafetyCheck?) : Failed
         /** A part of the load did not start: "cpu=…", "gpu=…". */
         data class LoadFailed(val detail: String) : Failed
+        /** The driver failed before the run measured its GPU load. */
+        data object GpuFailed : Failed
         /** The load finished, but its numbers could not be worked out. */
         data class AnalysisFailed(val detail: String) : Failed
     }
@@ -151,6 +153,7 @@ class RunController(
         val loadStart = now()
         var loadEnd = loadStart
         var reason = EndReason.Completed
+        val gpuStatus: GpuRunStatus
         try {
             if (outcome != LoadControl.STARTED) {
                 watcher.cancel()
@@ -166,9 +169,17 @@ class RunController(
             reason = waitOrStop(duration.seconds?.let { it * 1000L }) ?: EndReason.Completed
             loadEnd = now()
         } finally {
-            driver.stop()
+            watcher.cancel()
+            gpuStatus = driver.stop()
         }
-        watcher.cancel()
+        if (mode.usesGpu && gpuStatus.failed) reason = EndReason.GpuFailed
+        val load = sampler.log.between(loadStart, loadEnd)
+        if (reason == EndReason.GpuFailed &&
+            (!gpuStatus.drewFrames || load.none { it.gpu.isRunning && it.gpu.frames > 0 })
+        ) {
+            _state.value = RunState.Failed.GpuFailed
+            return@coroutineScope
+        }
 
         _state.value = RunState.Analysing
         val info = runCatching { device() }.getOrNull()
@@ -179,7 +190,7 @@ class RunController(
             withContext(Dispatchers.Default) {
                 val (summary, series) = RunAnalysis.analyze(
                     baseline = baseline,
-                    load = sampler.log.between(loadStart, loadEnd),
+                    load = load,
                     clusters = layout.clusters,
                     clusterName = { it.label() },
                 )
@@ -201,6 +212,8 @@ class RunController(
                     safetyReason = safetyCheck?.reason?.name,
                     safetyValue = safetyCheck?.value,
                     appVersion = options.appVersion,
+                    drawnQuality = gpuStatus.lowestSceneDraw?.quality?.name.takeIf { mode.scene != null },
+                    drawnScalePercent = gpuStatus.lowestSceneDraw?.scalePercent.takeIf { mode.scene != null },
                 )
             }
         } catch (e: CancellationException) {
@@ -222,17 +235,20 @@ class RunController(
 
     /**
      * Twice a second: device safety (when on) over the newest sample, and,
-     * when [watchGpu], the GPU's state once its load has run. Either can end
+     * when [watchGpu], the current renderer's state once its load has started. Either can end
      * the run. Returns only by cancellation.
      */
     private suspend fun watch(deviceSafety: Boolean, watchGpu: Boolean) {
         val monitor = SafetyMonitor()
         var lastSample = -1L
         var lastChangeNanos = now()
-        var gpuRan = false
         while (true) {
             val sample = sampler.latest.value
-            val active = _state.value is RunState.Baseline || _state.value is RunState.Running
+            val state = _state.value
+            val active = state is RunState.Baseline || state is RunState.Running
+            if (watchGpu && state is RunState.Running && driver.gpuStatus().failed) {
+                stop.complete(EndReason.GpuFailed)
+            }
             if (sample != null && sample.timeNanos != lastSample) {
                 lastSample = sample.timeNanos
                 lastChangeNanos = now()
@@ -242,13 +258,6 @@ class RunController(
                     if (check.level == SafetyLevel.Stop) {
                         safetyStop = check
                         stop.complete(EndReason.Safety)
-                    }
-                }
-                // A failure is only this run's once its own renderer was seen running.
-                if (watchGpu && _state.value is RunState.Running) {
-                    if (sample.gpu.state == GpuState.Running) gpuRan = true
-                    if (gpuRan && (sample.gpu.state == GpuState.DeviceLost || sample.gpu.state == GpuState.Failed)) {
-                        stop.complete(EndReason.GpuFailed)
                     }
                 }
             } else if (active && now() - lastChangeNanos > samplerLostAfterNanos) {

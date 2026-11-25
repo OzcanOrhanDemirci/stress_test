@@ -41,7 +41,11 @@ void main() {
     // away, where the point keeps one pixel and gives up brightness instead.
     float worldSize = kind == KIND_BUBBLE ? 0.007 : 0.006;
     float pixels = worldSize * FOCAL * params.resolution.y / max(z, 1e-3);
+#ifdef VULKAN
+    gl_PointSize = clamp(pixels, 1.0, min(8.0, params.maxPointSize));
+#else
     gl_PointSize = clamp(pixels, 1.0, 8.0);
+#endif
     float cover = min(pixels * pixels, 1.0);
 
     if (kind == KIND_BUBBLE) {

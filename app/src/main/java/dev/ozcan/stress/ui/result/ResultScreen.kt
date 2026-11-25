@@ -53,6 +53,7 @@ import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
 import dev.ozcan.stress.analysis.Insight
 import dev.ozcan.stress.analysis.Insights
+import dev.ozcan.stress.analysis.Comparison
 import dev.ozcan.stress.analysis.ReferenceDevices
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
@@ -87,6 +88,7 @@ import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.run.DrawnQualityNotice
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
@@ -118,7 +120,9 @@ class ResultViewModel(private val graph: AppGraph, private val runId: String) : 
     suspend fun delete() = withContext(Dispatchers.IO) { graph.runs.delete(runId) }
 
     /** Every other stored run, newest first: what this one can be compared with. */
-    suspend fun others(): List<RunRecord> = withContext(Dispatchers.IO) { graph.runs.list().filter { it.id != runId } }
+    suspend fun others(): List<RunRecord> = withContext(Dispatchers.IO) {
+        graph.runs.list().filter { it.id != runId && Comparison.isEligible(it) }
+    }
 }
 
 @Composable
@@ -162,7 +166,8 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
         modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
         actions = {
             if (record != null) {
-                TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
+                // A reduced or GPU-failed run has nothing it can be ranked against.
+                if (Comparison.isEligible(record)) TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
                     scope.launch { others = model.others() }
                 })
                 TopBarAction(Icons.Rounded.Delete, stringResource(R.string.delete), { confirmDelete = true })
@@ -262,6 +267,12 @@ private fun Summary(record: RunRecord) {
                     )
                 }
             }
+            DrawnQualityNotice(
+                StressMode.of(record.mode)?.scene,
+                SceneQuality.entries.firstOrNull { it.name == record.quality },
+                SceneQuality.entries.firstOrNull { it.name == record.drawnQuality },
+                record.drawnScalePercent,
+            )
             Text(Dates.long(record.startedAtMillis), style = StressType.Code, color = StressColors.TextDim)
             Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
                 Stack(Modifier.weight(1f), spacing = 4) {
@@ -274,13 +285,11 @@ private fun Summary(record: RunRecord) {
                 }
                 StabilityArc(stability, stringResource(R.string.result_stability))
             }
-            StressMode.of(record.mode)?.let { mode ->
-                ReferenceDevices.forMode(context, mode)?.let { (device, watts) ->
-                    Text(
-                        stringResource(R.string.result_reference, device.name, device.chipset, Format.watts(watts)),
-                        style = StressType.BodySmall, color = StressColors.TextDim,
-                    )
-                }
+            ReferenceDevices.forRun(context, record)?.let { (device, watts) ->
+                Text(
+                    stringResource(R.string.result_reference, device.name, device.chipset, Format.watts(watts)),
+                    style = StressType.BodySmall, color = StressColors.TextDim,
+                )
             }
             val missing = when {
                 !s.powerValid -> R.string.insight_charging_detail

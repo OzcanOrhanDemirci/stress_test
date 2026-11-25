@@ -172,6 +172,7 @@ private fun RunTopBar(
                     )
                     RunProtection(safety, safetyOn, showFinding = false)
                 }
+                live?.gpu?.sceneDraw?.let { DrawnQualityNotice(mode.scene, quality, it.quality, it.scalePercent) }
                 if (total != null) MeterBar((elapsed / total).toFloat())
                 if (remaining != null || mode.usesGpu) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {

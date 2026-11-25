@@ -97,10 +97,12 @@ bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, 
     vk_ = &vk;
     kind_ = kind;
     quality_ = quality;
-    shadowRes_ = byQuality<uint32_t>(quality, SHADOW_RES, SHADOW_RES, 2 * SHADOW_RES);
+    shadowRes_ = std::min(vk.maxRenderDimension, byQuality<uint32_t>(quality, SHADOW_RES, SHADOW_RES, 2 * SHADOW_RES));
+    scale = std::min(scale, static_cast<float>(vk.maxRenderDimension) /
+                                static_cast<float>(std::max(screen.width, screen.height)));
     extent_ = {std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.width) * scale)),
                std::max(1u, static_cast<uint32_t>(static_cast<float>(screen.height) * scale))};
-    if (!createTargets() || !createPasses() || !createDescriptors() || !createWater() ||
+    if (!createTargets() || !createPasses() || !createDescriptors() || (kind_ == Kind::Pool && !createWater()) ||
         !createPipelines(presentPass) || (kind_ == Kind::Forest && !createForest())) {
         return false;
     }
@@ -111,7 +113,7 @@ bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, 
                            VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
         }
-        clearWater(cmd);
+        if (kind_ == Kind::Pool) clearWater(cmd);
     });
 }
 
@@ -120,6 +122,7 @@ void SceneRenderer::clearWater(VkCommandBuffer cmd) {
     const VkClearColorValue zero{};
     const VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
     for (const vk::Image* image : {&waterHeights_[0], &waterHeights_[1], &waterHeights_[2], &waterSurface_}) {
+        if (!image->image) continue;
         vk::transition(cmd, image->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 0,
                        VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
         vkCmdClearColorImage(cmd, image->image, VK_IMAGE_LAYOUT_GENERAL, &zero, 1, &range);
@@ -135,12 +138,19 @@ void SceneRenderer::clearWater(VkCommandBuffer cmd) {
 
 bool SceneRenderer::createTargets() {
     const VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    const VkFormatFeatureFlags hdrFeatures =
+        VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+    if (!vk_->supportsImage(extent_, kHdr, usage, hdrFeatures)) {
+        LOGE("scene needs a filterable, blendable HDR target at %ux%u", extent_.width, extent_.height);
+        return false;
+    }
+    distanceFormat_ = vk_->supportsImage(extent_, kDistance, usage) ? kDistance : kHdr;
     if (!vk_->createImage(extent_, kHdr, usage, color_)) return false;
-    if (!vk_->createImage(extent_, kDistance, usage, distance_)) return false;
+    if (!vk_->createImage(extent_, distanceFormat_, usage, distance_)) return false;
     if (!vk_->createImage(extent_, kHdr, usage, particles_)) return false;
     // Two vec4 a particle; the first physics step writes every one.
-    if (!vk_->createBuffer(VkDeviceSize{kParticles} * 32, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                           {VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT}, particleBuffer_)) {
+    if (kind_ == Kind::Pool && !vk_->createBuffer(VkDeviceSize{kParticles} * 32, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                {VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT}, particleBuffer_)) {
         return false;
     }
     for (auto& h : history_) {
@@ -159,7 +169,7 @@ bool SceneRenderer::createPasses() {
     // Every pass here replaces what the previous frame's passes sampled: readBefore.
     const std::array<VkAttachmentDescription, 2> scene{
         attachment(kHdr, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
-        attachment(kDistance, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
+        attachment(distanceFormat_, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
     };
     const std::array<VkAttachmentDescription, 1> write{
         attachment(kHdr, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED)};
@@ -257,7 +267,7 @@ bool SceneRenderer::createDescriptors() {
     for (uint32_t i = 0; i + 1 < kBloomLevels; ++i) {
         if (!allocate(upSets_[i], {&bloom_[i + 1]})) return false;
     }
-    return createParticleDescriptors();
+    return kind_ != Kind::Pool || createParticleDescriptors();
 }
 
 bool SceneRenderer::createParticleDescriptors() {
@@ -303,30 +313,24 @@ bool SceneRenderer::createParticleDescriptors() {
 
 bool SceneRenderer::createWater() {
     const VkExtent2D cells{kWaterCells, kWaterCells};
-    for (auto& h : waterHeights_) {
-        if (!vk_->createImage(cells, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, h)) {
-            return false;
+    constexpr VkImageUsageFlags stateUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    constexpr VkImageUsageFlags surfaceUsage = stateUsage | VK_IMAGE_USAGE_SAMPLED_BIT;
+    // The shader declares r32f and rgba16f explicitly. A driver that
+    // cannot supply either combination can still draw a flat pool.
+    const bool simulate = vk_->supportsImage(cells, VK_FORMAT_R32_SFLOAT, stateUsage) &&
+                          vk_->supportsImage(cells, kHdr, surfaceUsage, VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT);
+    if (simulate) {
+        for (auto& h : waterHeights_) {
+            if (!vk_->createImage(cells, VK_FORMAT_R32_SFLOAT, stateUsage, h)) return false;
         }
     }
-    if (!vk_->createImage(cells, kHdr,
-                          VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                          waterSurface_)) {
-        return false;
-    }
+    const VkImageUsageFlags sampledSurface = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    if (!vk_->createImage(simulate ? cells : VkExtent2D{1, 1}, kHdr,
+                          simulate ? surfaceUsage : sampledSurface, waterSurface_)) return false;
+    if (!simulate) LOGW("water storage image formats unavailable: using a flat surface");
 
-    // Steps and the surface pass: heights now, before and next, then the surface (water_*.comp).
-    std::array<VkDescriptorSetLayoutBinding, 4> storage{};
-    for (uint32_t i = 0; i < storage.size(); ++i) {
-        storage[i].binding = i;
-        storage[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        storage[i].descriptorCount = 1;
-        storage[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    }
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = static_cast<uint32_t>(storage.size());
-    layoutInfo.pBindings = storage.data();
-    VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &waterSetLayout_));
     VkDescriptorSetLayoutBinding sampled{};
     sampled.binding = 0;
     sampled.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -345,6 +349,29 @@ bool SceneRenderer::createWater() {
         VK_TRY(vkAllocateDescriptorSets(vk_->device, &info, &set));
         return true;
     };
+    if (!allocate(sceneSetLayout_, sceneSet_)) return false;
+    const VkDescriptorImageInfo surface{sampler_, waterSurface_.view, VK_IMAGE_LAYOUT_GENERAL};
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.dstSet = sceneSet_;
+    write.dstBinding = 0;
+    write.descriptorCount = 1;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.pImageInfo = &surface;
+    vkUpdateDescriptorSets(vk_->device, 1, &write, 0, nullptr);
+    if (!simulate) return true;
+
+    // Steps and the surface pass: heights now, before and next, then the surface (water_*.comp).
+    std::array<VkDescriptorSetLayoutBinding, 4> storage{};
+    for (uint32_t i = 0; i < storage.size(); ++i) {
+        storage[i].binding = i;
+        storage[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        storage[i].descriptorCount = 1;
+        storage[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+    layoutInfo.bindingCount = static_cast<uint32_t>(storage.size());
+    layoutInfo.pBindings = storage.data();
+    VK_TRY(vkCreateDescriptorSetLayout(vk_->device, &layoutInfo, nullptr, &waterSetLayout_));
     for (uint32_t i = 0; i < waterSets_.size(); ++i) {
         if (!allocate(waterSetLayout_, waterSets_[i])) return false;
         const std::array<const vk::Image*, 4> images{&waterHeights_[(i + 1) % 3], &waterHeights_[i],
@@ -362,17 +389,6 @@ bool SceneRenderer::createWater() {
         }
         vkUpdateDescriptorSets(vk_->device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }
-    if (!allocate(sceneSetLayout_, sceneSet_)) return false;
-    const VkDescriptorImageInfo surface{sampler_, waterSurface_.view, VK_IMAGE_LAYOUT_GENERAL};
-    VkWriteDescriptorSet write{};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = sceneSet_;
-    write.dstBinding = 0;
-    write.descriptorCount = 1;
-    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write.pImageInfo = &surface;
-    vkUpdateDescriptorSets(vk_->device, 1, &write, 0, nullptr);
-
     VkPushConstantRange push{VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(WaterParams)};
     static_assert(sizeof(WaterParams) == 16, "push constant block must match water_params.glsl");
     VkPipelineLayoutCreateInfo info{};
@@ -393,12 +409,13 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
                   "push constant blocks must match the shaders");
     VkPipelineLayoutCreateInfo sceneInfo{};
     sceneInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    sceneInfo.setLayoutCount = 1;
+    sceneInfo.setLayoutCount = sceneSetLayout_ ? 1u : 0u;
     sceneInfo.pSetLayouts = &sceneSetLayout_;
     sceneInfo.pushConstantRangeCount = 1;
     sceneInfo.pPushConstantRanges = &push;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &sceneInfo, nullptr, &sceneLayout_));
     VkPipelineLayoutCreateInfo samplingInfo = sceneInfo;
+    samplingInfo.setLayoutCount = 1;
     samplingInfo.pSetLayouts = &setLayout_;
     VK_TRY(vkCreatePipelineLayout(vk_->device, &samplingInfo, nullptr, &samplingLayout_));
 
@@ -411,11 +428,12 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     particleInfo.pSetLayouts = &particleSetLayout_;
     particleInfo.pushConstantRangeCount = 1;
     particleInfo.pPushConstantRanges = &particlePush;
-    VK_TRY(vkCreatePipelineLayout(vk_->device, &particleInfo, nullptr, &particleLayout_));
-    if (!named(vk_->computePipeline(particleLayout_, kParticlesCompSpirv, simulatePipeline_), "particles.comp") ||
-        !named(vk_->graphicsPipeline(particlePass_, 1, particleLayout_, kParticlesVertSpirv, kParticlesFragSpirv, vk::Blend::Additive,
-                               particlePipeline_, VK_PRIMITIVE_TOPOLOGY_POINT_LIST), "Particles")) {
-        return false;
+    if (kind_ == Kind::Pool) {
+        VK_TRY(vkCreatePipelineLayout(vk_->device, &particleInfo, nullptr, &particleLayout_));
+        if (!named(vk_->computePipeline(particleLayout_, kParticlesCompSpirv, simulatePipeline_), "particles.comp") ||
+            !named(vk_->graphicsPipeline(particlePass_, 1, particleLayout_, kParticlesVertSpirv, kParticlesFragSpirv,
+                                         vk::Blend::Additive, particlePipeline_, VK_PRIMITIVE_TOPOLOGY_POINT_LIST),
+                   "Particles")) return false;
     }
 
     const std::span<const uint32_t> vertex = kFullscreenVertSpirv;
@@ -447,9 +465,9 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
                                           byQuality<int32_t>(quality_, 3, 3, 5),
                                           byQuality<int32_t>(quality_, 2, 2, 3));
     const VkSpecializationInfo* sceneConstants = hole ? &holeConstants.info : &samples.info;
-    return named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, scene, vk::Blend::None,
+    return (forest || named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, scene, vk::Blend::None,
                                  scenePipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vk::Depth::None,
-                                 sceneConstants), "Scene") &&
+                                 sceneConstants), "Scene")) &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, taa, vk::Blend::None, taaPipeline_), "Taa") &&
            named(vk_->graphicsPipeline(writePass_, 1, samplingLayout_, vertex, kBloomDownFragSpirv, vk::Blend::None,
                                  downPipeline_), "BloomDown") &&
@@ -508,7 +526,7 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
         readable(cmd);
         clearParticles(cmd);
     } else {
-        recordWater(cmd, time);
+        if (waterStepPipeline_) recordWater(cmd, time);
         pass(cmd, scenePass_, sceneFramebuffer_, extent_);
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, scenePipeline_);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, sceneLayout_, 0, 1, &sceneSet_, 0, nullptr);
@@ -591,7 +609,7 @@ bool SceneRenderer::createForest() {
     // Colour and distance as the pool's pass leaves them; the sky covers every pixel first.
     const std::array<VkAttachmentDescription, 2> colours{
         attachment(kHdr, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
-        attachment(kDistance, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
+        attachment(distanceFormat_, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED),
     };
     VkAttachmentDescription depth{};
     depth.format = vk_->depthFormat;
@@ -673,16 +691,20 @@ bool SceneRenderer::createForest() {
                                        vk::Blend::Additive, forestRainPipeline_), "ForestRain");
 }
 
-// The sun's shadow map: 16-bit depth, which every device can draw into and
-// sample; nearest texels, compared in the shader's own disc of taps.
+// Prefer 16-bit depth to save bandwidth. The map must also be sampleable.
 bool SceneRenderer::createForestShadow() {
     const VkExtent2D size{shadowRes_, shadowRes_};
-    if (!vk_->createImage(size, VK_FORMAT_D16_UNORM,
-                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, shadow_)) {
-        return false;
+    constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    VkFormat format = VK_FORMAT_UNDEFINED;
+    for (auto candidate : {VK_FORMAT_D16_UNORM, VK_FORMAT_D32_SFLOAT, VK_FORMAT_X8_D24_UNORM_PACK32}) {
+        if (vk_->supportsImage(size, candidate, usage)) {
+            format = candidate;
+            break;
+        }
     }
+    if (format == VK_FORMAT_UNDEFINED || !vk_->createImage(size, format, usage, shadow_)) return false;
     VkAttachmentDescription depth{};
-    depth.format = VK_FORMAT_D16_UNORM;
+    depth.format = format;
     depth.samples = VK_SAMPLE_COUNT_1_BIT;
     depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -747,8 +769,9 @@ void SceneRenderer::recordForestShadow(VkCommandBuffer cmd) {
     barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &barrier,
-                         0, nullptr, 0, nullptr);
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                         VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                         0, 1, &barrier, 0, nullptr, 0, nullptr);
 }
 
 // The forest: the sky behind everything, then the ground, the trunks and the
@@ -888,6 +911,7 @@ void SceneRenderer::recordParticles(VkCommandBuffer cmd, float time) {
     params.dt = frame_ == 0 ? 0.0f : std::clamp(time - previousTime_, 0.0f, 0.05f);
     params.count = kParticles;
     params.frame = frame_;
+    params.maxPointSize = vk_->maxPointSize;
     const VkShaderStageFlags stages = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     // Last frame's draw read the particles this step overwrites.
@@ -930,13 +954,10 @@ void SceneRenderer::recordParticles(VkCommandBuffer cmd, float time) {
     readable(cmd);
 }
 
-void SceneRenderer::recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float time) {
-    const VkViewport viewport{0.0f, 0.0f, static_cast<float>(screen.width), static_cast<float>(screen.height), 0.0f, 1.0f};
-    const VkRect2D scissor{{0, 0}, screen};
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
+void SceneRenderer::recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float time,
+                                VkSurfaceTransformFlagBitsKHR transform, bool srgb) {
     const float bloom = kind_ == Kind::White ? kWhiteBloomStrength : kBloomStrength;
-    FinalParams params{static_cast<float>(screen.width), static_cast<float>(screen.height), time, bloom};
+    FinalParams params{static_cast<float>(screen.width), static_cast<float>(screen.height), time, bloom, transform, srgb};
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, finalPipeline_);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, samplingLayout_, 0, 1, &finalSets_[written_], 0, nullptr);
     vkCmdPushConstants(cmd, samplingLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);

@@ -59,7 +59,7 @@ internal object NativeBridge {
     /** `name|api version|driver version|vendor id|device id` of the Vulkan GPU; empty without Vulkan 1.1. */
     @JvmStatic external fun gpuDescribe(): String
 
-    @JvmStatic external fun gpuStop()
+    @JvmStatic external fun gpuStop(out: LongArray)
 
     @JvmStatic external fun gpuSnapshotStride(): Int
 

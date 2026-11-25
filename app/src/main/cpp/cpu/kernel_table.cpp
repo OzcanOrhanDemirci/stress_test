@@ -65,7 +65,9 @@ const KernelSpec* kernelAt(int index) {
 }
 
 bool kernelSupported(const KernelSpec& spec) {
-    // Linux's arm64 hwcap bits (asm/hwcap.h), spelled out so an older sysroot still builds.
+    // These are process-wide capabilities, safe even if a worker migrates
+    // between unlike cores. The baseline kernels use AArch64 FP/Advanced SIMD.
+    // BFMMLA requires BF16; no kernel uses the separate FP16 or SVE features.
     constexpr unsigned long kHwcapAsimdDp = 1UL << 20;
     constexpr unsigned long kHwcap2I8mm = 1UL << 13;
     constexpr unsigned long kHwcap2Bf16 = 1UL << 14;

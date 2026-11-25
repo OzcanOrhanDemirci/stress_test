@@ -27,7 +27,7 @@ layout(push_constant) uniform ParticleParams {
     float dt;         // seconds since the last step
     uint count;
     uint frame;       // 0 on the first step: every particle is born
-    float spare0;
+    float maxPointSize;
     float spare1;
 } params;
 

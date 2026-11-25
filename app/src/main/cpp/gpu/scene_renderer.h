@@ -88,7 +88,7 @@ public:
         float dt;
         uint32_t count;
         uint32_t frame;
-        float spare0;
+        float maxPointSize;
         float spare1;
     };
 
@@ -124,6 +124,8 @@ public:
         float height;
         float time;
         float bloomStrength;
+        uint32_t transform;
+        uint32_t srgb;
     };
 
     static constexpr uint32_t kBloomLevels = 5;
@@ -136,7 +138,8 @@ public:
     void record(VkCommandBuffer cmd, float time);
 
     /** Records the final picture; call inside the present pass. */
-    void recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float time);
+    void recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float time,
+                     VkSurfaceTransformFlagBitsKHR transform, bool srgb);
 
     void destroy();
 
@@ -163,6 +166,7 @@ private:
 
     const vk::Context* vk_ = nullptr;
     VkExtent2D extent_{};
+    VkFormat distanceFormat_ = VK_FORMAT_R32_SFLOAT;
 
     vk::Image color_;
     vk::Image particles_;

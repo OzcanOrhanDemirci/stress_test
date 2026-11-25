@@ -4,10 +4,13 @@ import dev.ozcan.stress.TestSamples
 import dev.ozcan.stress.TestSamples.sample
 import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.GpuBurner
+import dev.ozcan.stress.engine.GpuRunStatus
 import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.LoadControl
 import dev.ozcan.stress.engine.LoadSettings
+import dev.ozcan.stress.engine.SceneDraw
 import dev.ozcan.stress.engine.SceneKind
+import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.engine.WorkUnit
 import dev.ozcan.stress.engine.Workload
 import dev.ozcan.stress.safety.SafetyReason
@@ -53,6 +56,8 @@ class RunControllerTest {
             private set
         var workload: Workload? = null
             private set
+        var status = GpuRunStatus()
+        var finalStatus: GpuRunStatus? = null
 
         override suspend fun start(workload: Workload, settings: LoadSettings): String {
             started++
@@ -60,8 +65,11 @@ class RunControllerTest {
             return outcome
         }
 
-        override suspend fun stop() {
+        override fun gpuStatus() = status
+
+        override suspend fun stop(): GpuRunStatus {
             stopped++
+            return finalStatus ?: status
         }
     }
 
@@ -247,10 +255,12 @@ class RunControllerTest {
     @Test
     fun `a gpu that dies mid run ends the run as a gpu failure`() = runTest {
         val source = StubSource()
-        val controller = controller(source, StubDriver(), store())
+        val driver = StubDriver()
+        val controller = controller(source, driver, store())
         val samples = emit(source) { t ->
             val gpu = if (t < 3.0) TestSamples.gpu(TestSamples.gpuFp32, frames = (t * 25).toLong())
             else TestSamples.gpu(TestSamples.gpuFp32, frames = 100).copy(state = GpuState.DeviceLost)
+            driver.status = GpuRunStatus().include(gpu)
             sample(t, gpu = gpu)
         }
 
@@ -259,6 +269,46 @@ class RunControllerTest {
 
         val record = (controller.state.value as RunState.Finished).record
         assertEquals(EndReason.GpuFailed.name, record.endReason)
+    }
+
+    @Test
+    fun `gpu failure before any running sample ends the run without a record`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver()
+        val runs = store()
+        val controller = controller(source, driver, runs)
+        val samples = emit(source) { t ->
+            val gpu = if (driver.started == 0) sample(t).gpu else sample(t).gpu.copy(state = GpuState.Failed, frames = 1)
+            driver.status = GpuRunStatus().include(gpu)
+            sample(t, gpu = gpu)
+        }
+
+        controller.run(StressMode.Gpu, StressDuration.One, RunOptions())
+        samples.cancel()
+
+        assertEquals(RunState.Failed.GpuFailed, controller.state.value)
+        assertTrue(runs.list().isEmpty())
+        assertEquals(1, driver.stopped)
+        assertTrue(testScheduler.currentTime < 3_000)
+    }
+
+    @Test
+    fun `a failure first seen during teardown takes precedence over a user stop`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver().apply { finalStatus = GpuRunStatus(failed = true) }
+        val runs = store()
+        val controller = controller(source, driver, runs)
+        val samples = emit(source) { sample(it) }
+        launch {
+            delay(2_100)
+            controller.requestStop()
+        }
+
+        controller.run(StressMode.Gpu, StressDuration.One, RunOptions())
+        samples.cancel()
+
+        assertEquals(RunState.Failed.GpuFailed, controller.state.value)
+        assertTrue(runs.list().isEmpty())
     }
 
     @Test
@@ -293,6 +343,25 @@ class RunControllerTest {
         assertEquals("gpu_fp32", gpu.burner?.key)
         assertEquals(true, gpu.scene)
         assertEquals(SceneKind.Pool, gpu.kind)
+    }
+
+    @Test
+    fun `a cinematic run stores the settled minimum from teardown`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver().apply {
+            finalStatus = GpuRunStatus(lowestSceneDraw = SceneDraw(SceneQuality.Medium, 4325))
+        }
+        val runs = store()
+        val controller = controller(source, driver, runs)
+        val samples = emit(source) { sample(it) }
+
+        controller.run(StressMode.CinematicHole, StressDuration.One, RunOptions(quality = SceneQuality.High))
+        samples.cancel()
+
+        val record = runs.list().single()
+        assertEquals("High", record.quality)
+        assertEquals("Medium", record.drawnQuality)
+        assertEquals(43.25, record.drawnScalePercent)
     }
 
     @Test

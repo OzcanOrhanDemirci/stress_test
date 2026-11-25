@@ -8,6 +8,7 @@ import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.GpuBurner
 import dev.ozcan.stress.engine.GpuSnapshot
 import dev.ozcan.stress.engine.GpuState
+import dev.ozcan.stress.engine.SceneDraw
 import dev.ozcan.stress.engine.WorkUnit
 import dev.ozcan.stress.telemetry.ClusterRole
 import dev.ozcan.stress.telemetry.Sample
@@ -47,6 +48,8 @@ data class GpuLive(
      * closed to apps.
      */
     val busyFromFrames: Double?,
+    /** The latest completed draw once the startup probe has settled. */
+    val sceneDraw: SceneDraw?,
 ) {
     companion object {
         fun from(first: GpuSnapshot, last: GpuSnapshot, seconds: Double): GpuLive {
@@ -65,6 +68,7 @@ data class GpuLive(
                 } else {
                     null
                 },
+                sceneDraw = last.settledSceneDraw,
             )
         }
     }

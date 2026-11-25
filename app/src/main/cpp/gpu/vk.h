@@ -88,14 +88,16 @@ void transition(VkCommandBuffer cmd, VkImage image, VkImageLayout from, VkImageL
 
 /** The device and what allocating on it needs. Plain handles: whoever creates it destroys the device. */
 struct Context {
+    VkPhysicalDevice physical = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     VkPhysicalDeviceMemoryProperties memory{};
+    uint32_t maxRenderDimension = 4096;
     VkQueue queue = VK_NULL_HANDLE;
     VkCommandPool commandPool = VK_NULL_HANDLE;
     /** The first of kDepthFormats the device can draw depth into. */
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
     /** Whether points may be larger than a pixel (particle sprites); without it they draw one pixel wide. */
-    bool largePoints = true;
+    float maxPointSize = 1.0f;
 
     bool memoryType(uint32_t bits, VkMemoryPropertyFlags wanted, uint32_t& out) const;
 
@@ -103,6 +105,8 @@ struct Context {
     bool createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, std::initializer_list<VkMemoryPropertyFlags> preferences,
                       Buffer& out) const;
     bool createImage(VkExtent2D size, VkFormat format, VkImageUsageFlags usage, Image& out) const;
+    bool supportsImage(VkExtent2D size, VkFormat format, VkImageUsageFlags usage,
+                       VkFormatFeatureFlags features = 0) const;
     bool createView(VkImage image, VkFormat format, VkImageView& out) const;
     bool shaderModule(std::span<const uint32_t> code, VkShaderModule& out) const;
     void destroy(Buffer& buffer) const;
@@ -129,7 +133,8 @@ struct Context {
                           VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                           Depth depth = Depth::None, const VkSpecializationInfo* fragmentConstants = nullptr) const;
 
-    bool computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const;
+    bool computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out,
+                         const VkSpecializationInfo* constants = nullptr) const;
 
     bool linearClampSampler(VkSampler& out) const;
 

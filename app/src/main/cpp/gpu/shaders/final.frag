@@ -15,9 +15,12 @@ layout(push_constant) uniform Final {
     vec2 resolution;   // screen, pixels
     float time;
     float bloomStrength;
+    uint transform;
+    uint srgb;
 } params;
 
 #include "scene.glsl"
+#include "present.glsl"
 
 layout(location = 0) flat in int layer;
 layout(location = 0) out vec4 color;
@@ -60,7 +63,8 @@ float hash(vec2 p) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / params.resolution;
+    vec2 frag = uprightPixel(gl_FragCoord.xy, params.resolution, params.transform);
+    vec2 uv = frag / params.resolution;
     vec3 c = catmullRom(uv);
 #ifdef SCENE_WHITE
     // The white world is about clarity: no colour fringing; a light unsharp
@@ -100,7 +104,7 @@ void main() {
 #ifdef SCENE_HOLE
     grain = 0.004;
 #endif
-    c += (hash(gl_FragCoord.xy + fract(params.time) * 97.0) - 0.5) * grain;
+    c += (hash(frag + fract(params.time) * 97.0) - 0.5) * grain;
 #endif
-    color = vec4(pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2)), 1.0);
+    color = vec4(presentColor(pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2)), params.srgb), 1.0);
 }
