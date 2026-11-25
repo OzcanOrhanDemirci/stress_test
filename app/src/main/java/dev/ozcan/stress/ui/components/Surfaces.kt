@@ -154,7 +154,7 @@ fun StatusChip(
     val hitTarget = if (onClick == null) Modifier else Modifier.heightIn(min = 48.dp)
         .clickable(role = Role.Button, onClick = onClick)
     Box(modifier.then(hitTarget), contentAlignment = Alignment.Center) {
-        OutlinedTag(text.upper(), color, icon = icon, tint = 0.10f, style = StressType.Label, maxLines = 2)
+        OutlinedTag(text.upper(), color, icon = icon, tint = 0.10f, style = StressType.Label)
     }
 }
 
@@ -174,7 +174,6 @@ private fun OutlinedTag(
     tint: Float = 0f,
     background: Color = Color.Transparent,
     style: TextStyle,
-    maxLines: Int = 1,
 ) {
     Row(
         Modifier.background(color.copy(alpha = tint).compositeOver(background), ChipShape)
@@ -183,7 +182,7 @@ private fun OutlinedTag(
         Alignment.CenterVertically,
     ) {
         if (icon != null) Icon(icon, null, tint = color, modifier = Modifier.size(14.dp))
-        Text(text, style = style, color = color, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+        FitText(text, style, Modifier.weight(1f, fill = false), color = color)
     }
 }
 

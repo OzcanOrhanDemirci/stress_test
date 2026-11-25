@@ -65,9 +65,9 @@ fun CountUpNumber(
             }
         }
     }
-    Text(
+    FitText(
         value?.let { format(if (animating.value) reading.value.toDouble() else it) } ?: Format.MISSING,
-        modifier, style = style, color = color, maxLines = 1,
+        style, modifier, color = color, minScale = 0.6f,
     )
 }
 
