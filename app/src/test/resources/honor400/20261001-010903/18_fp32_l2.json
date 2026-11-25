@@ -1,0 +1,10 @@
+{
+  "pluggedDuringRun": false,
+  "loadMax5sWatts": 7.03227341999999,
+  "idle": {
+    "meanWatts": 0.5925778500000003
+  },
+  "load": {
+    "meanWatts": 6.308031308333334
+  }
+}
