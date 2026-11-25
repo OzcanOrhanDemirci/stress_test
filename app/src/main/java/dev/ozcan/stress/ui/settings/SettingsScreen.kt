@@ -3,40 +3,28 @@ package dev.ozcan.stress.ui.settings
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BrightnessHigh
-import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.DeveloperBoard
 import androidx.compose.material.icons.rounded.GppBad
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Thermostat
-import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.ViewInAr
@@ -44,29 +32,26 @@ import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.ozcan.stress.BuildConfig
 import dev.ozcan.stress.R
+import dev.ozcan.stress.engine.SceneKind
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.safety.SafetyLimits
@@ -74,20 +59,22 @@ import dev.ozcan.stress.settings.AppLanguage
 import dev.ozcan.stress.settings.AppLanguages
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
-import dev.ozcan.stress.ui.components.GlassCard
 import dev.ozcan.stress.ui.components.Hairline
 import dev.ozcan.stress.ui.components.IconBadge
 import dev.ozcan.stress.ui.components.NavigationRow
 import dev.ozcan.stress.ui.components.Panel
-import dev.ozcan.stress.ui.components.SectionHeader
+import dev.ozcan.stress.ui.components.SecondaryButton
+import dev.ozcan.stress.ui.components.SectionLabel
 import dev.ozcan.stress.ui.components.SegmentedControl
+import dev.ozcan.stress.ui.components.Stack
+import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.SwitchRow
+import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.Wordmark
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.StressColors
-import dev.ozcan.stress.ui.theme.StressMotion
-import dev.ozcan.stress.ui.upper
+import dev.ozcan.stress.ui.theme.StressType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -96,238 +83,194 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsScreen(onOpenDevice: () -> Unit) {
-    val context = context()
-    val graph = context.graph
+    val graph = context().graph
     val settings by graph.settings.settings.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    var confirmOff by remember { mutableStateOf(false) }
-    var confirmClear by remember { mutableStateOf(false) }
+    var confirmOff by rememberSaveable { mutableStateOf(false) }
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp)
-            .padding(top = 14.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall)
-
-        SafetyCard(
-            enabled = settings.deviceSafety,
-            onToggle = { on ->
-                if (on) {
-                    graph.settings.update { it.copy(deviceSafety = true) }
-                    if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
-                } else {
-                    confirmOff = true
-                }
-            },
-        )
-
-        SectionHeader(stringResource(R.string.settings_section_graphics))
-        GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.settings_quality), style = MaterialTheme.typography.titleSmall)
-            Text(stringResource(R.string.settings_quality_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-            Spacer(Modifier.height(12.dp))
-            SegmentedControl(
-                options = SceneQuality.entries,
-                selected = settings.quality,
-                onSelect = { q -> graph.settings.update { it.copy(quality = q) } },
-                label = { stringResource(Labels.quality(it)) },
+    Column(Modifier.fillMaxSize()) {
+        TopBar(stringResource(R.string.settings_title), modifier = Modifier.statusBarsPadding())
+        Stack(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
+            SafetyCard(
+                enabled = settings.deviceSafety,
+                onToggle = { on ->
+                    if (on) {
+                        graph.settings.update { it.copy(deviceSafety = true) }
+                        if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                    } else {
+                        confirmOff = true
+                    }
+                },
             )
-            Spacer(Modifier.height(10.dp))
-            AnimatedContent(
-                targetState = settings.quality,
-                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(150)) },
-                label = "quality",
-            ) { q ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(Labels.qualityDetail(q)), style = MaterialTheme.typography.bodySmall, color = StressColors.Text)
-                    Text(
-                        stringResource(R.string.settings_quality_scale, q.scalePercent(dev.ozcan.stress.engine.SceneKind.Pool), q.scalePercent(dev.ozcan.stress.engine.SceneKind.Forest)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = StressColors.TextFaint,
-                    )
-                }
+
+            SettingsSection(R.string.settings_section_graphics) {
+                QualitySettings(settings.quality) { q -> graph.settings.update { it.copy(quality = q) } }
+                Hairline(Modifier.padding(top = 8.dp))
+                SwitchRow(
+                    title = stringResource(R.string.settings_scene_burner),
+                    description = stringResource(R.string.settings_scene_burner_detail),
+                    checked = settings.sceneBurner,
+                    onCheckedChange = { on -> graph.settings.update { it.copy(sceneBurner = on) } },
+                    icon = Icons.Rounded.Whatshot,
+                )
             }
-            Spacer(Modifier.height(10.dp))
-            SwitchRow(
-                title = stringResource(R.string.settings_scene_burner),
-                description = stringResource(R.string.settings_scene_burner_detail),
-                checked = settings.sceneBurner,
-                onCheckedChange = { on -> graph.settings.update { it.copy(sceneBurner = on) } },
-                icon = Icons.Rounded.Whatshot,
-                iconTint = StressColors.Accent,
-            )
+
+            SettingsSection(R.string.settings_section_test) {
+                SwitchRow(
+                    title = stringResource(R.string.settings_display),
+                    description = stringResource(R.string.settings_display_detail),
+                    checked = settings.maxDisplay,
+                    onCheckedChange = { on -> graph.settings.update { it.copy(maxDisplay = on) } },
+                    icon = Icons.Rounded.BrightnessHigh,
+                )
+                Hairline()
+                SwitchRow(
+                    title = stringResource(R.string.settings_haptics),
+                    description = stringResource(R.string.settings_haptics_detail),
+                    checked = settings.haptics,
+                    onCheckedChange = { on -> graph.settings.update { it.copy(haptics = on) } },
+                    icon = Icons.Rounded.Vibration,
+                )
+                Hairline()
+                SwitchRow(
+                    title = stringResource(R.string.settings_notice),
+                    description = stringResource(R.string.settings_notice_detail),
+                    checked = settings.startupNotice,
+                    onCheckedChange = { on -> graph.settings.update { it.copy(startupNotice = on) } },
+                    icon = Icons.Rounded.WarningAmber,
+                )
+            }
+
+            SettingsSection(R.string.settings_section_language) { LanguageSettings() }
+
+            SettingsSection(R.string.settings_section_device) {
+                NavigationRow(
+                    title = stringResource(R.string.settings_device),
+                    description = stringResource(R.string.settings_device_detail),
+                    onClick = onOpenDevice,
+                    icon = Icons.Rounded.DeveloperBoard,
+                )
+                Hairline()
+                NavigationRow(
+                    title = stringResource(R.string.settings_clear),
+                    description = stringResource(R.string.settings_clear_detail),
+                    onClick = { confirmClear = true },
+                    icon = Icons.Rounded.DeleteSweep,
+                    iconTint = StressColors.Bad,
+                    trailing = null,
+                )
+            }
+
+            SettingsSection(R.string.settings_section_about) { About() }
         }
-
-        SectionHeader(stringResource(R.string.settings_section_test))
-        GlassCard(Modifier.fillMaxWidth(), padding = 12.dp) {
-            SwitchRow(
-                title = stringResource(R.string.settings_display),
-                description = stringResource(R.string.settings_display_detail),
-                checked = settings.maxDisplay,
-                onCheckedChange = { on -> graph.settings.update { it.copy(maxDisplay = on) } },
-                icon = Icons.Rounded.BrightnessHigh,
-                iconTint = StressColors.Warn,
-            )
-            SwitchRow(
-                title = stringResource(R.string.settings_haptics),
-                description = stringResource(R.string.settings_haptics_detail),
-                checked = settings.haptics,
-                onCheckedChange = { on -> graph.settings.update { it.copy(haptics = on) } },
-                icon = Icons.Rounded.Vibration,
-                iconTint = StressColors.Cool,
-            )
-            SwitchRow(
-                title = stringResource(R.string.settings_notice),
-                description = stringResource(R.string.settings_notice_detail),
-                checked = settings.startupNotice,
-                onCheckedChange = { on -> graph.settings.update { it.copy(startupNotice = on) } },
-                icon = Icons.Rounded.WarningAmber,
-                iconTint = StressColors.Accent,
-            )
-        }
-
-        SectionHeader(stringResource(R.string.settings_section_language))
-        LanguageCard()
-
-        SectionHeader(stringResource(R.string.settings_section_device))
-        GlassCard(Modifier.fillMaxWidth(), padding = 12.dp) {
-            NavigationRow(
-                title = stringResource(R.string.settings_device),
-                description = stringResource(R.string.settings_device_detail),
-                onClick = onOpenDevice,
-                icon = Icons.Rounded.DeveloperBoard,
-                iconTint = StressColors.Accent,
-            )
-            NavigationRow(
-                title = stringResource(R.string.settings_clear),
-                description = stringResource(R.string.settings_clear_detail),
-                onClick = { confirmClear = true },
-                icon = Icons.Rounded.DeleteSweep,
-                iconTint = StressColors.Bad,
-                trailing = null,
-            )
-        }
-
-        SectionHeader(stringResource(R.string.settings_section_about))
-        AboutCard(graph.appVersion)
     }
 
     if (confirmOff) {
+        val dismiss = { confirmOff = false }
         StressDialog(
-            onDismissRequest = { confirmOff = false },
-            icon = { Icon(Icons.Rounded.Warning, null, tint = StressColors.Bad) },
+            onDismissRequest = dismiss,
+            icon = { IconBadge(Icons.Rounded.Warning, StressColors.Bad) },
             title = { Text(stringResource(R.string.safety_off_title)) },
             text = { Text(stringResource(R.string.safety_off_text), color = StressColors.TextDim) },
             confirmButton = {
-                TextButton(onClick = {
+                SecondaryButton(stringResource(R.string.safety_off_confirm), color = StressColors.Bad, onClick = {
                     confirmOff = false
                     graph.settings.update { it.copy(deviceSafety = false) }
                     if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
-                }) { Text(stringResource(R.string.safety_off_confirm), color = StressColors.Bad, fontWeight = FontWeight.SemiBold) }
+                })
             },
-            dismissButton = { TextButton(onClick = { confirmOff = false }) { Text(stringResource(R.string.safety_off_keep)) } },
+            dismissButton = { SecondaryButton(stringResource(R.string.safety_off_keep), onClick = dismiss) },
         )
     }
     if (confirmClear) {
+        val dismiss = { confirmClear = false }
         StressDialog(
-            onDismissRequest = { confirmClear = false },
-            icon = { Icon(Icons.Rounded.DeleteSweep, null, tint = StressColors.Bad) },
+            onDismissRequest = dismiss,
+            icon = { IconBadge(Icons.Rounded.DeleteSweep, StressColors.Bad) },
             title = { Text(stringResource(R.string.settings_clear_title)) },
             text = { Text(stringResource(R.string.settings_clear_text), color = StressColors.TextDim) },
             confirmButton = {
-                TextButton(onClick = {
+                SecondaryButton(stringResource(R.string.delete), color = StressColors.Bad, onClick = {
                     confirmClear = false
                     scope.launch { withContext(Dispatchers.IO) { graph.runs.list().forEach { graph.runs.delete(it.id) } } }
-                }) { Text(stringResource(R.string.delete), color = StressColors.Bad) }
+                })
             },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { SecondaryButton(stringResource(R.string.cancel), onClick = dismiss) },
         )
     }
 }
 
-/** Device safety with its current state, limits and toggle. */
+@Composable
+private fun SettingsSection(@StringRes label: Int, content: @Composable ColumnScope.() -> Unit) {
+    Stack(spacing = 8) {
+        SectionLabel(stringResource(label))
+        Panel(Modifier.fillMaxWidth(), content = content)
+    }
+}
+
+@Composable
+private fun QualitySettings(quality: SceneQuality, onSelect: (SceneQuality) -> Unit) {
+    Stack(spacing = 8) {
+        Text(stringResource(R.string.settings_quality), style = StressType.Heading)
+        Text(stringResource(R.string.settings_quality_detail), style = StressType.BodySmall, color = StressColors.TextDim)
+        SegmentedControl(SceneQuality.entries, quality, onSelect, label = { stringResource(Labels.quality(it)) })
+        Text(stringResource(Labels.qualityDetail(quality)), style = StressType.BodySmall)
+        Text(
+            stringResource(
+                R.string.settings_quality_scale,
+                quality.scalePercent(SceneKind.Pool),
+                quality.scalePercent(SceneKind.Forest),
+            ),
+            style = StressType.Code,
+            color = StressColors.TextDim,
+        )
+    }
+}
+
 @Composable
 private fun SafetyCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
-    val color by animateColorAsState(if (enabled) StressColors.Good else StressColors.Bad, StressMotion.state(), label = "safety")
+    val color = if (enabled) StressColors.Good else StressColors.Bad
+    val icon = if (enabled) Icons.Rounded.Shield else Icons.Rounded.GppBad
     Panel(Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBadge(if (enabled) Icons.Rounded.Shield else Icons.Rounded.GppBad, color, size = 56.dp)
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_safety), style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        stringResource(if (enabled) R.string.safety_status_on else R.string.safety_status_off),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = color,
-                    )
-                }
-                Switch(
-                    checked = enabled,
-                    onCheckedChange = onToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = StressColors.Good,
-                        checkedBorderColor = StressColors.Good,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = StressColors.Bad.copy(alpha = 0.6f),
-                        uncheckedBorderColor = StressColors.Bad,
+        SwitchRow(stringResource(R.string.settings_safety), enabled, onToggle, icon = icon, iconTint = color)
+        Hairline()
+        Stack(Modifier.padding(top = 12.dp), spacing = 8) {
+            StatusChip(stringResource(if (enabled) R.string.safety_status_on else R.string.safety_status_off), color)
+            if (enabled) {
+                val limits = SafetyLimits()
+                Text(stringResource(R.string.safety_on_text), style = StressType.BodySmall, color = StressColors.TextDim)
+                Limit(Icons.Rounded.Thermostat, stringResource(R.string.safety_limit_battery, Format.celsius(limits.batteryStop, 0)))
+                Limit(Icons.Rounded.Thermostat, stringResource(R.string.safety_limit_chip, Format.celsius(limits.chipStop, 0)))
+                Limit(Icons.Rounded.Thermostat, stringResource(R.string.safety_limit_skin, Format.celsius(limits.skinStop, 0)))
+                Limit(Icons.Rounded.Warning, stringResource(R.string.safety_limit_thermal, stringResource(Labels.thermalStatus(limits.thermalStop))))
+                Limit(Icons.Rounded.BatteryAlert, stringResource(R.string.safety_limit_level, Format.percentValue(limits.levelStop)))
+                Limit(
+                    Icons.Rounded.Shield,
+                    stringResource(
+                        R.string.safety_limit_start,
+                        Format.celsius(limits.batteryStart, 0),
+                        Format.celsius(limits.chipStart, 0),
+                        Format.percentValue(limits.levelStart),
                     ),
                 )
-            }
-            AnimatedContent(
-                targetState = enabled,
-                transitionSpec = { fadeIn(StressMotion.enter()) togetherWith fadeOut(StressMotion.exit()) },
-                label = "safetyBody",
-            ) { on ->
-                if (on) {
-                    val limits = SafetyLimits()
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.safety_on_text), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-                        Limit(Icons.Rounded.Thermostat, stringResource(R.string.safety_limit_battery, Format.celsius(limits.batteryStop, 0)))
-                        Limit(Icons.Rounded.Thermostat, stringResource(R.string.safety_limit_chip, Format.celsius(limits.chipStop, 0)))
-                        Limit(Icons.Rounded.Thermostat, stringResource(R.string.safety_limit_skin, Format.celsius(limits.skinStop, 0)))
-                        Limit(Icons.Rounded.Warning, stringResource(R.string.safety_limit_thermal, stringResource(Labels.thermalStatus(limits.thermalStop))))
-                        Limit(Icons.Rounded.BatteryAlert, stringResource(R.string.safety_limit_level, Format.percentValue(limits.levelStop)))
-                        Limit(
-                            Icons.Rounded.Shield,
-                            stringResource(
-                                R.string.safety_limit_start,
-                                Format.celsius(limits.batteryStart, 0),
-                                Format.celsius(limits.chipStart, 0),
-                                Format.percentValue(limits.levelStart),
-                            ),
-                        )
-                    }
-                } else {
-                    Text(stringResource(R.string.safety_off_body), style = MaterialTheme.typography.bodySmall, color = StressColors.Text)
-                }
+            } else {
+                Text(stringResource(R.string.safety_off_body), style = StressType.Body)
             }
         }
     }
 }
 
-/**
- * The app's language: the phone's, Turkish or English. Picking one recreates
- * the activity in it (the screen and the open tab stay where they were).
- */
+/** Picking a language recreates the activity and keeps the open tab. */
 @Composable
-private fun LanguageCard() {
+private fun LanguageSettings() {
     val context = context()
     val scope = rememberCoroutineScope()
     var language by remember { mutableStateOf(AppLanguages.current(context)) }
     var pending by remember { mutableStateOf<Job?>(null) }
-    GlassCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            IconBadge(Icons.Rounded.Translate, StressColors.Cool, size = 38.dp)
-            Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(12.dp))
+    Stack(spacing = 8) {
+        Text(stringResource(R.string.settings_language), style = StressType.Heading)
         SegmentedControl(
             options = AppLanguage.entries,
             selected = language,
@@ -335,17 +278,16 @@ private fun LanguageCard() {
                 if (picked != language) {
                     language = picked
                     pending?.cancel()
-                    // Let the indicator slide over before the activity is recreated in the new language.
+                    // Allow the selected state to appear before recreating the activity.
                     pending = scope.launch {
-                        delay(280)
+                        delay(150)
                         context.findActivity()?.let { AppLanguages.set(it, picked) }
                     }
                 }
             },
             label = { stringResource(Labels.language(it)) },
         )
-        Spacer(Modifier.height(10.dp))
-        Text(languageDetail(language), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+        Text(languageDetail(language), style = StressType.BodySmall, color = StressColors.TextDim)
     }
 }
 
@@ -369,64 +311,37 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 
 private const val DEVELOPER = "Özcan Orhan Demirci"
 
-/** What the app is, what it does, and who made it. */
 @Composable
-private fun AboutCard(version: String) {
-    GlassCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Column(Modifier.weight(1f)) {
-                Wordmark(fontSize = 22.sp)
-                Text(stringResource(R.string.settings_version, version), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-            }
-        }
-        Spacer(Modifier.height(14.dp))
-        Text(stringResource(R.string.settings_about_tagline), style = MaterialTheme.typography.titleMedium, color = StressColors.Accent)
-        Spacer(Modifier.height(6.dp))
-        Text(stringResource(R.string.settings_about_text), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-        Spacer(Modifier.height(14.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Feature(Icons.Rounded.Memory, StressColors.Accent, stringResource(R.string.settings_about_cpu))
-            Feature(Icons.Rounded.ViewInAr, StressColors.Cool, stringResource(R.string.settings_about_gpu))
-            Feature(Icons.Rounded.Insights, StressColors.Good, stringResource(R.string.settings_about_analysis))
-            Feature(Icons.Rounded.Tune, StressColors.Warn, stringResource(R.string.settings_about_quality))
-        }
-        Spacer(Modifier.height(14.dp))
+private fun About() {
+    Stack(spacing = 12) {
+        Wordmark(version = stringResource(R.string.settings_version, BuildConfig.VERSION_NAME))
+        Text(stringResource(R.string.settings_about_text), style = StressType.Body)
         Hairline()
-        Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            IconBadge(Icons.Rounded.Code, StressColors.Accent, size = 38.dp)
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.settings_developer).upper(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = StressColors.TextFaint,
-                    letterSpacing = 1.5.sp,
-                )
-                Text(DEVELOPER, style = MaterialTheme.typography.titleMedium)
-            }
+        AboutFeature(Icons.Rounded.Memory, R.string.settings_about_cpu)
+        AboutFeature(Icons.Rounded.ViewInAr, R.string.settings_about_gpu)
+        AboutFeature(Icons.Rounded.Insights, R.string.settings_about_analysis)
+        AboutFeature(Icons.Rounded.Tune, R.string.settings_about_quality)
+        Hairline()
+        Stack(spacing = 4) {
+            SectionLabel(stringResource(R.string.settings_developer))
+            Text(DEVELOPER, style = StressType.Heading)
         }
-        Spacer(Modifier.height(12.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(Icons.Rounded.Info, null, tint = StressColors.TextFaint, modifier = Modifier.size(14.dp))
-            Text(stringResource(R.string.settings_licenses), style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
-        }
+        Text(stringResource(R.string.settings_licenses), style = StressType.BodySmall, color = StressColors.TextDim)
     }
 }
 
 @Composable
-private fun Feature(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, text: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(28.dp).background(tint.copy(alpha = 0.14f), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
-        }
-        Text(text, style = MaterialTheme.typography.bodySmall, color = StressColors.Text, modifier = Modifier.weight(1f).padding(top = 5.dp))
+private fun AboutFeature(icon: ImageVector, @StringRes text: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconBadge(icon, StressColors.TextDim, size = 28.dp)
+        Text(stringResource(text), style = StressType.BodySmall)
     }
 }
 
 @Composable
-private fun Limit(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Icon(icon, null, tint = StressColors.Good, modifier = Modifier.size(16.dp))
-        Text(text, style = MaterialTheme.typography.bodySmall, color = StressColors.Text)
+private fun Limit(icon: ImageVector, text: String, tint: Color = StressColors.TextDim) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
+        Text(text, style = StressType.BodySmall)
     }
 }

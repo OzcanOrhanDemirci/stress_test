@@ -296,7 +296,7 @@
     <string name="language_system">Sistem</string>
     <string name="language_turkish">Türkçe</string>
     <string name="language_english">English</string>
-    <string name="settings_section_device">Cihaz</string>
+    <string name="settings_section_device">Cihaz ve depolama</string>
     <string name="settings_device">Cihaz bilgisi ve sensörler</string>
     <string name="settings_device_detail">İşlemci, GPU, canlı değerler, uygulamanın okuyabildiği sensörler, elle yük denemeleri.</string>
     <string name="settings_clear">Geçmişi temizle</string>
@@ -308,11 +308,11 @@
     <string name="settings_about_tagline">Telefonunun gerçek sınırlarını ölçen stres testi.</string>
     <string name="settings_about_text" formatted="false">Stress Test, ekranda görünen %100 ile yetinmez. İşlemcinin hesap birimlerini, bellek yolunu ve ekran kartını aynı anda gerçekten çalıştırır; telefonunun çekebildiği en yüksek gücü, ne kadar ısındığını ve ısındıkça nasıl yavaşladığını ölçer.</string>
     <string name="settings_about_cpu">ARM assembly ile yazılmış CPU yükleri; her biri kendi sonucunu denetler, hesap hatası anında yakalanır.</string>
-    <string name="settings_about_gpu">Vulkan GPU yakıcıları ve gerçek zamanlı üç sinematik 3D sahne.</string>
+    <string name="settings_about_gpu">Vulkan GPU yükleri ve dört gerçek zamanlı 3D sahne — Havuz, Orman, Beyaz Dünya ve Kara Delik.</string>
     <string name="settings_about_analysis" tools:ignore="Typos">Güç, sıcaklık, frekans ve kısılma saniye saniye izlenir; sonunda anlaşılır bir analiz ve PDF rapor.</string>
     <string name="settings_about_quality">Giriş seviyesinden en yeni amiral gemilerine, her telefona göre grafik kalitesi.</string>
     <string name="settings_developer">Geliştiren</string>
-    <string name="settings_licenses">Yazı tipleri: Space Grotesk, JetBrains Mono (SIL Open Font License 1.1)</string>
+    <string name="settings_licenses">Arayüzde Instrument Sans, Space Mono ve Space Grotesk, PDF raporunda JetBrains Mono kullanılır. Yazı tipleri SIL Open Font License 1.1 lisanslıdır.</string>
 
     <!-- Açılış uyarısı -->
     <string name="notice_title">Cihaz güvenliği</string>
