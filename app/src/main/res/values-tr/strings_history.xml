@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- History and Compare: simple and engineering pages. -->
+    <string name="history_delete_mode">Koşu sil</string>
+    <string name="history_delete_pick">Silmek için bir koşuya dokun.</string>
+
+    <string name="compare_difference">Fark</string>
+    <string name="compare_battery_drain">Pil kaybı</string>
+    <string name="compare_summary">Özet</string>
+    <string name="compare_run_a">Koşu A</string>
+    <string name="compare_run_b">Koşu B</string>
+    <string name="compare_date">Tarih</string>
+    <string name="compare_planned">Planlanan</string>
+    <string name="compare_scale">Ölçek: ekranın %%%1$s kadarı</string>
+    <string name="compare_power">Güç ölçümü</string>
+    <string name="compare_power_valid">Geçerli</string>
+    <string name="compare_power_counter">Şarj sayacından</string>
+    <string name="compare_cadence">Akım okuma aralığı</string>
+    <string name="compare_hot_slowdown">Sıcakken yavaşladı</string>
+    <string name="compare_yes">Evet</string>
+    <string name="compare_no">Hayır</string>
+
+    <string name="compare_verdict_sustained_more">B, A\'dan %1$s daha yüksek sürekli güç tuttu.</string>
+    <string name="compare_verdict_sustained_less">B, A\'dan %1$s daha düşük sürekli güç tuttu.</string>
+    <string name="compare_verdict_peak_more">B\'nin tepe gücü A\'dan %1$s daha yüksek.</string>
+    <string name="compare_verdict_peak_less">B\'nin tepe gücü A\'dan %1$s daha düşük.</string>
+    <string name="compare_verdict_same">A ile B aynı gücü çekti.</string>
+    <string name="compare_verdict_hotter">En sıcak çipi %1$s daha sıcaktı.</string>
+    <string name="compare_verdict_cooler">En sıcak çipi %1$s daha serindi.</string>
+
+    <string name="charge_compare_verdict_more">B kurulumu pile A\'dan %1$s daha fazla sürekli güç verdi.</string>
+    <string name="charge_compare_verdict_less">B kurulumu pile A\'dan %1$s daha az sürekli güç verdi.</string>
+    <string name="charge_compare_verdict_same">İki kurulum da pile aynı sürekli gücü verdi.</string>
+</resources>
