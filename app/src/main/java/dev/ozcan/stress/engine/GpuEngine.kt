@@ -2,6 +2,7 @@ package dev.ozcan.stress.engine
 
 import android.view.Surface
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 
 /** One GPU burner as the native table describes it. */
 data class GpuBurner(val index: Int, val key: String, val code: String, val unit: WorkUnit, val verified: Boolean) {
@@ -151,8 +152,18 @@ class GpuEngine {
 
     /** Serialises the calls made on behalf of the main thread, which must not block on Vulkan setup. */
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "stress-gpu-control") }
+    private val surfaceGeneration = AtomicLong()
 
-    fun attachAsync(target: Surface) = worker.execute { attach(target) }
+    fun attachAsync(target: Surface) {
+        val generation = surfaceGeneration.incrementAndGet()
+        worker.execute {
+            synchronized(this) {
+                // SurfaceView can reuse the same Java Surface for a new native
+                // window. Validity alone cannot identify an old callback.
+                if (surfaceGeneration.get() == generation) attach(target)
+            }
+        }
+    }
 
     fun requestAsync(wanted: GpuRequest?) = worker.execute { request(wanted) }
 
@@ -167,16 +178,20 @@ class GpuEngine {
         reconcile()
     }
 
-    @Synchronized
     fun detach() {
-        surface = null
-        reconcile()
+        surfaceGeneration.incrementAndGet()
+        synchronized(this) {
+            surface = null
+            lastStart = null
+            reconcile()
+        }
     }
 
     /** Sets what should run; null stops the renderer. */
     @Synchronized
     fun request(wanted: GpuRequest?) {
         request = wanted
+        if (wanted == null) lastStart = null
         reconcile()
     }
 

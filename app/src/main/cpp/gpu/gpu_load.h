@@ -83,7 +83,8 @@ public:
 
 private:
     mutable std::mutex control_;
-    std::unique_ptr<Renderer> renderer_;
+    std::shared_ptr<Renderer> renderer_;
+    std::shared_ptr<Renderer> retiring_;
     std::atomic<int> lastState_{kStateIdle};
 };
 

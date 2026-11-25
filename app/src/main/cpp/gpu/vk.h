@@ -129,7 +129,8 @@ struct Context {
                           VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                           Depth depth = Depth::None, const VkSpecializationInfo* fragmentConstants = nullptr) const;
 
-    bool computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const;
+    bool computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out,
+                         const VkSpecializationInfo* constants = nullptr) const;
 
     bool linearClampSampler(VkSampler& out) const;
 

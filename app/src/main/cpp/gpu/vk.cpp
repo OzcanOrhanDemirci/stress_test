@@ -273,7 +273,8 @@ bool Context::graphicsPipeline(VkRenderPass pass, uint32_t subpassColors, VkPipe
     return true;
 }
 
-bool Context::computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out) const {
+bool Context::computePipeline(VkPipelineLayout layout, std::span<const uint32_t> code, VkPipeline& out,
+                              const VkSpecializationInfo* constants) const {
     VkShaderModule module;
     if (!shaderModule(code, module)) return false;
     VkComputePipelineCreateInfo info{};
@@ -282,6 +283,7 @@ bool Context::computePipeline(VkPipelineLayout layout, std::span<const uint32_t>
     info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     info.stage.module = module;
     info.stage.pName = "main";
+    info.stage.pSpecializationInfo = constants;
     info.layout = layout;
     const VkResult result = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &out);
     vkDestroyShaderModule(device, module, nullptr);
