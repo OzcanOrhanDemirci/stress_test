@@ -369,7 +369,7 @@
     <string name="compare_pick_title">Compare with</string>
     <string name="compare_none">There is no other run to compare with yet.</string>
     <string name="compare_metrics">Side by side</string>
-    <string name="compare_hint">Δ is B against A. Green: more power and work, a cooler phone, a later throttle; amber: the opposite.</string>
+    <string name="compare_hint">Δ shows the percentage change from A to B. A dash means a measurement is missing or A is zero.</string>
     <string name="compare_chart_chip">Hottest chip</string>
     <string name="compare_chart_battery">Battery temperature</string>
     <string name="compare_chart_cpu">CPU performance</string>

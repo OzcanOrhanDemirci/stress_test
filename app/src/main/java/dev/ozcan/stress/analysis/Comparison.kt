@@ -25,6 +25,9 @@ object Comparison {
     }
 
     data class Row(val metric: Metric, val a: Double?, val b: Double?) {
+        /** B minus A in the measurement's own units, when both runs measured it. */
+        val difference: Double? get() = if (a != null && b != null) b - a else null
+
         /** B against A, as a fraction of A: +0.12 is 12% more. Null when either is missing or A is zero. */
         val change: Double? get() = if (a != null && b != null && a != 0.0) (b - a) / a else null
     }

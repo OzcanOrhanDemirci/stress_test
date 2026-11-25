@@ -6,4 +6,9 @@
     <string name="history_compare_selected">%1$d / 2 seçildi</string>
     <string name="history_power_invalid">Güç ölçümü geçersiz</string>
     <string name="history_power_missing">Güç ölçülemedi</string>
+    <string name="compare_same_run">Karşılaştırmak için iki farklı koşu seç.</string>
+    <string name="compare_run_missing">Koşulardan biri açılamadı. Geçmişten başka bir koşu seç.</string>
+    <string name="compare_peak_difference">A koşusundan B koşusuna tepe güç farkı %1$s.</string>
+    <string name="compare_peak_unavailable">Tepe gücü karşılaştırmak için iki koşuda da ölçüm gerekli.</string>
+    <string name="compare_tab_chip">Çip</string>
 </resources>
