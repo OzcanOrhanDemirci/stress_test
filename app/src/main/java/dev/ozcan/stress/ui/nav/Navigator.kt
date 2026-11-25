@@ -10,14 +10,13 @@ import androidx.lifecycle.ViewModelStoreOwner
 import dev.ozcan.stress.run.StressDuration
 import dev.ozcan.stress.run.StressMode
 
-/** Where the app can be. The three tabs sit under the screens pushed over them. */
+/** Where the app can be. The tabs sit under the screens pushed over them. */
 sealed interface Route {
-    enum class Tab : Route { Test, History, Settings }
+    enum class Tab : Route { Test, History, Device, Settings }
 
     data class Run(val mode: StressMode, val duration: StressDuration) : Route
     data class Result(val runId: String) : Route
     data class Compare(val first: String, val second: String) : Route
-    data object Device : Route
 }
 
 /**
@@ -37,7 +36,7 @@ class NavEntry(val id: Long, val route: Route) : ViewModelStoreOwner {
 class Navigator : ViewModel() {
     private var nextId = 1L
 
-    private val tabEntries = Route.Tab.entries.associateWith { NavEntry(nextId++, it) }
+    private val tabEntries = Route.Tab.entries.associateWith { NavEntry(nextId++, it) }.toMutableMap()
 
     var tab by mutableStateOf(Route.Tab.Test)
         private set
@@ -52,8 +51,15 @@ class Navigator : ViewModel() {
     val top: NavEntry get() = stack.lastOrNull() ?: tabEntries.getValue(tab)
 
     fun select(tab: Route.Tab) {
+        if (tab == this.tab) return
         forward = tab.ordinal >= this.tab.ordinal
-        this.tab = tab
+        changeTab(tab)
+    }
+
+    private fun changeTab(destination: Route.Tab) {
+        // Leaving Device retires its manual CPU/GPU load with the old entry.
+        if (tab == Route.Tab.Device) tabEntries[tab] = NavEntry(nextId++, tab)
+        tab = destination
     }
 
     fun push(route: Route) {
@@ -73,7 +79,7 @@ class Navigator : ViewModel() {
         forward = false
         if (stack.removeLastOrNull() != null) return true
         if (tab != Route.Tab.Test) {
-            tab = Route.Tab.Test
+            changeTab(Route.Tab.Test)
             return true
         }
         return false

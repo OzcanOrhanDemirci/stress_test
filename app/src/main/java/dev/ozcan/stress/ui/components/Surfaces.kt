@@ -1,11 +1,7 @@
 package dev.ozcan.stress.ui.components
 
-import dev.ozcan.stress.ui.upper
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,17 +15,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,211 +31,205 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressMotion
+import dev.ozcan.stress.ui.theme.StressType
+import dev.ozcan.stress.ui.upper
 
-val CardShape = RoundedCornerShape(20.dp)
-val TileShape = RoundedCornerShape(16.dp)
-val PillShape = RoundedCornerShape(50)
+internal val PanelShape = RoundedCornerShape(8.dp)
+internal val ButtonShape = RoundedCornerShape(6.dp)
+internal val ChipShape = RoundedCornerShape(4.dp)
 
-/** The app's backdrop: near black, warmed at the top left and cooled at the bottom right. */
+/** A flat, outlined column. [title] adds a heading and [selected] turns a clickable panel into a radio choice. */
 @Composable
-fun AppBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(StressColors.Background)
-            .drawBehind {
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(StressColors.Accent.copy(alpha = 0.10f), Color.Transparent),
-                        center = Offset(size.width * 0.05f, size.height * 0.02f),
-                        radius = size.maxDimension * 0.6f,
-                    ),
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(StressColors.CoolDeep.copy(alpha = 0.07f), Color.Transparent),
-                        center = Offset(size.width * 0.95f, size.height * 0.85f),
-                        radius = size.maxDimension * 0.55f,
-                    ),
-                )
-            },
-        content = content,
-    )
-}
-
-/**
- * A raised card: a dark surface with a hairline border lit from the top left.
- * [highlight] lights the border in the accent (animated), for a selected card.
- */
-@Composable
-fun GlassCard(
+fun Panel(
     modifier: Modifier = Modifier,
-    highlight: Boolean = false,
-    accent: Color = StressColors.Accent,
-    shape: Shape = CardShape,
+    title: String? = null,
     padding: Dp = 16.dp,
+    selected: Boolean? = null,
+    selectionColor: Color = StressColors.Cool,
+    enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, spring(stiffness = 600f), label = "press")
-    val border by animateColorAsState(if (highlight) accent else StressColors.Outline, tween(250), label = "border")
-    val glow by animateFloatAsState(if (highlight) 1f else 0f, tween(300), label = "glow")
-    Column(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .drawBehind {
-                if (glow > 0f) {
-                    drawRoundRect(
-                        Brush.radialGradient(
-                            listOf(accent.copy(alpha = 0.16f * glow), Color.Transparent),
-                            center = Offset(size.width * 0.2f, 0f),
-                            radius = size.maxDimension,
-                        ),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(20.dp.toPx()),
-                    )
-                }
-            }
-            .clip(shape)
-            .background(
-                Brush.verticalGradient(listOf(StressColors.SurfaceHigh, StressColors.Surface)),
-                shape,
-            )
-            .border(
-                width = if (highlight) 1.5.dp else 1.dp,
-                brush = Brush.linearGradient(listOf(border.copy(alpha = if (highlight) 1f else 0.9f), border.copy(alpha = 0.35f))),
-                shape = shape,
-            )
-            .then(if (onClick != null) Modifier.clickable(interaction, indication = null, onClick = onClick) else Modifier)
-            .padding(padding),
-        content = content,
+    val line by animateColorAsState(
+        if (selected == true) selectionColor else StressColors.Outline,
+        StressMotion.state(),
+        label = "panel outline",
     )
+    val fill by animateColorAsState(
+        when {
+            selected == true -> selectionColor.copy(alpha = 0.12f).compositeOver(StressColors.Surface)
+            pressed -> StressColors.SurfaceHigh
+            else -> StressColors.Surface
+        },
+        StressMotion.state(),
+        label = "panel fill",
+    )
+    val action = when {
+        onClick == null -> Modifier
+        selected == null -> Modifier.clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick)
+        else -> Modifier.selectable(selected, interaction, null, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+    }
+    Column(
+        modifier.clip(PanelShape).background(fill).border(1.dp, line, PanelShape)
+            .then(if (onClick != null) Modifier.heightIn(min = 48.dp) else Modifier)
+            .then(action).padding(padding),
+        verticalArrangement = Arrangement.spacedBy(if (title == null) 0.dp else 8.dp),
+    ) {
+        if (title != null) Text(title, style = StressType.Heading)
+        content()
+    }
 }
 
-/** An uppercase, spaced-out caption over a section. */
+/** Compatibility entry point for panels already in existing screens. */
+@Composable
+fun GlassCard(
+    modifier: Modifier = Modifier,
+    highlight: Boolean = false,
+    accent: Color = StressColors.Accent,
+    padding: Dp = 16.dp,
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) = Panel(modifier, padding = padding, selected = true.takeIf { highlight }, selectionColor = accent, onClick = onClick, content = content)
+
+/** Uppercase section [text] with an optional Code [caption] aligned to the end. */
+@Composable
+fun SectionLabel(text: String, modifier: Modifier = Modifier, caption: String? = null) {
+    SectionHeader(text, modifier) {
+        if (caption != null) Text(caption, style = StressType.Code, color = StressColors.TextDim)
+    }
+}
+
+/** Section label with a trailing slot for existing callers that supply a control. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier, trailing: @Composable RowScope.() -> Unit = {}) {
-    Row(
-        modifier = modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(6.dp).background(StressColors.Heat, CircleShape))
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text.upper(),
-            style = MaterialTheme.typography.labelMedium,
-            color = StressColors.TextDim,
-            letterSpacing = 1.8.sp,
-            modifier = Modifier.weight(1f),
-        )
+    Row(modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp), Alignment.CenterVertically) {
+        Text(text.upper(), Modifier.weight(1f), color = StressColors.TextDim, style = StressType.Label)
         trailing()
     }
 }
 
-/** A small rounded label: a status, a tag. */
+/** An outlined state label. [color] supplies the border, label and light tint. */
 @Composable
-fun Pill(
+fun StatusChip(
     text: String,
     color: Color,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    filled: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier
-            .clip(PillShape)
-            .background(if (filled) color else color.copy(alpha = 0.14f))
-            .border(1.dp, color.copy(alpha = if (filled) 0f else 0.35f), PillShape)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        if (icon != null) Icon(icon, null, tint = if (filled) StressColors.Background else color, modifier = Modifier.size(13.dp))
-        Text(
-            text,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = if (filled) StressColors.Background else color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+    val hitTarget = if (onClick == null) Modifier else Modifier.heightIn(min = 48.dp)
+        .clickable(role = Role.Button, onClick = onClick)
+    Box(modifier.then(hitTarget), contentAlignment = Alignment.Center) {
+        OutlinedTag(text.upper(), color, icon = icon, tint = 0.10f, style = StressType.Label, maxLines = 2)
     }
 }
 
-/** An icon in a tinted circle, the lead of a row or a card. */
+/** A compact Code label, optionally backed by a scrim or solid colour behind the tag. */
+@Composable
+fun CodeTag(text: String, color: Color, modifier: Modifier = Modifier, background: Color = Color.Transparent) {
+    Box(modifier) {
+        OutlinedTag(text, color, background = background, style = StressType.Code)
+    }
+}
+
+@Composable
+private fun OutlinedTag(
+    text: String,
+    color: Color,
+    icon: ImageVector? = null,
+    tint: Float = 0f,
+    background: Color = Color.Transparent,
+    style: TextStyle,
+    maxLines: Int = 1,
+) {
+    Row(
+        Modifier.background(color.copy(alpha = tint).compositeOver(background), ChipShape)
+            .border(1.dp, color, ChipShape).padding(horizontal = 8.dp, vertical = 4.dp),
+        Arrangement.spacedBy(4.dp),
+        Alignment.CenterVertically,
+    ) {
+        if (icon != null) Icon(icon, null, tint = color, modifier = Modifier.size(14.dp))
+        Text(text, style = style, color = color, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Compatibility entry point for existing status labels. */
+@Composable
+fun Pill(text: String, color: Color, modifier: Modifier = Modifier, icon: ImageVector? = null) =
+    StatusChip(text, color, modifier, icon)
+
+/** An icon in a compact outlined square. */
 @Composable
 fun IconBadge(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, size: Dp = 40.dp) {
     Box(
-        modifier = modifier
-            .size(size)
-            .background(Brush.linearGradient(listOf(tint.copy(alpha = 0.22f), tint.copy(alpha = 0.08f))), CircleShape)
-            .border(1.dp, tint.copy(alpha = 0.3f), CircleShape),
+        modifier.size(size).background(StressColors.SurfaceHigh, ButtonShape).border(1.dp, StressColors.Outline, ButtonShape),
         contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.5f))
-    }
+    ) { Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.5f)) }
 }
 
-/** A thin horizontal rule. */
+/** A 1 dp horizontal divider. */
 @Composable
 fun Hairline(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().padding(vertical = 2.dp).height(1.dp).background(StressColors.Outline))
+    Box(modifier.fillMaxWidth().height(1.dp).background(StressColors.Outline))
 }
 
-/** A horizontal bar filled to [fraction], animated, in [color] (or the heat gradient). */
+/** A square-ended meter. [fraction] is clamped to 0–1 and [color] supplies the flat fill. */
 @Composable
-fun MeterBar(fraction: Float, modifier: Modifier = Modifier, color: Color? = null, height: Dp = 6.dp) {
-    val animated by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(450), label = "meter")
-    Canvas(modifier = modifier.fillMaxWidth().height(height)) {
-        val r = size.height / 2
-        drawRoundRect(StressColors.SurfaceHighest, cornerRadius = androidx.compose.ui.geometry.CornerRadius(r))
-        if (animated > 0f) {
-            val w = (size.width * animated).coerceAtLeast(size.height)
-            if (color != null) {
-                drawRoundRect(color, size = size.copy(width = w), cornerRadius = androidx.compose.ui.geometry.CornerRadius(r))
-            } else {
-                drawRoundRect(
-                    Brush.horizontalGradient(listOf(StressColors.Accent, StressColors.AccentHot), endX = size.width),
-                    size = size.copy(width = w),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(r),
-                )
-            }
-        }
+fun MeterBar(fraction: Float, modifier: Modifier = Modifier, color: Color = StressColors.Accent, height: Dp = 3.dp) {
+    val fill by animateFloatAsState(fraction.coerceIn(0f, 1f), StressMotion.state(), label = "meter")
+    Canvas(modifier.fillMaxWidth().height(height)) {
+        drawRect(StressColors.SurfaceHighest)
+        drawRect(color, size = size.copy(width = size.width * fill))
     }
 }
 
-/** A labelled value on one line: label left, value right. */
+/** A sentence with a right-aligned verdict [value] and an optional divider below. */
+@Composable
+fun InsightRow(
+    text: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = StressColors.Text,
+    divider: Boolean = true,
+) {
+    Column(modifier.fillMaxWidth()) {
+        Row(Modifier.padding(vertical = 8.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
+            Text(text, Modifier.weight(1f), style = StressType.Body)
+            Text(value, style = NumberStyles.Small, color = valueColor)
+        }
+        if (divider) Hairline()
+    }
+}
+
+/** A label and reading in a technical inventory. */
 @Composable
 fun InfoRow(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = StressColors.Text) {
-    Row(modifier = modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = StressColors.TextDim, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text(
-            value,
-            color = valueColor,
-            style = dev.ozcan.stress.ui.theme.NumberStyles.Small,
-            modifier = Modifier.padding(start = 12.dp),
-        )
+    Row(modifier.fillMaxWidth().padding(vertical = 4.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f), color = StressColors.TextDim, style = StressType.Body)
+        Text(value, color = valueColor, style = NumberStyles.Small)
     }
 }
 
-/** Centres [content] in a full-size box: for empty and loading states. */
+/** Provides a flat, full-screen ground to layer screen content over. */
+@Composable
+fun AppBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+    Box(modifier.fillMaxSize().background(StressColors.Background), content = content)
+}
+
+/** Centres [content] in a full-size box for loading and empty states. */
 @Composable
 fun CenteredBox(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center, content = content)

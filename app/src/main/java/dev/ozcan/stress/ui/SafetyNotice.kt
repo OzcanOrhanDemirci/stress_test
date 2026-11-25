@@ -1,28 +1,12 @@
 package dev.ozcan.stress.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AcUnit
@@ -33,37 +17,26 @@ import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import dev.ozcan.stress.R
+import dev.ozcan.stress.ui.components.IconBadge
+import dev.ozcan.stress.ui.components.PanelDialog
 import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressType
 
 /**
  * The use-with-care notice shown when the app opens: the phone runs at full
@@ -74,102 +47,32 @@ import dev.ozcan.stress.ui.theme.StressColors
 @Composable
 fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) {
     var dontShow by rememberSaveable { mutableStateOf(false) }
-    var closing by remember { mutableStateOf(false) }
-    val appear = remember { Animatable(0f) }
-    LaunchedEffect(closing) {
-        if (closing) {
-            appear.animateTo(0f, tween(180))
-            onAccept(dontShow)
-        } else {
-            appear.animateTo(1f, spring(dampingRatio = 0.75f, stiffness = 260f))
-        }
-    }
-    val pulse by rememberInfiniteTransition(label = "notice").animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
-        label = "pulse",
-    )
-    val color = StressColors.Warn
-    val shape = RoundedCornerShape(28.dp)
 
-    Dialog(
+    PanelDialog(
         onDismissRequest = {},
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false),
     ) {
-        // A deeper dim than a plain dialog's: the notice is the only thing to read.
-        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect { window?.setDimAmount(0.8f) }
-        Column(
-            Modifier
-                .padding(horizontal = 14.dp, vertical = 16.dp)
-                .widthIn(max = 440.dp)
-                .graphicsLayer {
-                    val t = appear.value.coerceIn(0f, 1.2f)
-                    alpha = t.coerceAtMost(1f)
-                    scaleX = 0.9f + 0.1f * t
-                    scaleY = 0.9f + 0.1f * t
-                    translationY = (1f - t) * 40.dp.toPx()
-                }
-                .clip(shape)
-                .background(Brush.verticalGradient(listOf(Color(0xFF221A10), StressColors.SurfaceHigh, StressColors.Surface)), shape)
-                .drawBehind {
-                    drawRect(
-                        Brush.radialGradient(
-                            listOf(color.copy(alpha = 0.20f * pulse), Color.Transparent),
-                            center = Offset(size.width * 0.18f, size.height * 0.06f),
-                            radius = size.maxDimension * 0.8f,
-                        ),
-                    )
-                }
-                .border(1.5.dp, Brush.linearGradient(listOf(color.copy(alpha = 0.85f), color.copy(alpha = 0.15f))), shape)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Box(
-                    Modifier
-                        .size(56.dp)
-                        .background(Brush.radialGradient(listOf(color.copy(alpha = 0.3f + 0.3f * pulse), color.copy(alpha = 0.06f))), CircleShape)
-                        .border(1.dp, color.copy(alpha = 0.6f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Rounded.WarningAmber, null, tint = color, modifier = Modifier.size(30.dp))
-                }
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconBadge(Icons.Rounded.WarningAmber, StressColors.Warn)
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.notice_title), style = MaterialTheme.typography.titleLarge, fontSize = 21.sp)
-                    Text(stringResource(R.string.notice_subtitle), style = MaterialTheme.typography.labelLarge, color = color)
+                    Text(stringResource(R.string.notice_title), style = StressType.Heading)
+                    Text(stringResource(R.string.notice_subtitle), style = StressType.Label, color = StressColors.Warn)
                 }
             }
-            // On a short screen only the text scrolls: the choice and the button stay in view.
-            val scroll = rememberScrollState()
-            Box(Modifier.weight(1f, fill = false)) {
-                Column(Modifier.verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Line(Icons.Rounded.LocalFireDepartment, StressColors.AccentHot, stringResource(R.string.notice_load))
-                    Line(Icons.Rounded.AcUnit, StressColors.Cool, stringResource(R.string.notice_care))
-                    Line(Icons.Rounded.Shield, StressColors.Good, stringResource(R.string.notice_protection))
-                    if (!safetyOn) {
-                        Line(Icons.Rounded.GppBad, StressColors.Bad, stringResource(R.string.notice_safety_off), StressColors.Bad)
-                    }
-                    Line(Icons.Rounded.Gavel, StressColors.TextDim, stringResource(R.string.notice_responsibility), StressColors.Text)
-                }
-                if (scroll.canScrollForward) {
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .height(36.dp)
-                            .background(Brush.verticalGradient(listOf(Color.Transparent, StressColors.Surface))),
-                    )
-                }
+            // Only the text scrolls, so acceptance and the checkbox stay available on short screens.
+            Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Line(Icons.Rounded.LocalFireDepartment, StressColors.Accent, stringResource(R.string.notice_load))
+                Line(Icons.Rounded.AcUnit, StressColors.Cool, stringResource(R.string.notice_care))
+                Line(Icons.Rounded.Shield, StressColors.Good, stringResource(R.string.notice_protection))
+                if (!safetyOn) Line(Icons.Rounded.GppBad, StressColors.Bad, stringResource(R.string.notice_safety_off), StressColors.Bad)
+                Line(Icons.Rounded.Gavel, StressColors.TextDim, stringResource(R.string.notice_responsibility), StressColors.Text)
             }
-
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Checkbox) { dontShow = !dontShow }
-                    .padding(end = 8.dp),
+                Modifier.fillMaxWidth().clickable(role = Role.Checkbox) { dontShow = !dontShow }.padding(end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(
@@ -178,32 +81,20 @@ fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) 
                     colors = CheckboxDefaults.colors(
                         checkedColor = StressColors.Accent,
                         uncheckedColor = StressColors.TextDim,
-                        checkmarkColor = Color.White,
+                        checkmarkColor = StressColors.OnAccent,
                     ),
                 )
-                Text(stringResource(R.string.notice_dont_show), style = MaterialTheme.typography.bodyMedium, color = StressColors.TextDim)
+                Text(stringResource(R.string.notice_dont_show), style = StressType.Body, color = StressColors.TextDim)
             }
-            PrimaryButton(
-                text = stringResource(R.string.notice_accept).upper(),
-                onClick = { closing = true },
-                height = 56.dp,
-            )
+            PrimaryButton(text = stringResource(R.string.notice_accept), onClick = { onAccept(dontShow) })
         }
     }
 }
 
 @Composable
 private fun Line(icon: ImageVector, tint: Color, text: String, textColor: Color = StressColors.TextDim) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(
-            Modifier
-                .padding(top = 1.dp)
-                .size(30.dp)
-                .background(tint.copy(alpha = 0.14f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(17.dp))
-        }
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = textColor, modifier = Modifier.weight(1f))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        IconBadge(icon, tint, size = 32.dp)
+        Text(text, style = StressType.Body, color = textColor, modifier = Modifier.weight(1f))
     }
 }
