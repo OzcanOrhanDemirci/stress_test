@@ -38,6 +38,7 @@ import dev.ozcan.stress.ui.compare.changeColor
 import dev.ozcan.stress.ui.compare.commonRunLines
 import dev.ozcan.stress.ui.compare.logRunLines
 import dev.ozcan.stress.ui.compare.sideRow
+import dev.ozcan.stress.ui.compare.signed
 import dev.ozcan.stress.ui.compare.signedPercent
 import dev.ozcan.stress.ui.components.ChartSeries
 import dev.ozcan.stress.ui.components.EngineeringRow
@@ -112,14 +113,23 @@ private enum class ChargeMetric(
     val higherIsBetter: Boolean,
     val value: (RunRecord) -> Double?,
     val format: (Double?) -> String,
+    /** B minus A in the value's own unit, for values a percent of A would misread; null keeps the percent change. */
+    val difference: ((Double, Double) -> String)? = null,
 ) {
     Peak(R.string.charge_peak, true, { it.summary.peakWatts }, Format::watts),
     Sustained(R.string.charge_sustained, true, { it.summary.sustainedWatts }, Format::watts),
-    // A later slowdown means the setup held its power longer.
-    Slowdown(R.string.charge_slowdown, true, { it.charge?.slowdownPercent?.toDouble() }, { Format.percentValue(it?.toInt()) }),
+    // A later slowdown means the setup held its power longer. A battery level: its change is in points.
+    Slowdown(
+        R.string.charge_slowdown, true, { it.charge?.slowdownPercent?.toDouble() }, { Format.percentValue(it?.toInt()) },
+        { a, b -> (b.toInt() - a.toInt()).let { d -> signed(d.toDouble(), (if (d < 0) "-" else "") + Format.percentValue(abs(d))) } },
+    ),
     Energy(R.string.charge_energy, true, { it.summary.energyWattHours }, { v -> v?.let { "${Format.number(it, 2)} Wh" } ?: Format.MISSING }),
     Rate(R.string.charge_rate, true, { it.charge?.percentPerTenMinutes }, { Format.percent(it?.div(100), 1) }),
-    MaxTemperature(R.string.charge_max_temp, false, { it.summary.maxTemperatures[RunAnalysis.BATTERY] }, { Format.celsius(it) }),
+    // A temperature: its change is in °C, from the values as shown.
+    MaxTemperature(
+        R.string.charge_max_temp, false, { it.summary.maxTemperatures[RunAnalysis.BATTERY] }, { Format.celsius(it) },
+        { a, b -> (Comparison.rounded(Comparison.rounded(b, 1) - Comparison.rounded(a, 1), 1)).let { signed(it, Format.celsius(it)) } },
+    ),
 }
 
 /** How setup B's sustained power into the battery compares with A's; null when either was not measured. */
@@ -173,9 +183,15 @@ private fun TimeComparison(first: RunRecord, second: RunRecord, unit: String, va
 private fun chargeValues(context: Context, a: RunRecord, b: RunRecord): List<CompareValue> = ChargeMetric.entries.map { metric ->
     val va = metric.value(a)
     val vb = metric.value(b)
+    val difference = metric.difference
     CompareValue(
         context.getString(metric.label), metric.format(va), metric.format(vb),
-        signedPercent(change(va, vb)), changeColor(change(va, vb), metric.higherIsBetter),
+        when {
+            difference == null -> signedPercent(change(va, vb))
+            va != null && vb != null -> difference(va, vb)
+            else -> Format.MISSING
+        },
+        changeColor(change(va, vb), metric.higherIsBetter),
     )
 }
 

@@ -375,7 +375,8 @@
     <string name="compare_pick_title">Compare with</string>
     <string name="compare_none">There is no other run to compare with yet.</string>
     <string name="compare_metrics">Side by side</string>
-    <string name="compare_hint">Δ shows the percentage change from A to B. A dash means a measurement is missing or A is zero.</string>
+    <string name="compare_hint">Δ is the change from A to B: for power, energy, performance, frame rate and stability as a percentage of A; for temperatures in °C, for times in seconds, for battery percentages in percentage points and for errors as a count. A dash means a measurement is missing or A is zero.</string>
+    <string name="compare_seconds_difference">%1$s s</string>
     <string name="compare_chart_chip">Hottest chip</string>
     <string name="compare_chart_battery">Battery temperature</string>
     <string name="compare_chart_cpu">CPU performance</string>

@@ -167,7 +167,7 @@ private fun HeaderCell(text: String, color: Color, modifier: Modifier) {
 internal class CompareValue(val key: String, val a: String, val b: String, val change: String, val changeColor: Color)
 
 private val ValueColumn = 80.dp
-private val ChangeColumn = 48.dp
+private val ChangeColumn = 60.dp
 
 /**
  * One [CompareValue] in the log's grammar: Code key, Number S values right-aligned, the change as a tag column.

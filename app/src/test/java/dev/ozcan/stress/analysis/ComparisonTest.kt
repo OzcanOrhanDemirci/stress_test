@@ -52,6 +52,30 @@ class ComparisonTest {
     }
 
     @Test
+    fun `temperatures, times and counts differ in their own unit, as the screen shows them`() {
+        val a = record(peak = 10.0, temps = mapOf("cpu" to 87.64, "battery" to 35.0), throttle = mapOf("c" to 6.9))
+        val b = record(peak = 11.0, temps = mapOf("cpu" to 88.36, "battery" to 40.0), throttle = mapOf("c" to 7.1))
+        val rows = Comparison.rows(a, b).associateBy { it.metric }
+        // Shown as 87.6 and 88.4 °C: the difference is 0.8 °C, not the raw 0.72.
+        assertEquals(0.8, rows.getValue(Comparison.Metric.HottestChip).shownDifference!!, 1e-9)
+        assertEquals(5.0, rows.getValue(Comparison.Metric.HottestBattery).shownDifference!!, 1e-9)
+        // The clock shows 0:06 and 0:07.
+        assertEquals(1.0, rows.getValue(Comparison.Metric.FirstThrottle).shownDifference!!, 0.0)
+        assertEquals(0.0, rows.getValue(Comparison.Metric.Errors).shownDifference!!, 0.0)
+        // Power keeps its percent change and has no unit difference.
+        assertNull(rows.getValue(Comparison.Metric.PeakPower).shownDifference)
+        assertEquals(Comparison.Delta.Percent, Comparison.Metric.CpuRate.delta)
+        assertEquals(Comparison.Delta.Degrees, Comparison.Metric.HottestChip.delta)
+    }
+
+    @Test
+    fun `rounding follows the screen's half-up print`() {
+        assertEquals(87.6, Comparison.rounded(87.64, 1), 0.0)
+        assertEquals(88.4, Comparison.rounded(88.35, 1), 0.0)
+        assertEquals(2.35, Comparison.rounded(2.345, 2), 0.0)
+    }
+
+    @Test
     fun `power measured on a charger is left out`() {
         val row = Comparison.rows(record(peak = 10.0), record(peak = 9.0, powerValid = false)).first { it.metric == Comparison.Metric.PeakPower }
         assertNull(row.b)
