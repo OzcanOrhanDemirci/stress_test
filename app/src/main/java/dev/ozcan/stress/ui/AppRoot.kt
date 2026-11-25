@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeveloperBoard
 import androidx.compose.material.icons.rounded.History
@@ -27,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +50,7 @@ import dev.ozcan.stress.ui.nav.Route
 import dev.ozcan.stress.ui.result.ResultScreen
 import dev.ozcan.stress.ui.run.RunScreen
 import dev.ozcan.stress.ui.settings.SettingsScreen
+import dev.ozcan.stress.ui.theme.ContentMaxWidth
 import dev.ozcan.stress.ui.theme.StressMotion
 
 @Composable
@@ -81,8 +84,13 @@ fun AppRoot() {
             CompositionLocalProvider(LocalViewModelStoreOwner provides entry) {
                 holder.SaveableStateProvider(entry.id) {
                     val insets = if (showTabs) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier
-                    Box(Modifier.fillMaxSize().then(insets)) {
-                        Screen(entry, navigator)
+                    // On a tablet the screen's content keeps a phone-like width, centred; the ground behind it
+                    // and the bottom bar still fill the window. A run's scene fills it too, so a run is not narrowed.
+                    val width = if (entry.route is Route.Run) Modifier else Modifier.widthIn(max = ContentMaxWidth)
+                    Box(Modifier.fillMaxSize().then(insets), contentAlignment = Alignment.TopCenter) {
+                        Box(width.fillMaxSize()) {
+                            Screen(entry, navigator)
+                        }
                     }
                 }
             }
