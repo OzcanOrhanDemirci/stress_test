@@ -203,7 +203,8 @@ private fun <T> ChoiceRow(
                     .clip(shape).selectable(active, enabled = canPick, role = Role.RadioButton) { onSelect(option) }
                     .then(if (description == null) Modifier else Modifier.semantics { contentDescription = description })
                     .padding(vertical = if (segmented) 4.dp else 0.dp)
-                    .background(fill, shape).border(1.dp, line, shape).padding(horizontal = 2.dp, vertical = 4.dp),
+                    // 6 dp keeps a long label ("Until full" on a 320 dp phone) off the rule; it shrinks to fit inside.
+                    .background(fill, shape).border(1.dp, line, shape).padding(horizontal = 6.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 FitText(

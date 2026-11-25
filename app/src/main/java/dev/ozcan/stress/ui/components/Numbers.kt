@@ -112,7 +112,8 @@ fun MetricTile(
     Panel(modifier, padding = padding) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(4.dp), Alignment.CenterVertically) {
-                Text(label.upper(), Modifier.weight(1f), color = StressColors.TextDim, style = StressType.Label)
+                // One line, shrunk to fit, so the values of a row of tiles stay on one line too.
+                FitText(label.upper(), StressType.Label, Modifier.weight(1f), color = StressColors.TextDim)
                 if (statusColor != null) Box(Modifier.size(6.dp).background(statusColor, CircleShape))
             }
             MetricNumber(value, unit, style, color)
