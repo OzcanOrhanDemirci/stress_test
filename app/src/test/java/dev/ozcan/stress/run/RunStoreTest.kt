@@ -62,6 +62,22 @@ class RunStoreTest {
     }
 
     @Test
+    fun `previously stored charging power is unavailable on the result and in history`() {
+        val store = RunStore(tmp.newFolder("runs"))
+        val original = aRecord("b", 1)
+        store.save(original.copy(
+            summary = original.summary.copy(idleWatts = -0.04, peakWatts = -3.2, meanWatts = -5.2,
+                sustainedWatts = -5.2, energyWattHours = -0.09, powerValid = true),
+            series = original.series.copy(watts = listOf(-5.7, -3.2)),
+        ))
+
+        for (record in listOf(store.load("b")!!, store.list().single())) {
+            assertEquals(original.summary.copy(powerValid = true), record.summary)
+            assertEquals(listOf(null, null), record.series.watts)
+        }
+    }
+
+    @Test
     fun `the list carries the watts line but not the other curves`() {
         val dir = tmp.newFolder("runs")
         val store = RunStore(dir)

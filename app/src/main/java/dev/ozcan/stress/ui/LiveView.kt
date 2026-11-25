@@ -1,5 +1,6 @@
 package dev.ozcan.stress.ui
 
+import dev.ozcan.stress.analysis.CurrentConvention
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.analysis.WorkRate
@@ -102,18 +103,25 @@ data class LiveView(
         const val WINDOW_SAMPLES = 11
 
         /** [recent] must be in time order; returns null when it is empty. */
-        fun from(recent: List<Sample>, layout: SysfsLayout): LiveView? {
+        fun from(
+            recent: List<Sample>,
+            layout: SysfsLayout,
+            convention: CurrentConvention? = Power.currentConvention(recent.takeLastWhile { it.battery.measurableCurrent != null }),
+        ): LiveView? {
             val last = recent.lastOrNull() ?: return null
             val first = recent.first()
-            val convention = Power.currentConvention(recent.takeLastWhile { it.battery.measurableCurrent != null })
+            val usableConvention = convention?.takeIf { c ->
+                last.battery.measurableCurrent?.let(c::usableAmps) != null &&
+                    Power.currentDirection(recent, c) == c.dischargeSign
+            }
             val seconds = (last.timeNanos - first.timeNanos) / 1e9
             val rates = if (seconds > 0) WorkRate.perCpu(first.cpu, last.cpu, seconds) else null
             val running = last.cpu.workers.firstNotNullOfOrNull { it.kernel }
             val roles = ClusterRole.of(layout.clusters, layout.cpuCount)
 
             return LiveView(
-                watts = convention?.let { Stats.meanOf(Power.watts(recent, it, first.timeNanos)) },
-                dischargeAmps = convention?.let { c ->
+                watts = usableConvention?.let { Stats.meanOf(Power.watts(recent, it, first.timeNanos)) },
+                dischargeAmps = usableConvention?.let { c ->
                     Stats.mean(recent.mapNotNull { s -> s.battery.measurableCurrent?.let(c::usableAmps) })
                 },
                 currentRaw = last.battery.currentRaw,

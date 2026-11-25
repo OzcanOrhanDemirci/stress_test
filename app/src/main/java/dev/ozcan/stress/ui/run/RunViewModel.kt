@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -38,17 +38,17 @@ class RunViewModel(graph: AppGraph, mode: StressMode, duration: StressDuration) 
     val safety: StateFlow<SafetyCheck> = controller.safety
     val cpuCount: Int = graph.cpu.cpuCount
 
-    val live: StateFlow<LiveView?> = graph.sampler.latest
-        .map { LiveView.from(graph.sampler.log.recent(LiveView.WINDOW_SAMPLES), graph.layout) }
+    val live: StateFlow<LiveView?> = combine(graph.sampler.latest, state) { _, phase ->
+        val recent = graph.sampler.log.recent(LiveView.WINDOW_SAMPLES)
+        val running = phase as? RunState.Running
+        val samples = if (running == null) recent else recent.takeLastWhile { it.timeNanos >= running.startedAtNanos }
+        LiveView.from(samples, graph.layout, running?.currentConvention)
+    }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Battery power once a second over the last two minutes, for the overlay's line. */
     private val _power = MutableStateFlow<List<Double>>(emptyList())
     val power: StateFlow<List<Double>> = _power.asStateFlow()
-
-    /** Mean power while resting before the load. */
-    private val _idleWatts = MutableStateFlow<Double?>(null)
-    val idleWatts: StateFlow<Double?> = _idleWatts.asStateFlow()
 
     /** The highest one-second power so far: the gauge's scale grows to it. */
     private val _peakWatts = MutableStateFlow<Double?>(null)
@@ -69,21 +69,13 @@ class RunViewModel(graph: AppGraph, mode: StressMode, duration: StressDuration) 
         }
         viewModelScope.launch {
             var lastSecond = -1L
-            val baseline = mutableListOf<Double>()
             live.collect { view ->
                 val watts = view?.watts ?: return@collect
                 val second = SystemClock.elapsedRealtime() / 1000
                 if (second == lastSecond) return@collect
                 lastSecond = second
                 _power.value = (_power.value + watts).takeLast(HISTORY_SECONDS)
-                when (state.value) {
-                    is RunState.Baseline -> {
-                        baseline += watts
-                        _idleWatts.value = baseline.average()
-                    }
-                    is RunState.Running -> _peakWatts.value = maxOf(_peakWatts.value ?: 0.0, watts)
-                    else -> Unit
-                }
+                _peakWatts.value = maxOf(_peakWatts.value ?: 0.0, watts)
             }
         }
     }

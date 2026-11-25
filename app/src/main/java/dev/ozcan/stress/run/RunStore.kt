@@ -30,7 +30,7 @@ class RunStore(private val dir: File, private val maxRuns: Int = DEFAULT_MAX_RUN
      */
     fun list(): List<RunRecord> =
         dir.listFiles { f -> f.name.endsWith(".json") }.orEmpty()
-            .mapNotNull { f -> runCatching { withoutCurves(f.readText()) }.getOrNull() }
+            .mapNotNull { f -> runCatching { withoutCurves(f.readText()).hideChargingPower() }.getOrNull() }
             .sortedByDescending { it.startedAtMillis }
 
     private fun withoutCurves(text: String): RunRecord {
@@ -43,7 +43,23 @@ class RunStore(private val dir: File, private val maxRuns: Int = DEFAULT_MAX_RUN
 
     fun load(id: String): RunRecord? =
         File(dir, "$id.json").takeIf { it.exists() }
-            ?.let { runCatching { json.decodeFromString(RunRecord.serializer(), it.readText()) }.getOrNull() }
+            ?.let { runCatching { json.decodeFromString(RunRecord.serializer(), it.readText()).hideChargingPower() }.getOrNull() }
+
+    /** Earlier versions could persist signed charging power as a run result. */
+    private fun RunRecord.hideChargingPower(): RunRecord {
+        val s = summary
+        val negativeSummary = listOf(s.idleWatts, s.peakWatts, s.meanWatts, s.sustainedWatts, s.energyWattHours)
+            .any { it != null && it < 0.0 }
+        if (negativeSummary) {
+            return copy(
+                summary = s.copy(idleWatts = null, peakWatts = null, meanWatts = null, sustainedWatts = null,
+                    energyWattHours = null, batteryLifeHours = null, powerFromCounter = false),
+                series = series.copy(watts = series.watts.map { null }),
+            )
+        }
+        if (series.watts.none { it != null && it < 0.0 }) return this
+        return copy(series = series.copy(watts = series.watts.map { it?.takeIf { watts -> watts >= 0.0 } }))
+    }
 
     fun delete(id: String) {
         File(dir, "$id.json").delete()

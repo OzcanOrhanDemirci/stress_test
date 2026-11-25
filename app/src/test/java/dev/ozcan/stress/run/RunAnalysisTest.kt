@@ -185,15 +185,41 @@ class RunAnalysisTest {
 
     @Test
     fun `a slow Honor charge counter cross-checks a one hertz current over the same window`() {
+        val baseline = (-10 until 0).map { i -> sample(i.toDouble(), currentRaw = -500L + i % 3) }
         val load = (0..180).map { i ->
             sample(i.toDouble(), currentRaw = -2000L + i % 3, chargeCounter = 5_670_000L - (i / 30) * 16_667L)
         }
-        val summary = RunAnalysis.analyze(emptyList(), load, emptyList()) { it.policy.toString() }.first
+        val summary = RunAnalysis.analyze(baseline, load, emptyList()) { it.policy.toString() }.first
         assertFalse(summary.powerFromCounter)
         assertEquals(8.0, summary.meanWatts!!, 0.01)
         assertEquals(8.0, summary.peakWatts!!, 0.01)
         val disagreeing = load.map { it.copy(battery = it.battery.copy(currentRaw = it.battery.currentRaw!! / 2)) }
-        assertNull(RunAnalysis.analyze(emptyList(), disagreeing, emptyList()) { it.policy.toString() }.first.meanWatts)
+        assertNull(RunAnalysis.analyze(baseline, disagreeing, emptyList()) { it.policy.toString() }.first.meanWatts)
+    }
+
+    @Test
+    fun `a rising idle counter exposes charging with the same current sign in both phases`() {
+        val baseline = (-10 until 0).map { i ->
+            sample(i.toDouble(), currentRaw = 60L + i % 3, chargeCounter = 4_000_000L + i * 20)
+        }
+        val load = (0..60).map { i -> sample(i.toDouble(), currentRaw = 500L + i % 3) }
+        val summary = RunAnalysis.analyze(baseline, load, emptyList()) { it.policy.toString() }.first
+        assertNull(summary.idleWatts)
+        assertNull(summary.meanWatts)
+    }
+
+    @Test
+    fun `the load cannot reverse the idle sign even when its counter could give a mean`() {
+        val baseline = (-10 until 0).map { i -> sample(i.toDouble(), currentRaw = 60L + i % 3) }
+        val load = (0..60).map { i ->
+            sample(i.toDouble(), currentRaw = -1357L - i % 3, chargeCounter = 4_000_000L - i * 377)
+        }
+        val calibrated = RunPowerBaseline(baseline)
+        assertEquals(1, calibrated.convention?.dischargeSign)
+        val summary = RunAnalysis.analyze(calibrated, load, emptyList()) { it.policy.toString() }.first
+        assertNull(summary.idleWatts)
+        assertNull(summary.meanWatts)
+        assertFalse(summary.powerFromCounter)
     }
 
     @Test
