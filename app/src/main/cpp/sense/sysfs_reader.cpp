@@ -1,40 +1,47 @@
 #include "sense/sysfs_reader.h"
 
+#include <cerrno>
+#include <charconv>
 #include <fcntl.h>
 #include <unistd.h>
 
 namespace stress {
 namespace {
 
-// Parses up to `count` decimal integers (optionally negative) from `text` and
-// returns how many were found.
-int parseIntegers(const char* text, size_t length, int64_t* out, int count) {
+bool space(char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+int readFile(int fd, int64_t* out) {
+    char buffer[128];
+    out[0] = SysfsReader::kMissing;
+    out[1] = SysfsReader::kMissing;
+    const ssize_t n = pread(fd, buffer, sizeof(buffer), 0);
+    if (n < 0) return -errno;
+    if (n == 0 || n == static_cast<ssize_t>(sizeof(buffer))) return 0;
+
+    // Treat only leading decimal fields as values. Searching through arbitrary
+    // text can turn an error message or a clock dump into a reading.
+    const char* next = buffer;
+    const char* end = buffer + n;
     int found = 0;
-    size_t i = 0;
-    while (i < length && found < count) {
-        const bool negative = text[i] == '-' && i + 1 < length && text[i + 1] >= '0' && text[i + 1] <= '9';
-        if (negative || (text[i] >= '0' && text[i] <= '9')) {
-            if (negative) ++i;
-            int64_t value = 0;
-            while (i < length && text[i] >= '0' && text[i] <= '9') {
-                value = value * 10 + (text[i] - '0');
-                ++i;
-            }
-            out[found++] = negative ? -value : value;
-        } else {
-            ++i;
+    while (found < SysfsReader::kValuesPerFile) {
+        while (next < end && space(*next)) ++next;
+        int64_t value;
+        const auto [after, error] = std::from_chars(next, end, value);
+        if (error != std::errc{}) break;
+        if (after != end && !space(*after)) {
+            if (found == 0 && *after == '%' && (after + 1 == end || space(after[1]))) out[found++] = value;
+            break;
         }
+        out[found++] = value;
+        next = after;
     }
     return found;
 }
 
-bool readFile(int fd, int64_t* out) {
-    char buffer[128];
-    const ssize_t n = pread(fd, buffer, sizeof(buffer) - 1, 0);
-    out[0] = SysfsReader::kMissing;
-    out[1] = SysfsReader::kMissing;
-    if (n <= 0) return false;
-    return parseIntegers(buffer, static_cast<size_t>(n), out, SysfsReader::kValuesPerFile) > 0;
+bool clockFile(const std::string& path) {
+    return path.ends_with("/scaling_cur_freq") || path.ends_with("/cpuinfo_cur_freq");
 }
 
 }  // namespace
@@ -48,25 +55,35 @@ std::vector<bool> SysfsReader::open(const std::vector<std::string>& paths) {
     readable.reserve(paths.size());
     for (const auto& path : paths) {
         const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+        const bool retry = clockFile(path) && (fd >= 0 || errno == ENOENT || errno == ENODEV);
         int64_t probe[kValuesPerFile];
-        const bool ok = fd >= 0 && readFile(fd, probe);
-        if (fd >= 0 && !ok) ::close(fd);
-        fds_.push_back(ok ? fd : -1);
+        const bool ok = fd >= 0 && readFile(fd, probe) > 0;
+        // An opened clock can fail its first read while all its CPUs are offline.
+        files_.push_back({fd, retry ? path : std::string{}});
         readable.push_back(ok);
     }
     return readable;
 }
 
-void SysfsReader::read(int64_t* out, size_t outLength) const {
+void SysfsReader::read(int64_t* out, size_t outLength) {
     std::lock_guard lock(mutex_);
-    for (size_t i = 0; i < fds_.size(); ++i) {
+    for (size_t i = 0; i < files_.size(); ++i) {
         const size_t at = i * kValuesPerFile;
         if (at + kValuesPerFile > outLength) return;
-        if (fds_[i] < 0) {
+        File& file = files_[i];
+        if (file.fd < 0 && !file.clockPath.empty()) {
+            file.fd = ::open(file.clockPath.c_str(), O_RDONLY | O_CLOEXEC);
+            if (file.fd < 0 && errno != ENOENT && errno != ENODEV) file.clockPath.clear();
+        }
+        if (file.fd < 0) {
             out[at] = kMissing;
             out[at + 1] = kMissing;
         } else {
-            readFile(fds_[i], out + at);
+            const int read = readFile(file.fd, out + at);
+            if (!file.clockPath.empty() && (read == -ENODEV || read == -ENOENT)) {
+                ::close(file.fd);
+                file.fd = -1;
+            }
         }
     }
 }
@@ -77,10 +94,10 @@ void SysfsReader::close() {
 }
 
 void SysfsReader::closeLocked() {
-    for (int fd : fds_) {
-        if (fd >= 0) ::close(fd);
+    for (const File& file : files_) {
+        if (file.fd >= 0) ::close(file.fd);
     }
-    fds_.clear();
+    files_.clear();
 }
 
 }  // namespace stress

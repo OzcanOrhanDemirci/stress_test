@@ -2,6 +2,7 @@ package dev.ozcan.stress.run
 
 import android.os.SystemClock
 import android.util.Log
+import dev.ozcan.stress.analysis.CurrentConvention
 import dev.ozcan.stress.device.DeviceInfo
 import dev.ozcan.stress.engine.CpuKernel
 import dev.ozcan.stress.engine.GpuBurner
@@ -35,7 +36,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 sealed interface RunState {
     data object Preparing : RunState
     data class Baseline(val startedAtNanos: Long, val endsAtNanos: Long) : RunState
-    data class Running(val startedAtNanos: Long, val endsAtNanos: Long?) : RunState
+    data class Running(
+        val startedAtNanos: Long,
+        val endsAtNanos: Long?,
+        val currentConvention: CurrentConvention?,
+        val idleWatts: Double?,
+    ) : RunState
     data object Analysing : RunState
     data class Finished(val record: RunRecord) : RunState
     sealed interface Failed : RunState {
@@ -128,7 +134,17 @@ class RunController(
             _state.value = RunState.Failed.StoppedBeforeLoad(early, safetyStop.takeIf { early == EndReason.Safety })
             return@coroutineScope
         }
-        val baselineEnd = now()
+        val baseline = RunPowerBaseline(sampler.log.between(baselineStart, now()))
+        // The first headroom poll or battery broadcast may have arrived
+        // during the baseline. Apply the same start limits before the load.
+        if (options.deviceSafety) {
+            val block = sampler.latest.value?.let { SafetyPolicy.startBlock(it) }
+            if (block != null) {
+                watcher.cancel()
+                _state.value = RunState.Failed.Blocked(block)
+                return@coroutineScope
+            }
+        }
 
         val settings = LoadSettings(quality = options.quality)
         val outcome = driver.start(workload, settings)
@@ -141,7 +157,12 @@ class RunController(
                 _state.value = RunState.Failed.LoadFailed(outcome)
                 return@coroutineScope
             }
-            _state.value = RunState.Running(loadStart, duration.seconds?.let { loadStart + it * NANOS })
+            _state.value = RunState.Running(
+                loadStart,
+                duration.seconds?.let { loadStart + it * NANOS },
+                baseline.convention,
+                baseline.watts,
+            )
             reason = waitOrStop(duration.seconds?.let { it * 1000L }) ?: EndReason.Completed
             loadEnd = now()
         } finally {
@@ -157,7 +178,7 @@ class RunController(
         val record = try {
             withContext(Dispatchers.Default) {
                 val (summary, series) = RunAnalysis.analyze(
-                    baseline = sampler.log.between(baselineStart, baselineEnd),
+                    baseline = baseline,
                     load = sampler.log.between(loadStart, loadEnd),
                     clusters = layout.clusters,
                     clusterName = { it.label() },

@@ -45,16 +45,55 @@ object SocNames {
         "MT6896" to "Dimensity 8200",
         "MT6895" to "Dimensity 8100",
         "MT6893" to "Dimensity 1200",
+        // Exynos and Tensor platform identifiers
+        "S5E9945" to "Exynos 2400",
+        "S5E9925" to "Exynos 2200",
+        "S5E9840" to "Exynos 2100",
+        "GS101" to "Google Tensor",
+        "GS201" to "Google Tensor G2",
+        "ZUMA" to "Google Tensor G3",
+        "ZUMAPRO" to "Google Tensor G4",
+        "HI3660" to "Kirin 960",
+        "HI3670" to "Kirin 970",
     )
+
+    private val PLATFORMS = mapOf("SUN" to "SM8750", "PINEAPPLE" to "SM8650", "KALAMA" to "SM8550")
+    private val UNISOC = Regex("(SC[0-9]+[A-Z]*|UMS[0-9]+[A-Z]*)")
+    private val SNAPDRAGON_BIN = Regex("SM[0-9]{4}-[A-Z]{2}")
+    private val GENERIC = setOf(
+        "UNKNOWN", "UNDEFINED", "N/A", "NONE", "GENERIC",
+        "QCOM", "QTI", "QUALCOMM", "MTK", "MEDIATEK", "SAMSUNG", "EXYNOS", "GOOGLE", "UNISOC", "SPRD",
+    )
+
+    /** A model is stronger evidence than a board name. Generic values like `qcom` carry no model. */
+    fun resolve(maker: String?, model: String?, hardware: String?, board: String?, platform: () -> String?): String? {
+        val soc = identifier(model)
+        if (soc != null) return display(maker, soc)
+        val candidates = listOfNotNull(identifier(platform()), identifier(hardware), identifier(board))
+        val best = candidates.firstOrNull { marketingName(it.uppercase(Locale.ROOT)) != null } ?: candidates.firstOrNull()
+        return best?.let { display(maker, it) }
+    }
 
     /** "SM7550" -> "Snapdragon 7 Gen 3 (SM7550)"; unknown parts as given. */
     fun display(maker: String?, model: String): String {
-        val key = model.trim().uppercase(Locale.ROOT)
-        val name = NAMES[key]
+        val part = model.trim()
+        val key = part.uppercase(Locale.ROOT)
+        val name = marketingName(key)
+        val vendor = maker?.trim()?.takeUnless { it.isEmpty() || it.equals("unknown", ignoreCase = true) }
         return when {
-            name != null -> "$name ($model)"
-            maker != null -> "$maker $model"
-            else -> model
+            name != null -> "$name ($part)"
+            UNISOC.matches(key) -> "Unisoc $part"
+            vendor != null && !part.startsWith(vendor, ignoreCase = true) -> "$vendor $part"
+            else -> part
         }
+    }
+
+    private fun identifier(value: String?): String? =
+        value?.trim()?.takeIf { it.isNotEmpty() && it.uppercase(Locale.ROOT) !in GENERIC }
+
+    private fun marketingName(key: String): String? {
+        val part = PLATFORMS[key] ?: key
+        return NAMES[part] ?: part.takeIf(SNAPDRAGON_BIN::matches)
+            ?.substringBefore('-')?.let(NAMES::get)
     }
 }

@@ -65,6 +65,8 @@
     <string name="home_live_chip">Çip</string>
     <string name="home_live_power">Güç</string>
     <string name="home_live_charging">Şarjda</string>
+    <string name="reading_unavailable">Ölçülemiyor</string>
+    <string name="power_unavailable">Bu telefonda güç ölçülemiyor.</string>
     <string name="home_live_thermal">Termal: %1$s</string>
     <string name="home_last_peak">tepe</string>
     <string name="home_plugged">Şarj kablosu takılı: test çalışır ama pilden çekilen güç ölçülemez.</string>
@@ -94,6 +96,7 @@
     <string name="safety_reason_chip_hot">Çip sıcaklığı</string>
     <string name="safety_reason_skin_hot">Gövde sıcaklığı</string>
     <string name="safety_reason_thermal">Android termal durumu</string>
+    <string name="safety_reason_headroom">Android termal payı</string>
     <string name="safety_reason_battery_low">Pil</string>
 
     <!-- Termal durum -->
@@ -123,7 +126,6 @@
     <!-- Koşu -->
     <string name="run_baseline_title">Boşta ölçüm</string>
     <string name="run_baseline_text">Önce telefonun boştaki gücü ölçülüyor; yük hemen ardından başlayacak. Bu sırada telefona dokunma.</string>
-    <string name="run_baseline_idle">Boşta: %1$s</string>
     <string name="run_stop">Durdur</string>
     <string name="run_toggle_hud">Okumaları göster veya gizle</string>
     <string name="run_stop_title">Test durdurulsun mu?</string>
@@ -204,7 +206,7 @@
     <string name="insight_charging_title">Şarj kablosu takılıydı</string>
     <string name="insight_charging_detail">Şarjdayken pil ölçeri şarjı ve yükü birlikte ölçer; güç değerleri geçersizdir.</string>
     <string name="insight_counter_title">Güç, şarj sayacından</string>
-    <string name="insight_counter_detail">Bu telefon anlık akımı bildirmiyor: ortalama güç pilin şarj sayacından hesaplandı, tepeler bilinmiyor.</string>
+    <string name="insight_counter_detail">Ortalama güç pil sayacından hesaplandı. Tepe güç ölçülemedi.</string>
     <string name="insight_throttled_title">Kısılma %1$s anında başladı</string>
     <string name="insight_throttled_detail">%1$s ilk kez üç saniye boyunca en yüksek frekansının %%97\'sinin altına indi: telefon sıcaklığını tutmak için yavaşladı.</string>
     <string name="insight_never_throttled_title">Kısılma yok</string>

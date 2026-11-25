@@ -106,4 +106,39 @@ class SafetyPolicyTest {
         assertEquals(SafetyReason.BatteryLow, SafetyPolicy.startBlock(at(level = 10))!!.reason)
         assertNull(SafetyPolicy.startBlock(at(level = 10, plugged = true)))
     }
+
+    @Test
+    fun `a locked thermal tree still uses battery and Android status to gate and stop`() {
+        val locked = at(cpu = null, gpu = null, skin = null, status = 3)
+        assertEquals(SafetyReason.ThermalStatus, SafetyPolicy.startBlock(locked)?.reason)
+        val monitor = SafetyMonitor()
+        assertEquals(SafetyLevel.Warn, monitor.update(locked).level)
+        assertEquals(SafetyReason.ThermalStatus, monitor.update(locked.copy(timeNanos = 3_000_000_000L)).reason)
+        val batteryOnly = at(battery = 47.0, cpu = null, gpu = null, skin = null, status = -1)
+        assertEquals(SafetyReason.BatteryHot, SafetyPolicy.startBlock(batteryOnly)?.reason)
+        assertEquals(SafetyReason.BatteryHot, SafetyPolicy.findings(batteryOnly).single().reason)
+    }
+
+    @Test
+    fun `severe headroom covers missing zones and requires a fresh confirmation to stop`() {
+        val locked = at(cpu = null, gpu = null, skin = null)
+            .copy(thermalHeadroom = 1.1f, thermalHeadroomTimeNanos = 0L)
+        assertEquals(SafetyReason.ThermalHeadroom, SafetyPolicy.startBlock(locked)?.reason)
+        assertNull(SafetyPolicy.startBlock(locked.copy(thermalHeadroom = Float.NaN)))
+        assertNull(SafetyPolicy.startBlock(locked.copy(timeNanos = 13_000_000_000L)))
+        assertNull(SafetyPolicy.startBlock(at().copy(thermalHeadroom = 1.1f, thermalHeadroomTimeNanos = 0L)))
+        val monitor = SafetyMonitor()
+        assertEquals(SafetyLevel.Warn, monitor.update(locked).level)
+        assertEquals(SafetyLevel.Warn, monitor.update(locked.copy(timeNanos = 9_000_000_000L)).level)
+        val stop = monitor.update(locked.copy(timeNanos = 10_000_000_000L, thermalHeadroomTimeNanos = 10_000_000_000L))
+        assertEquals(SafetyLevel.Stop, stop.level)
+        assertEquals(SafetyReason.ThermalHeadroom, stop.reason)
+    }
+
+    @Test
+    fun `a partially visible chip still enforces the reading that is available`() {
+        val partial = at(cpu = null, gpu = 111.0, skin = null)
+        assertEquals(SafetyReason.ChipHot, SafetyPolicy.startBlock(partial)?.reason)
+        assertEquals(SafetyReason.ChipHot, SafetyPolicy.findings(partial).single().reason)
+    }
 }

@@ -26,7 +26,7 @@ data class ClusterLive(
     val rate: Double?,
 ) {
     /** Clock as a share of the top clock, 0..1. */
-    val load: Float? get() = khz?.let { (it.toFloat() / maxKhz.coerceAtLeast(1)).coerceIn(0f, 1f) }
+    val load: Float? get() = khz?.takeIf { maxKhz > 0 }?.let { (it.toFloat() / maxKhz).coerceIn(0f, 1f) }
 }
 
 /** The GPU over the last second: what runs, how fast, and whether it computes right. */
@@ -58,7 +58,7 @@ data class GpuLive(
                 dispatchesPerFrame = last.dispatchesPerFrame,
                 errors = last.errors,
                 checks = last.checks,
-                busyFromFrames = if (continuous && last.isRunning && last.gpuNanos >= first.gpuNanos) {
+                busyFromFrames = if (continuous && last.isRunning && last.frames > first.frames && last.gpuNanos > first.gpuNanos) {
                     ((last.gpuNanos - first.gpuNanos) / 1e9 / seconds).coerceIn(0.0, 1.0)
                 } else {
                     null
@@ -103,20 +103,26 @@ data class LiveView(
         const val WINDOW_SAMPLES = 11
 
         /** [recent] must be in time order; returns null when it is empty. */
-        fun from(recent: List<Sample>, layout: SysfsLayout): LiveView? {
+        fun from(
+            recent: List<Sample>,
+            layout: SysfsLayout,
+            convention: CurrentConvention? = Power.currentConvention(recent.takeLastWhile { it.battery.measurableCurrent != null }),
+        ): LiveView? {
             val last = recent.lastOrNull() ?: return null
             val first = recent.first()
-            val unplugged = recent.filter { !it.battery.plugged }
-            val convention = CurrentConvention.infer(unplugged.mapNotNull { it.battery.currentRaw })
+            val usableConvention = convention?.takeIf { c ->
+                last.battery.measurableCurrent?.let(c::usableAmps) != null &&
+                    Power.currentDirection(recent, c) == c.dischargeSign
+            }
             val seconds = (last.timeNanos - first.timeNanos) / 1e9
             val rates = if (seconds > 0) WorkRate.perCpu(first.cpu, last.cpu, seconds) else null
             val running = last.cpu.workers.firstNotNullOfOrNull { it.kernel }
-            val roles = ClusterRole.of(layout.clusters)
+            val roles = ClusterRole.of(layout.clusters, layout.cpuCount)
 
             return LiveView(
-                watts = convention?.let { Stats.meanOf(Power.watts(recent, it, first.timeNanos)) },
-                dischargeAmps = convention?.let { c ->
-                    Stats.mean(unplugged.mapNotNull { s -> s.battery.currentRaw?.let(c::dischargeAmps) })
+                watts = usableConvention?.let { Stats.meanOf(Power.watts(recent, it, first.timeNanos)) },
+                dischargeAmps = usableConvention?.let { c ->
+                    Stats.mean(recent.mapNotNull { s -> s.battery.measurableCurrent?.let(c::usableAmps) })
                 },
                 currentRaw = last.battery.currentRaw,
                 volts = last.battery.voltageMillivolts?.let { it / 1000.0 },

@@ -147,6 +147,86 @@ class RunAnalysisTest {
 
     @Test
     fun `a charger anywhere voids the power figures`() {
-        assertFalse(analyze(plugged = true).first.powerValid)
+        val (summary, series) = analyze(plugged = true)
+        assertFalse(summary.powerValid)
+        assertNull(summary.meanWatts)
+        assertTrue(series.watts.all { it == null })
+    }
+
+    @Test
+    fun `a current stuck at idle cannot produce a load figure`() {
+        val baseline = (0..9).map { sample(it.toDouble(), currentRaw = -500, chargeCounter = null) }
+        val load = (10..15).map { sample(it.toDouble(), currentRaw = -500, chargeCounter = null) }
+        val (summary, series) = RunAnalysis.analyze(baseline, load, emptyList()) { it.policy.toString() }
+        assertTrue(summary.powerValid)
+        assertNull(summary.meanWatts)
+        assertNull(summary.energyWattHours)
+        assertTrue(series.watts.all { it == null })
+    }
+
+    @Test
+    fun `a freeze during load leaves aggregate power only when a counter can measure it`() {
+        val load = (0..180).map { i ->
+            val s = sample(i.toDouble(), currentRaw = -2000L - i.coerceAtMost(25), chargeCounter = null)
+            s.copy(battery = s.battery.copy(
+                currentFresh = i < 35,
+                energyCounterNanoWattHours = 16_000_000_000 - i * 8_000_000_000L / 3600,
+            ))
+        }
+        val (summary, series) = RunAnalysis.analyze(emptyList(), load, emptyList()) { it.policy.toString() }
+        assertTrue(summary.powerFromCounter)
+        assertEquals(8.0, summary.meanWatts!!, 0.001)
+        assertNull(summary.peakWatts)
+        assertTrue(series.watts.all { it == null })
+        assertNull(RunAnalysis.analyze(emptyList(), load.map {
+            it.copy(battery = it.battery.copy(energyCounterNanoWattHours = null))
+        }, emptyList()) { it.policy.toString() }.first.meanWatts)
+    }
+
+    @Test
+    fun `a slow Honor charge counter cross-checks a one hertz current over the same window`() {
+        val baseline = (-10 until 0).map { i -> sample(i.toDouble(), currentRaw = -500L + i % 3) }
+        val load = (0..180).map { i ->
+            sample(i.toDouble(), currentRaw = -2000L + i % 3, chargeCounter = 5_670_000L - (i / 30) * 16_667L)
+        }
+        val summary = RunAnalysis.analyze(baseline, load, emptyList()) { it.policy.toString() }.first
+        assertFalse(summary.powerFromCounter)
+        assertEquals(8.0, summary.meanWatts!!, 0.01)
+        assertEquals(8.0, summary.peakWatts!!, 0.01)
+        val disagreeing = load.map { it.copy(battery = it.battery.copy(currentRaw = it.battery.currentRaw!! / 2)) }
+        assertNull(RunAnalysis.analyze(baseline, disagreeing, emptyList()) { it.policy.toString() }.first.meanWatts)
+    }
+
+    @Test
+    fun `a rising idle counter exposes charging with the same current sign in both phases`() {
+        val baseline = (-10 until 0).map { i ->
+            sample(i.toDouble(), currentRaw = 60L + i % 3, chargeCounter = 4_000_000L + i * 20)
+        }
+        val load = (0..60).map { i -> sample(i.toDouble(), currentRaw = 500L + i % 3) }
+        val summary = RunAnalysis.analyze(baseline, load, emptyList()) { it.policy.toString() }.first
+        assertNull(summary.idleWatts)
+        assertNull(summary.meanWatts)
+    }
+
+    @Test
+    fun `the load cannot reverse the idle sign even when its counter could give a mean`() {
+        val baseline = (-10 until 0).map { i -> sample(i.toDouble(), currentRaw = 60L + i % 3) }
+        val load = (0..60).map { i ->
+            sample(i.toDouble(), currentRaw = -1357L - i % 3, chargeCounter = 4_000_000L - i * 377)
+        }
+        val calibrated = RunPowerBaseline(baseline)
+        assertEquals(1, calibrated.convention?.dischargeSign)
+        val summary = RunAnalysis.analyze(calibrated, load, emptyList()) { it.policy.toString() }.first
+        assertNull(summary.idleWatts)
+        assertNull(summary.meanWatts)
+        assertFalse(summary.powerFromCounter)
+    }
+
+    @Test
+    fun `one delayed counter step is insufficient for average power`() {
+        val load = (0..60).map { i ->
+            sample(i.toDouble(), currentRaw = null, chargeCounter = if (i < 30) 4_000_000 else 3_980_000)
+        }
+        assertNull(RunAnalysis.analyze(emptyList(), load, emptyList()) { it.policy.toString() }.first.meanWatts)
     }
 }

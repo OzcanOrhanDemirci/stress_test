@@ -11,6 +11,7 @@ import dev.ozcan.stress.telemetry.SysfsLayout
 import dev.ozcan.stress.telemetry.label
 import kotlinx.serialization.Serializable
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 /** The GPU as Vulkan describes it ([NativeBridge.gpuDescribe]). */
@@ -69,10 +70,7 @@ data class DeviceInfo(
                 androidVersion = Build.VERSION.RELEASE.orEmpty(),
                 sdk = Build.VERSION.SDK_INT,
                 soc = soc(),
-                cpuClusters = layout.clusters.sortedBy { it.maxFreqKhz }.map { c ->
-                    val ghz = String.format(Locale.ROOT, "%.2f", c.maxFreqKhz / 1e6)
-                    "${c.label()} @ $ghz GHz"
-                },
+                cpuClusters = cpuLabels(layout),
                 cpuCount = layout.cpuCount,
                 gpu = gpu?.name,
                 vulkan = gpu?.vulkanVersion,
@@ -84,14 +82,41 @@ data class DeviceInfo(
             )
         }
 
-        private fun soc(): String? {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val maker = Build.SOC_MANUFACTURER.takeUnless { it.isNullOrBlank() || it == Build.UNKNOWN }
-                val model = Build.SOC_MODEL.takeUnless { it.isNullOrBlank() || it == Build.UNKNOWN }
-                if (model != null) return SocNames.display(maker, model)
+        internal fun cpuLabels(layout: SysfsLayout): List<String> {
+            val namesWithPolicy = layout.clusters.sortedBy { it.maxFreqKhz }.map { c ->
+                if (c.maxFreqKhz <= 0) c.label() else {
+                    val ghz = String.format(Locale.ROOT, "%.2f", c.maxFreqKhz / 1e6)
+                    "${c.label()} @ $ghz GHz"
+                }
             }
-            return Build.HARDWARE.takeUnless { it.isNullOrBlank() || it == Build.UNKNOWN }
+            val covered = layout.clusters.flatMap { it.cpus }.toSet()
+            val namesWithoutPolicy = layout.cpuNames.toSortedMap().filterKeys { it !in covered }.values.groupingBy { it }.eachCount()
+            return namesWithPolicy + namesWithoutPolicy.map { (name, count) -> "$name ×$count" }
         }
+
+        private fun soc(): String? {
+            val hasSocFields = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            return SocNames.resolve(
+                if (hasSocFields) Build.SOC_MANUFACTURER else null,
+                if (hasSocFields) Build.SOC_MODEL else null,
+                Build.HARDWARE, Build.BOARD, ::boardPlatform,
+            )
+        }
+
+        // Build.HARDWARE exposes ro.hardware; Build.BOARD is ro.product.board.
+        // Only look up the platform on demand, without relying on hidden SDK APIs.
+        private fun boardPlatform(): String? = runCatching {
+            val process = ProcessBuilder("/system/bin/getprop", "ro.board.platform").start()
+            try {
+                if (process.waitFor(200, TimeUnit.MILLISECONDS) && process.exitValue() == 0) {
+                    process.inputStream.bufferedReader().use { it.readLine() }
+                } else {
+                    null
+                }
+            } finally {
+                process.destroy()
+            }
+        }.getOrNull()
 
         /**
          * The Vulkan GPU, or null when the phone has no Vulkan 1.1: then the

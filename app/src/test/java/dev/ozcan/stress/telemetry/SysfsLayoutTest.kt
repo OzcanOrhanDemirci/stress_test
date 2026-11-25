@@ -94,6 +94,9 @@ class SysfsLayoutTest {
             // MediaTek
             "mtktscpu" to ThermalGroup.Cpu,
             "cpu-little-core0" to ThermalGroup.Cpu,
+            "cpu-big-core0" to ThermalGroup.Cpu,
+            "soc_max" to ThermalGroup.Cpu,
+            "mtk-gpu-thermal" to ThermalGroup.Gpu,
             "mtktsAP" to null,
             "gpu1" to ThermalGroup.Gpu,
             "apu" to ThermalGroup.Npu,
@@ -105,9 +108,15 @@ class SysfsLayoutTest {
             "ISP" to ThermalGroup.Camera,
             "NPU" to ThermalGroup.Npu,
             "TPU" to ThermalGroup.Npu,
+            "VIRTUAL-SKIN" to ThermalGroup.Skin,
+            "VIRTUAL-SKIN-SUB-0" to null,
+            "sgpu" to ThermalGroup.Gpu,
             // Unisoc
             "cputop-thmzone" to ThermalGroup.Cpu,
             "gpu-thmzone" to ThermalGroup.Gpu,
+            // Kirin
+            "cluster0" to ThermalGroup.Cpu,
+            "gpu-thermal" to ThermalGroup.Gpu,
             // Qualcomm extras
             "skin-msm-therm" to ThermalGroup.Skin,
             "xo-therm" to ThermalGroup.Skin,
@@ -119,6 +128,13 @@ class SysfsLayoutTest {
             "bcl_warn" to null,
             "pm8550-bcl-lvl0" to null,
             "charger" to null,
+            "gpu-charging" to null,
+            "cpu-ambient" to null,
+            "cpu-gold-pa0" to null,
+            "cpu-big-usr" to null,
+            "G3D_usr" to null,
+            "cpu-skin" to ThermalGroup.Skin,
+            "soc_therm" to null,
             "" to null,
         )
         for ((type, group) in expected) assertEquals(type, group, ThermalGroup.of(type))
@@ -126,7 +142,7 @@ class SysfsLayoutTest {
 
     @Test
     fun `the gpu load is found where each vendor keeps it`() {
-        write("sys/kernel/ged/hal/gpu_utilization", "35 65 0\n")
+        write("sys/kernel/ged/hal/gpu_utilization", "35 0 65\n")
         val mediatek = SysfsLayout.discover(tmp.root)
         assertTrue(mediatek.gpuBusyPath!!.endsWith("gpu_utilization"))
         assertEquals(GpuBusyFormat.Percent, mediatek.gpuBusyFormat)
@@ -140,9 +156,51 @@ class SysfsLayoutTest {
     }
 
     @Test
+    fun `absent malformed and unreadable GPU candidates do not hide a readable vendor node`() {
+        // A directory at a candidate path also fails the actual read.
+        File(tmp.root, "sys/class/kgsl/kgsl-3d0/gpubusy").mkdirs()
+        write("sys/kernel/gpu/gpu_busy", "clock: 800000000\n")
+        write("sys/class/drm/card1/device/gpu_busy_percent", "72 %\n")
+        assertTrue(SysfsLayout.discover(tmp.root).gpuBusyPath!!.endsWith("gpu_busy_percent"))
+
+        val root = tmp.newFolder("powervr")
+        File(root, "sys/class/pvr/gpu_utilisation").apply { parentFile!!.mkdirs(); writeText("37%\n") }
+        assertTrue(SysfsLayout.discover(root).gpuBusyPath!!.endsWith("gpu_utilisation"))
+    }
+
+    @Test
+    fun `a partially visible topology takes related CPUs and fills missing MIDRs from proc`() {
+        val cpu = "sys/devices/system/cpu"
+        write("$cpu/present", "0-7\n")
+        write("$cpu/cpufreq/policy0/related_cpus", "0 1 2 3\n")
+        write("$cpu/cpufreq/policy0/affected_cpus", "0 1\n")
+        write("$cpu/cpu1/regs/identification/midr_el1", "0x410fd800\n")
+        write("$cpu/cpu4/cpufreq/related_cpus", "4 5 6\n")
+        write("$cpu/cpu4/cpufreq/cpuinfo_cur_freq", "2300000\n")
+        write("$cpu/cpu7/cpufreq/related_cpus", "denied\n")
+        write("$cpu/cpu7/cpufreq/affected_cpus", "7\n")
+        write("proc/cpuinfo", """
+            processor : 5
+            CPU implementer : 0x41
+            CPU part : 0xd81
+            processor : 7
+            CPU implementer : 0x41
+            CPU part : 0xd82
+        """.trimIndent())
+        val layout = SysfsLayout.discover(tmp.root)
+        assertEquals(8, layout.cpuCount)
+        assertEquals(listOf(0, 4, 7), layout.clusters.map { it.policy })
+        assertEquals(listOf(0, 1, 2, 3), layout.clusters.first().cpus)
+        assertEquals(listOf("Cortex-A520", "Cortex-A720", "Cortex-X4"), layout.clusters.map { it.coreName })
+        assertTrue(layout.clusters[1].fallbackFreqPath!!.endsWith("cpuinfo_cur_freq"))
+        assertEquals(0L, layout.clusters[1].maxFreqKhz)
+    }
+
+    @Test
     fun `cpu lists read ranges and singles`() {
         assertEquals(listOf(0, 1, 2, 3, 6, 8, 9), SysfsLayout.parseCpuList("0-3,6,8-9\n"))
         assertEquals(listOf(4, 5, 6), SysfsLayout.parseCpuList("4 5 6"))
         assertEquals(emptyList<Int>(), SysfsLayout.parseCpuList("x"))
+        assertEquals(listOf(1, 2, 4), SysfsLayout.parseCpuList("-7,1-foo,1-2\t4,0-999999999,9-2\r\n"))
     }
 }

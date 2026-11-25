@@ -5,14 +5,14 @@ import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.ThermalGroup
 
 /** What device safety watches. */
-enum class SafetyReason { BatteryHot, ChipHot, SkinHot, ThermalStatus, BatteryLow }
+enum class SafetyReason { BatteryHot, ChipHot, SkinHot, ThermalStatus, BatteryLow, ThermalHeadroom }
 
 enum class SafetyLevel { Ok, Warn, Stop }
 
 /**
  * One finding: how serious, why, and the reading behind it (°C for the
  * temperatures, percent for the battery level, the Android thermal status
- * for [SafetyReason.ThermalStatus]).
+ * for [SafetyReason.ThermalStatus], ratio for [SafetyReason.ThermalHeadroom]).
  */
 data class SafetyCheck(val level: SafetyLevel, val reason: SafetyReason? = null, val value: Double? = null) {
     companion object {
@@ -76,8 +76,9 @@ object SafetyPolicy {
             status >= limits.thermalStop -> found += SafetyCheck(SafetyLevel.Stop, SafetyReason.ThermalStatus, status.toDouble())
             status >= limits.thermalWarn -> found += SafetyCheck(SafetyLevel.Warn, SafetyReason.ThermalStatus, status.toDouble())
         }
+        headroomStop(sample, limits)?.let(found::add)
         val level = sample.battery.levelPercent
-        if (level != null && !sample.battery.plugged) {
+        if (level != null && sample.battery.onBattery) {
             when {
                 level <= limits.levelStop -> found += SafetyCheck(SafetyLevel.Stop, SafetyReason.BatteryLow, level.toDouble())
                 level <= limits.levelWarn -> found += SafetyCheck(SafetyLevel.Warn, SafetyReason.BatteryLow, level.toDouble())
@@ -97,11 +98,24 @@ object SafetyPolicy {
         if (sample.thermalStatus >= limits.thermalStop) {
             return SafetyCheck(SafetyLevel.Stop, SafetyReason.ThermalStatus, sample.thermalStatus.toDouble())
         }
+        headroomStop(sample, limits)?.let { return it }
         val level = sample.battery.levelPercent
-        if (level != null && !sample.battery.plugged && level <= limits.levelStart) {
+        if (level != null && sample.battery.onBattery && level <= limits.levelStart) {
             return SafetyCheck(SafetyLevel.Stop, SafetyReason.BatteryLow, level.toDouble())
         }
         return null
+    }
+
+    /** Android's severe threshold also covers devices that hide temperatures or underreport their status. */
+    private fun headroomStop(sample: Sample, limits: SafetyLimits): SafetyCheck? {
+        if (sample.thermalStatus >= limits.thermalStop ||
+            limits.thermalStop != PowerManager.THERMAL_STATUS_SEVERE ||
+            listOf(ThermalGroup.Cpu, ThermalGroup.Gpu, ThermalGroup.Skin).all { it in sample.sysfs.temperatures }
+        ) return null
+        val readAt = sample.thermalHeadroomTimeNanos ?: return null
+        if (sample.timeNanos - readAt !in 0L..12_000_000_000L) return null
+        return sample.thermalHeadroom?.takeIf { it.isFinite() && it >= 1f }
+            ?.let { SafetyCheck(SafetyLevel.Stop, SafetyReason.ThermalHeadroom, it.toDouble()) }
     }
 }
 
@@ -120,8 +134,14 @@ class SafetyMonitor(private val limits: SafetyLimits = SafetyLimits()) {
         stopSince.keys.retainAll(stopping.mapNotNull { it.reason }.toSet())
         for (check in stopping) {
             val reason = check.reason ?: continue
-            val since = stopSince.getOrPut(reason) { sample.timeNanos }
-            if ((sample.timeNanos - since) / 1e9 >= limits.sustainSeconds) return check
+            val observed = if (reason == SafetyReason.ThermalHeadroom) {
+                sample.thermalHeadroomTimeNanos ?: continue
+            } else {
+                sample.timeNanos
+            }
+            val since = stopSince.getOrPut(reason) { observed }
+            // Reusing the last headroom in 10 Hz samples is only one framework observation.
+            if ((observed - since) / 1e9 >= limits.sustainSeconds) return check
         }
         // Not held long enough yet: shown as the warning it is so far.
         return findings.firstOrNull()?.let { if (it.level == SafetyLevel.Stop) it.copy(level = SafetyLevel.Warn) else it }

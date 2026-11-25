@@ -1,12 +1,12 @@
 package dev.ozcan.stress.run
 
-import dev.ozcan.stress.analysis.CurrentConvention
 import dev.ozcan.stress.analysis.Point
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.telemetry.CpuCluster
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.ThermalGroup
+import dev.ozcan.stress.telemetry.label
 import kotlin.math.abs
 import kotlin.math.floor
 
@@ -34,40 +34,68 @@ object RunAnalysis {
         load: List<Sample>,
         clusters: List<CpuCluster>,
         clusterName: (CpuCluster) -> String,
-    ): Pair<RunSummary, RunSeries> {
-        val convention = CurrentConvention.infer(baseline.unplugged().mapNotNull { it.battery.currentRaw })
-            ?: CurrentConvention.infer(load.unplugged().mapNotNull { it.battery.currentRaw })
-        val origin = load.firstOrNull()?.timeNanos ?: 0L
-        val watts = convention?.let { Power.watts(load, it, origin) }.orEmpty()
-        val span = load.lastOrNull()?.let { Power.seconds(it.timeNanos, origin) } ?: 0.0
-        val powerValid = (baseline + load).none { it.battery.plugged }
+    ): Pair<RunSummary, RunSeries> = analyze(RunPowerBaseline(baseline), load, clusters, clusterName)
 
-        // Without an instantaneous current, the charge counter's slope still
-        // gives the mean power, though not its peaks.
-        val counterWatts = if (watts.isEmpty() && powerValid) counterPower(load, origin) else null
-        val idle = convention?.let { Stats.meanOf(Power.watts(baseline, it, baseline.firstOrNull()?.timeNanos ?: 0L)) }
-        val mean = Stats.meanOf(watts) ?: counterWatts
-        val sustained = Stats.meanOf(Stats.window(watts, span - SUSTAINED_SECONDS, Double.MAX_VALUE)) ?: counterWatts
+    internal fun analyze(
+        baseline: RunPowerBaseline,
+        load: List<Sample>,
+        clusters: List<CpuCluster>,
+        clusterName: (CpuCluster) -> String,
+    ): Pair<RunSummary, RunSeries> {
+        val origin = load.firstOrNull()?.timeNanos ?: 0L
+        val span = load.lastOrNull()?.let { Power.seconds(it.timeNanos, origin) } ?: 0.0
+        // This stored flag means a charger was attached, including in older runs.
+        val powerValid = !baseline.plugged && load.none { it.battery.plugged }
+        val canMeasure = baseline.canMeasure(load)
+        val idleRaw = baseline.lastCurrent
+        // A gauge can freeze just before the load starts, while its last idle
+        // value still looks fresh. The load has to show some response.
+        val responds = idleRaw == null || load.any { it.battery.measurableCurrent?.let { raw -> raw != idleRaw } == true }
+        val direct = if (canMeasure && responds) {
+            baseline.convention?.let { Power.windowWatts(load, it, origin) }.orEmpty()
+        } else emptyList()
+        val directMean = Power.meanWatts(direct)
+        val energyWatts = if (canMeasure) Power.energyCounterWatts(load, origin) else null
+        val chargeWatts = if (canMeasure) Power.chargeCounterWatts(load, origin) else null
+        val counter = energyWatts ?: chargeWatts
+        val mismatch = directMean != null && counter != null && !Power.agrees(directMean, counter)
+        val watts = if (mismatch) emptyList() else direct
+        // With no usable current the counters can give a mean. When two
+        // sources disagree, only report a mean if the two counters corroborate it.
+        val counterWatts = counter?.takeIf {
+            watts.isEmpty() && (!mismatch ||
+                (energyWatts != null && chargeWatts != null && Power.agrees(energyWatts, chargeWatts)))
+        }
+        val idle = baseline.watts.takeIf { canMeasure && responds && !mismatch }
+        val mean = Power.meanWatts(watts) ?: counterWatts
+        val sustained = Power.meanWatts(Stats.window(watts, span - SUSTAINED_SECONDS, Double.MAX_VALUE)) ?: counterWatts?.let {
+            if (span <= SUSTAINED_SECONDS) it else {
+                val tail = load.filter { Power.seconds(it.timeNanos, origin) >= span - SUSTAINED_SECONDS }
+                if (energyWatts != null) Power.energyCounterWatts(tail, origin) else Power.chargeCounterWatts(tail, origin)
+            }
+        }
         val cpuRates = rates(load) { s -> s.cpu.workers.sumOf { it.work } }
         val gpuRunning = load.any { it.gpu.isRunning }
         // A burner paces its frames to a fixed time, so only a scene's frame rate means anything.
         val scene = gpuRunning && load.none { it.gpu.burner != null }
+        val names = clusters.map(clusterName)
+        val counts = names.groupingBy { it }.eachCount()
+        val labels = names.mapIndexed { i, name ->
+            if (counts.getValue(name) == 1) name else "$name (${clusters[i].copy(coreName = null).label()})"
+        }
 
         val summary = RunSummary(
             idleWatts = idle,
-            peakWatts = if (watts.isEmpty()) null else Stats.maxWindowMean(watts, PEAK_WINDOW_SECONDS) ?: mean,
+            peakWatts = Stats.maxWindowMean(watts, PEAK_WINDOW_SECONDS),
             meanWatts = mean,
             sustainedWatts = sustained,
-            energyWattHours = energy(watts) ?: counterWatts?.let { it * span / 3600.0 },
+            energyWattHours = Power.joules(watts)?.div(3600.0) ?: counterWatts?.let { it * span / 3600.0 },
             batteryStartPercent = load.firstOrNull()?.battery?.levelPercent,
             batteryEndPercent = load.lastOrNull()?.battery?.levelPercent,
             batteryLifeHours = batteryLife(load, sustained),
             maxTemperatures = temperatures(load) { it.maxOrNull() },
             startTemperatures = temperatures(load.take(1)) { it.firstOrNull() },
-            // Only loaded clusters: an idle cluster slows down because it has nothing to do, not because it is hot.
-            firstThrottleSeconds = clusters.withIndex()
-                .filter { (_, c) -> load.any { s -> c.cpus.any { cpu -> s.cpu.workers.getOrNull(cpu)?.kernel != null } } }
-                .associate { (i, c) -> clusterName(c) to firstThrottle(load, i, c.maxFreqKhz, origin) },
+            firstThrottleSeconds = throttles(load, clusters, labels, origin),
             cpuStability = stability(load) { s -> s.cpu.workers.sumOf { it.work } },
             gpuStability = if (gpuRunning) stability(load) { it.gpu.work.toDouble() } else null,
             computationErrors = (load.lastOrNull()?.cpu?.errors ?: 0L) + (load.lastOrNull()?.gpu?.errors ?: 0L),
@@ -79,28 +107,12 @@ object RunAnalysis {
             gpuMeanRate = if (gpuRunning && load.any { it.gpu.burner != null }) rates(load) { it.gpu.work.toDouble() }?.mean else null,
             gpuUnit = load.firstNotNullOfOrNull { it.gpu.burner }?.unit?.name,
             meanFps = if (scene) rates(load) { it.gpu.frames.toDouble() }?.mean else null,
-            maxThermalStatus = load.maxOfOrNull { it.thermalStatus },
+            maxThermalStatus = load.map { it.thermalStatus }.filter { it >= 0 }.maxOrNull(),
             powerFromCounter = counterWatts != null,
         )
-        val series = series(load, watts, clusters, clusterName, origin)
+        val series = series(load, watts, labels, origin)
         val settledFps = series.fps.drop(FPS_SETTLE_SECONDS).filterNotNull()
         return summary.copy(minFps = settledFps.minOrNull()) to series
-    }
-
-    private fun List<Sample>.unplugged() = filter { !it.battery.plugged }
-
-    /** Mean battery output power from the charge counter's slope and the mean voltage, in watts. */
-    private fun counterPower(load: List<Sample>, origin: Long): Double? {
-        val amps = Power.chargeCounterAmps(load, origin)?.takeIf { it > 0 } ?: return null
-        val volts = Stats.mean(load.mapNotNull { s -> s.battery.voltageMillivolts?.let { it / 1000.0 } }) ?: return null
-        return amps * volts
-    }
-
-    /** Trapezoidal integral of power over time, in watt-hours. */
-    private fun energy(watts: List<Point>): Double? {
-        if (watts.size < 2) return null
-        val joules = watts.zipWithNext { a, b -> (a.value + b.value) / 2 * (b.seconds - a.seconds) }.sum()
-        return joules / 3600.0
     }
 
     /**
@@ -110,10 +122,15 @@ object RunAnalysis {
      */
     private fun batteryLife(load: List<Sample>, sustainedWatts: Double?): Double? {
         val start = load.firstOrNull()?.battery ?: return null
-        val counter = start.chargeCounterMicroAmpHours ?: return null
-        val level = start.levelPercent?.takeIf { it > 0 } ?: return null
+        val level = start.levelPercent?.takeIf { it >= 10 } ?: return null
         val watts = sustainedWatts?.takeIf { it > 0 } ?: return null
-        val fullWattHours = counter * 1e-6 * NOMINAL_VOLTS * 100.0 / level
+        val remainingWattHours = start.energyCounterNanoWattHours?.times(1e-9) ?: run {
+            val counter = start.chargeCounterMicroAmpHours ?: return null
+            val mv = start.voltageMillivolts ?: return null
+            val nominal = if (mv > 5_000) 2 * NOMINAL_VOLTS else NOMINAL_VOLTS
+            counter * 1e-6 * nominal
+        }
+        val fullWattHours = remainingWattHours * 100.0 / level
         return fullWattHours / watts
     }
 
@@ -124,22 +141,43 @@ object RunAnalysis {
         return result
     }
 
-    /** First moment the cluster's clock fell below THROTTLE_FRACTION of its top and stayed there THROTTLE_HOLD_SECONDS. */
-    private fun firstThrottle(load: List<Sample>, cluster: Int, maxKhz: Long, origin: Long): Double? {
-        if (maxKhz <= 0) return null
-        val limit = maxKhz * THROTTLE_FRACTION
-        var since: Double? = null
-        for (s in load) {
-            val khz = s.sysfs.clusterFreqKhz.getOrNull(cluster) ?: continue
-            val t = Power.seconds(s.timeNanos, origin)
-            if (khz < limit) {
-                val start = since ?: t.also { since = it }
-                if (t - start >= THROTTLE_HOLD_SECONDS) return start
-            } else {
-                since = null
+    /** A clock drop needs continuous evidence while the cluster actually has pinned work. */
+    private fun throttles(load: List<Sample>, clusters: List<CpuCluster>, labels: List<String>, origin: Long): Map<String, Double?> {
+        val findings = linkedMapOf<String, Double?>()
+        val knownCpus = clusters.flatMap { it.cpus }.toSet()
+        var complete = load.none { s -> s.cpu.workers.any { it.kernel != null && it.cpu !in knownCpus } }
+        for ((i, c) in clusters.withIndex()) {
+            if (load.none { s -> c.cpus.any { s.cpu.workers.getOrNull(it)?.kernel != null } }) continue
+            val limit = c.maxFreqKhz * THROTTLE_FRACTION
+            var since: Double? = null
+            var previous = 0.0
+            var firstThrottle: Double? = null
+            for (s in load) {
+                val khz = s.sysfs.clusterFreqKhz.getOrNull(i)
+                val pinned = c.cpus.any { s.cpu.workers.getOrNull(it)?.let { w -> w.isPinned && w.isRunning } == true }
+                val t = Power.seconds(s.timeNanos, origin)
+                if (t - previous > 1.5) {
+                    complete = false
+                    since = null
+                }
+                previous = t
+                if (c.maxFreqKhz <= 0 || khz == null || !pinned) {
+                    complete = false
+                    since = null
+                } else if (khz < limit) {
+                    val start = since ?: t.also { since = it }
+                    if (t - start >= THROTTLE_HOLD_SECONDS) {
+                        firstThrottle = start
+                        break
+                    }
+                } else {
+                    since = null
+                }
             }
+            findings[labels[i]] = firstThrottle
         }
-        return null
+        // An empty map means there is no basis for saying none of the loaded clusters throttled.
+        return if (complete || findings.values.any { it != null }) findings else emptyMap()
     }
 
     private data class Rates(val mean: Double, val start: Double?, val end: Double?)
@@ -192,8 +230,7 @@ object RunAnalysis {
     private fun series(
         load: List<Sample>,
         watts: List<Point>,
-        clusters: List<CpuCluster>,
-        clusterName: (CpuCluster) -> String,
+        labels: List<String>,
         origin: Long,
     ): RunSeries {
         val buckets = load.groupBy { floor(Power.seconds(it.timeNanos, origin)).toInt() }.toSortedMap()
@@ -224,13 +261,38 @@ object RunAnalysis {
                     group.key to perSecond { samples -> Stats.mean(samples.mapNotNull { it.sysfs.temperatures[group] }) }
                 },
             batteryCelsius = perSecond { samples -> samples.lastOrNull()?.battery?.temperatureCelsius },
-            clocksMhz = clusters.mapIndexed { i, cluster ->
-                clusterName(cluster) to perSecond { samples -> Stats.mean(samples.mapNotNull { it.sysfs.clusterFreqKhz.getOrNull(i)?.div(1000.0) }) }
+            clocksMhz = labels.mapIndexedNotNull { i, name ->
+                val clock = perSecond { samples -> Stats.mean(samples.mapNotNull { it.sysfs.clusterFreqKhz.getOrNull(i)?.div(1000.0) }) }
+                name.takeIf { clock.any { it != null } }?.let { it to clock }
             }.toMap(),
             cpuRelative = relative { s -> s.cpu.workers.sumOf { it.work } },
             gpuRelative = if (gpuRunning && load.any { it.gpu.burner != null }) relative { it.gpu.work.toDouble() } else seconds.map { null },
             batteryPercent = perSecond { samples -> samples.lastOrNull()?.battery?.levelPercent },
             fps = if (scene) perSecondRate { it.gpu.frames.toDouble() } else emptyList(),
         )
+    }
+}
+
+/** The completed idle phase fixes the current convention for both views of a run. */
+internal class RunPowerBaseline(samples: List<Sample>) {
+    val plugged = samples.any { it.battery.plugged }
+    val lastCurrent = samples.lastOrNull()?.battery?.measurableCurrent
+    private val onBattery = samples.all { it.battery.onBattery }
+    private val candidate = if (onBattery) Power.currentConvention(samples) else null
+    private val direction = Power.currentDirection(samples, candidate)
+    private val showsCharging = Power.countersShowCharging(samples) ||
+        direction == 0 || (candidate != null && direction != candidate.dischargeSign)
+
+    val convention = candidate.takeUnless { showsCharging }
+    val watts = convention?.let { Power.meanWatts(Power.windowWatts(samples, it, samples.first().timeNanos)) }
+
+    fun canMeasure(load: List<Sample>): Boolean {
+        if (!onBattery || showsCharging || load.any { !it.battery.onBattery } || Power.countersShowCharging(load)) {
+            return false
+        }
+        // A false unplug broadcast can leave the idle phase charging while
+        // the load actually drains the battery. Never reinterpret that flip.
+        val loadDirection = Power.currentDirection(load, convention) ?: return true
+        return loadDirection != 0 && (direction == null || loadDirection == direction)
     }
 }

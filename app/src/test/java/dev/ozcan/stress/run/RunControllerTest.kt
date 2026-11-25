@@ -15,6 +15,7 @@ import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.SampleLog
 import dev.ozcan.stress.telemetry.SampleSource
 import dev.ozcan.stress.telemetry.SysfsLayout
+import dev.ozcan.stress.ui.LiveView
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -74,7 +76,12 @@ class RunControllerTest {
         GpuBurner(0, "gpu_fp32", "G1", WorkUnit.Flop, verified = true),
     )
 
-    private fun TestScope.controller(source: SampleSource, driver: LoadControl, store: RunStore) = RunController(
+    private fun TestScope.controller(
+        source: SampleSource,
+        driver: LoadControl,
+        store: RunStore,
+        baselineSeconds: Long = 2,
+    ) = RunController(
         source,
         driver,
         kernels,
@@ -85,7 +92,7 @@ class RunControllerTest {
         device = { null },
         // Virtual time, in the nanoseconds the controller and the samples speak.
         now = { testScheduler.currentTime * 1_000_000 },
-        baselineSeconds = 2,
+        baselineSeconds = baselineSeconds,
         samplerLostAfterNanos = 1_000_000_000,
     )
 
@@ -121,6 +128,48 @@ class RunControllerTest {
     }
 
     @Test
+    fun `false unplug with opposite idle and load current leaves live and result power unavailable`() = runTest {
+        val source = StubSource()
+        val controller = controller(source, StubDriver(), store(), baselineSeconds = 10)
+        val samples = emit(source) { t ->
+            val second = (t + 1e-6).toInt()
+            if (second < 10) {
+                // The idle median has the charging sign. Under that sign,
+                // the old signed idle mean was about -0.04 W.
+                sample(t, currentRaw = if (second < 9) 50L + second % 3 else -550L, millivolts = 4200)
+            } else {
+                val current = when (second - 10) {
+                    in 0..39 -> -1357L - second % 3
+                    in 40..53 -> -1050L
+                    else -> -762L
+                }
+                sample(t, currentRaw = current, millivolts = 4200, chargeCounter = 4_000_000L - (second - 10) * 377)
+            }
+        }
+        launch {
+            delay(20_000)
+            val running = controller.state.value as RunState.Running
+            val recent = source.log.recent(LiveView.WINDOW_SAMPLES)
+            val layout = SysfsLayout(TestSamples.clusters, emptyList(), null)
+            assertNull(running.currentConvention)
+            assertEquals(5.7, LiveView.from(recent, layout)!!.watts!!, 0.02)
+            assertNull(LiveView.from(recent, layout, running.currentConvention)!!.watts)
+        }
+
+        controller.run(StressMode.Cpu, StressDuration.One, RunOptions())
+        samples.cancel()
+
+        val record = (controller.state.value as RunState.Finished).record
+        assertTrue(record.summary.powerValid)
+        assertNull(record.summary.idleWatts)
+        assertNull(record.summary.peakWatts)
+        assertNull(record.summary.meanWatts)
+        assertNull(record.summary.sustainedWatts)
+        assertNull(record.summary.energyWattHours)
+        assertTrue(record.series.watts.all { it == null })
+    }
+
+    @Test
     fun `device safety blocks a start that is already too hot`() = runTest {
         val source = StubSource()
         val driver = StubDriver()
@@ -130,6 +179,21 @@ class RunControllerTest {
         controller.run(StressMode.Cpu, StressDuration.One, RunOptions())
 
         assertTrue(controller.state.value is RunState.Failed.Blocked)
+        assertEquals(0, driver.started)
+    }
+
+    @Test
+    fun `a first valid headroom reading arriving during baseline can block the load`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver()
+        val controller = controller(source, driver, store())
+        val samples = emit(source) { t ->
+            val s = sample(t, temperatures = emptyMap())
+            if (t < 1.0) s else s.copy(thermalHeadroom = 1.05f, thermalHeadroomTimeNanos = 1_000_000_000L)
+        }
+        controller.run(StressMode.Cpu, StressDuration.One, RunOptions())
+        samples.cancel()
+        assertEquals(SafetyReason.ThermalHeadroom, (controller.state.value as RunState.Failed.Blocked).check.reason)
         assertEquals(0, driver.started)
     }
 

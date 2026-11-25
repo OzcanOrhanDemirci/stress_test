@@ -147,6 +147,7 @@ object Labels {
         ClusterRole.Mid -> R.string.role_mid
         ClusterRole.Big -> R.string.role_big
         ClusterRole.Prime -> R.string.role_prime
+        ClusterRole.Unknown -> R.string.device_cpu
     }
 
     fun clusterColor(index: Int, count: Int): Color {
@@ -161,6 +162,7 @@ object Labels {
         SafetyReason.ChipHot -> R.string.safety_reason_chip_hot
         SafetyReason.SkinHot -> R.string.safety_reason_skin_hot
         SafetyReason.ThermalStatus -> R.string.safety_reason_thermal
+        SafetyReason.ThermalHeadroom -> R.string.safety_reason_headroom
         SafetyReason.BatteryLow -> R.string.safety_reason_battery_low
     }
 
@@ -171,6 +173,7 @@ object Labels {
         val reading = when (reason) {
             SafetyReason.BatteryLow -> Format.percentValue(value?.toInt())
             SafetyReason.ThermalStatus -> value?.let { context.getString(thermalStatus(it.toInt())) } ?: Format.MISSING
+            SafetyReason.ThermalHeadroom -> Format.number(value, 2)
             else -> Format.celsius(value)
         }
         return context.getString(R.string.title_with_value, name, reading)
@@ -186,7 +189,8 @@ object Labels {
         3 -> R.string.thermal_severe
         4 -> R.string.thermal_critical
         5 -> R.string.thermal_emergency
-        else -> R.string.thermal_shutdown
+        6 -> R.string.thermal_shutdown
+        else -> R.string.reading_unavailable
     }
 
     @StringRes

@@ -73,6 +73,63 @@ class PowerTest {
     fun `a charge counter in mAh is turned into µAh`() {
         assertEquals(5_679_000L, Power.normalizeChargeCounter(5679))
         assertEquals(4_000_000L, Power.normalizeChargeCounter(4_000_000))
-        assertEquals(0L, Power.normalizeChargeCounter(0))
+        assertEquals(80_000L, Power.normalizeChargeCounter(80_000, 2))
+        assertNull(Power.normalizeChargeCounter(0))
+        assertNull(Power.normalizeChargeCounter(Long.MIN_VALUE))
+        assertNull(Power.normalizeChargeCounter(5000, 1))
+    }
+
+    @Test
+    fun `gauge conventions are detected from the stream without a brand default`() {
+        // Representative Android HAL fixtures, including signed firmware
+        // variants. They are conventions a model can expose, not brand rules.
+        val fixtures = listOf(
+            Triple("Honor 400", listOf(-531L, -543L, -528L), CurrentConvention(1e-3, -1)),
+            Triple("Pixel", listOf(-530_000L, -540_000L, -525_000L), CurrentConvention(1e-6, -1)),
+            Triple("Samsung", listOf(460_000L, 470_000L, 475_000L), CurrentConvention(1e-6, 1)),
+            Triple("Xiaomi / Redmi / POCO", listOf(-780_000L, -806_000L, -790_000L), CurrentConvention(1e-6, -1)),
+            Triple("OnePlus / Oppo / Realme", listOf(-510L, -519L, -525L), CurrentConvention(1e-3, -1)),
+            Triple("Vivo / MediaTek", listOf(415L, 407L, 422L), CurrentConvention(1e-3, 1)),
+            Triple("Huawei", listOf(-320L, -328L, -335L), CurrentConvention(1e-3, -1)),
+            Triple("Motorola", listOf(-334_000L, -340_000L, -352_000L), CurrentConvention(1e-6, -1)),
+        )
+        for ((vendor, readings, expected) in fixtures) assertEquals(vendor, expected, CurrentConvention.infer(readings))
+        assertNull(CurrentConvention.infer(List(10) { 0L }))
+        assertNull(CurrentConvention.infer(List(10) { Long.MIN_VALUE }))
+        assertNull(CurrentConvention.infer(listOf(20_000L, 21_000L, 22_000L)))
+        assertNull(CurrentConvention.infer(listOf(540L, -540L, 541L, -541L)))
+    }
+
+    @Test
+    fun `a reported pack voltage is used as given and invalid values are dropped`() {
+        assertEquals(8_400, Power.normalizeMillivolts(8_400_000))
+        assertEquals(8_400, Power.normalizeMillivolts(8_400))
+        assertNull(Power.normalizeMillivolts(15))
+        assertNull(Power.normalizeMillivolts(Int.MAX_VALUE))
+        assertNull(Power.normalizeMillivolts(2_000_000))
+    }
+
+    @Test
+    fun `mean power is weighted by time when the sampler changes cadence`() {
+        val points = listOf(Point(0.0, 4.0), Point(1.0, 4.0), Point(2.0, 8.0), Point(2.1, 8.0), Point(3.0, 8.0))
+        assertEquals(6.0, Power.meanWatts(points)!!, 1e-9)
+    }
+
+    @Test
+    fun `a single missed archived tick survives scheduling jitter but a longer outage does not`() {
+        val convention = CurrentConvention(1e-3, -1)
+        val samples = (0..10).map { tick -> sample(tick * 1.1, currentRaw = -2000) }
+        val oneMiss = samples.filterIndexed { i, _ -> i != 5 }
+        assertEquals(8.0, Power.meanWatts(Power.windowWatts(oneMiss, convention, 0))!!, 1e-9)
+        val twoMisses = samples.filterIndexed { i, _ -> i !in 5..6 }
+        assertEquals(emptyList<Point>(), Power.windowWatts(twoMisses, convention, 0))
+    }
+
+    @Test
+    fun `several counter drops clustered at the start cannot measure a steady rate`() {
+        val samples = (0..180).map { second ->
+            sample(second.toDouble(), chargeCounter = 4_000_000L - second.coerceAtMost(4) * 10_000)
+        }
+        assertNull(Power.chargeCounterWatts(samples, 0))
     }
 }
