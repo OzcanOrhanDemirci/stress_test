@@ -79,6 +79,9 @@ import dev.ozcan.stress.ui.upper
 
 private val Limits = SafetyLimits()
 
+/** The chart's own width from which the run's live chart fills the middle of the page (tablets). */
+private val WIDE_CHART = 560.dp
+
 /**
  * The run's simple page (DESIGN "What each simple page keeps", Run): a slim status line on top, the scene (or the
  * live chart) in the middle, and below it the progress, three large values, at most one notice line, the
@@ -115,7 +118,10 @@ internal fun RunReadings(
                 Modifier.weight(1f).fillMaxWidth().wrapContentWidth().widthIn(max = ContentMaxWidth).padding(16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                LiveChart(history, height = (maxHeight - 40.dp).coerceIn(96.dp, 240.dp))
+                // On a phone the chart keeps a calm height in the middle; on a tablet's tall page it takes the
+                // whole middle, so the page does not float a ribbon between two empty bands.
+                val most = if (maxWidth >= WIDE_CHART) maxHeight - 40.dp else 240.dp
+                LiveChart(history, height = (maxHeight - 40.dp).coerceIn(96.dp, most.coerceAtLeast(96.dp)))
             }
         }
         // The bottom panel's ground spans the window under a scene; its content keeps a phone-like width.
