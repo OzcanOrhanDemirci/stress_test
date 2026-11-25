@@ -57,9 +57,6 @@
     <string name="run_line_peak">Peak power</string>
     <string name="run_line_current_raw">CURRENT_NOW, raw</string>
     <string name="run_line_battery_temp">Battery temperature</string>
-    <string name="run_line_charger">Charger</string>
-    <string name="run_charger_on">Connected</string>
-    <string name="run_charger_off">Not connected</string>
     <string name="run_line_chip">Chip, hottest</string>
     <string name="run_line_thermal_status">Android thermal status</string>
     <string name="run_line_headroom">Thermal headroom</string>

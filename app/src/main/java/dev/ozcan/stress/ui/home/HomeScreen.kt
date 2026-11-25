@@ -104,6 +104,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 internal data class HomeHistory(
     val last: RunRecord? = null,
@@ -365,7 +366,7 @@ private fun deviceCaption(device: DeviceInfo): String {
         spare -= extra
         val limit = share + extra
         val short = if (part.length <= limit) part else part.take(limit - 1).trimEnd() + "…"
-        short.upper()
+        short.upper(Locale.ROOT)
     }
 }
 

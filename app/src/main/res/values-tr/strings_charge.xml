@@ -7,12 +7,12 @@
     <string name="charge_checking">Kontrol ediliyor</string>
     <string name="charge_checking_text">Pil okunuyor.</string>
     <string name="charge_identifying">Pil akımını belirlemek için okumalar bekleniyor.</string>
-    <string name="charge_no_inflow">Şarj cihazı bağlı. Şu anda pile güç girmiyor.</string>
+    <string name="charge_no_inflow">Şarj kablosu takılı. Şu anda pile güç girmiyor.</string>
     <string name="charge_baseline">Boşta ölçüm</string>
-    <string name="charge_baseline_text">Telefonun pilden çektiği güç ölçülüyor. 20 saniye boyunca şarj cihazını takma.</string>
+    <string name="charge_baseline_text">Telefonun pilden çektiği güç ölçülüyor. 20 saniye boyunca şarj kablosunu takma.</string>
     <string name="charge_waiting">Bekleniyor</string>
-    <string name="charge_wait_title">Şarj cihazını tak</string>
-    <string name="charge_wait_text">Telefon şarj cihazını algılayınca ölçüm başlar.</string>
+    <string name="charge_wait_title">Şarj kablosunu tak</string>
+    <string name="charge_wait_text">Telefon şarj kablosunu algılayınca ölçüm başlar.</string>
     <string name="charge_idle">Telefonun boşta çektiği güç</string>
     <string name="charge_measuring">Ölçülüyor</string>
     <string name="charge_battery_power">Pile giren güç</string>
@@ -41,7 +41,7 @@
     <string name="charge_hot_warn">Pil 45 °C’ye ulaştı. Test 47 °C’de durur.</string>
     <string name="charge_hot_stop">Pil çok ısındı. Şarjı kesmek için kabloyu çıkar.</string>
     <string name="charge_end_full">Pil doldu</string>
-    <string name="charge_end_unplugged">Şarj cihazı çıkarıldı</string>
+    <string name="charge_end_unplugged">Şarj kablosu çıkarıldı</string>
     <string name="charge_end_reading_lost">Pil okumaları kesildi</string>
     <string name="charge_peak">Pile giren tepe güç</string>
     <string name="charge_sustained">Sürekli güç</string>

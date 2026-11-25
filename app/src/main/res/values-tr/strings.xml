@@ -375,7 +375,8 @@
     <string name="compare_pick_title">Karşılaştırılacak koşu</string>
     <string name="compare_none">Karşılaştırılacak başka bir koşu henüz yok.</string>
     <string name="compare_metrics">Yan yana</string>
-    <string name="compare_hint">Δ, A\'dan B\'ye yüzde değişimi gösterir. Bir ölçüm eksikse veya A sıfırsa çizgi görünür.</string>
+    <string name="compare_hint">Δ, A\'dan B\'ye değişimdir: güç, enerji, performans, kare hızı ve kararlılıkta A\'nın yüzdesi olarak; sıcaklıkta °C, sürelerde saniye, pil yüzdelerinde yüzde puanı, hatalarda adet olarak. Bir ölçüm eksikse veya A sıfırsa çizgi görünür.</string>
+    <string name="compare_seconds_difference">%1$s sn</string>
     <string name="compare_chart_chip">En sıcak çip</string>
     <string name="compare_chart_battery">Pil sıcaklığı</string>
     <string name="compare_chart_cpu">CPU performansı</string>
@@ -392,4 +393,8 @@
     <string name="home_mode_cpu_detail">Tüm çekirdekler</string>
     <string name="home_mode_gpu_detail">Grafik yükü</string>
     <string name="home_mode_dry_detail">Hafif işlem</string>
+    <!-- The charger line, the same on home, run and device pages. -->
+    <string name="charger">Şarj kablosu</string>
+    <string name="charger_connected">Takılı</string>
+    <string name="charger_not_connected">Takılı değil</string>
 </resources>

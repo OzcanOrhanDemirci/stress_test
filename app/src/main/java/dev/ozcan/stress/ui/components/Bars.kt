@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -28,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,12 +42,15 @@ import dev.ozcan.stress.ui.theme.StressType
 /**
  * A title and optional Code [caption]. Supply [brand] for the home wordmark and [actions] for end controls.
  * [supporting] adds a line below the caption block when a screen has a live status or notice.
+ * [captionExtra] joins the caption (" // ") only when the whole line fits at full size; the caption itself shrinks
+ * before it is ever cut.
  */
 @Composable
 fun TopBar(
     title: String = "",
     modifier: Modifier = Modifier,
     caption: String? = null,
+    captionExtra: String? = null,
     onBack: (() -> Unit)? = null,
     brand: (@Composable () -> Unit)? = null,
     supporting: (@Composable () -> Unit)? = null,
@@ -63,13 +68,13 @@ fun TopBar(
             } else {
                 Column(Modifier.weight(1f)) {
                     Text(title, style = StressType.Title)
-                    if (caption != null) BarCaption(caption)
+                    if (caption != null) BarCaption(caption, captionExtra)
                 }
             }
             actions()
         }
         if (brand != null && caption != null) {
-            BarCaption(caption, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
+            BarCaption(caption, captionExtra, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
         }
         if (supporting != null) Box(Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)) { supporting() }
         Hairline()
@@ -77,8 +82,13 @@ fun TopBar(
 }
 
 @Composable
-private fun BarCaption(text: String, modifier: Modifier = Modifier) {
-    Text(text, modifier, style = StressType.Code, color = StressColors.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun BarCaption(text: String, extra: String?, modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val measurer = rememberTextMeasurer()
+        val full = extra?.let { "$text // $it" }
+        val line = if (full != null && measurer.measure(full, StressType.Code, maxLines = 1).size.width <= constraints.maxWidth) full else text
+        FitText(line, StressType.Code, color = StressColors.TextDim)
+    }
 }
 
 /** A 40 dp outlined icon inside a 48 dp touch target. */

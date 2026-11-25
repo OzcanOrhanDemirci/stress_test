@@ -79,6 +79,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /** Settings is one page of setting rows; About and the advanced items are pages behind two of them. */
 private enum class SettingsPage { Main, About, Advanced }
@@ -301,6 +302,8 @@ private fun LanguageRow() {
                     }
                 },
                 label = { stringResource(Labels.language(it)) },
+                // Each language's name is in that language, so it is upper-cased by its own rules: "ENGLISH", "TÜRKÇE".
+                labelLocale = { it.tag?.let(Locale::forLanguageTag) },
             )
         },
     )

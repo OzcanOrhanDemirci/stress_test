@@ -23,9 +23,8 @@
     <string name="device_battery_output">Power from battery</string>
     <string name="device_battery_level">Battery level</string>
     <string name="device_battery_temperature">Battery temperature</string>
-    <string name="device_power_plugged">Unplug the charger to measure power drawn from the battery.</string>
+    <string name="device_power_plugged">Unplug the charger to measure the power and current drawn from the battery.</string>
     <string name="device_power_missing">Power needs a usable battery current and voltage reading.</string>
-    <string name="device_current_plugged">Unplug the charger to measure current drawn from the battery.</string>
     <string name="device_current_missing">The battery gauge is not providing usable live current.</string>
     <string name="device_raw_missing">Android did not report a raw current value.</string>
     <string name="device_voltage_missing">Android did not report the battery voltage.</string>

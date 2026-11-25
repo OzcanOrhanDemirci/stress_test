@@ -48,6 +48,7 @@ import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
+import java.util.Locale
 
 /*
  * The home screen's engineering page (DESIGN "What each simple page keeps", Home row): everything the Test tab
@@ -171,8 +172,8 @@ internal fun homeLog(context: Context, f: HomeFacts): HomeLog {
         HomeLine(s(R.string.home_key_raw_current), live?.currentRaw?.toString()),
         HomeLine(s(R.string.home_key_voltage), Format.number(live?.volts, 3), "V"),
         HomeLine(
-            s(R.string.home_key_charger),
-            live?.let { s(if (it.plugged) R.string.home_val_plugged else R.string.home_val_unplugged) },
+            s(R.string.charger),
+            live?.let { s(if (it.plugged) R.string.charger_connected else R.string.charger_not_connected) },
             color = if (plugged) StressColors.Warn else StressColors.Text,
         ),
         HomeLine(s(R.string.home_key_level), Format.percentValue(live?.levelPercent)),
@@ -388,7 +389,7 @@ private fun workloadSection(context: Context, f: HomeFacts): HomeSection {
             s(R.string.home_key_scene_burner), s(if (f.settings.sceneBurner) R.string.home_val_on else R.string.home_val_off),
         )
     }
-    return HomeSection(title, summary = recipe.takeIf { workload == null }, lines = lines)
+    return HomeSection(title, summary = recipe.takeIf { workload == null }?.upper(Locale.ROOT), lines = lines)
 }
 
 private fun String?.isMissing(): Boolean = this == null || this == Format.MISSING

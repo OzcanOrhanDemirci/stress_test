@@ -40,11 +40,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.ozcan.stress.R
@@ -56,6 +59,8 @@ import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressMotion
 import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
+import kotlin.math.max
+import kotlin.math.min
 
 /*
  * The engineering page and its log (DESIGN "Two pages per screen", "The log's grammar").
@@ -227,6 +232,7 @@ private fun LogTag.label(): Int? = when (this) {
  * One value of the log, 32 dp, no box: [key] in Code `TextDim` on the left, [value] right-aligned in Number S and
  * [color] with [unit] in `TextDim`, an optional [tag] in a 40 dp column at the far right (kept empty without one). A null [value] shows "—" and the `N/A`
  * tag; give the reason once with the section's note. [source] is a faint second line under the key (a sysfs path).
+ * A long value wraps rather than squeezing the key: the key never breaks inside a word.
  */
 @Composable
 fun LogLine(
@@ -245,12 +251,6 @@ fun LogLine(
         Arrangement.spacedBy(12.dp),
         Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(key, style = StressType.Code, color = StressColors.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (source != null) {
-                Text(source, style = StressType.Code.copy(fontSize = 10.sp, lineHeight = 14.sp), color = StressColors.TextFaint)
-            }
-        }
         val text = buildAnnotatedString {
             if (missing) {
                 withStyle(SpanStyle(color = StressColors.TextFaint)) { append(Format.MISSING) }
@@ -261,10 +261,50 @@ fun LogLine(
                 }
             }
         }
-        Text(text, Modifier.widthIn(max = 220.dp), style = NumberStyles.Small, color = color, textAlign = TextAlign.End)
+        KeyAndValue(key, source, text, color, Modifier.weight(1f))
         // The tag column is always kept so values line up whether or not a line carries a tag.
         Box(Modifier.widthIn(min = 40.dp), contentAlignment = Alignment.CenterEnd) {
             if (shownTag != null) LogTagText(shownTag)
+        }
+    }
+}
+
+/**
+ * The key and value of a [LogLine] side by side, 12 dp apart. Both take their full width when they fit. Otherwise the
+ * key keeps its own width up to 45 % of the line, and never less than its longest word; the value gets the rest and
+ * wraps inside it, right-aligned.
+ */
+@Composable
+private fun KeyAndValue(key: String, source: String?, value: AnnotatedString, color: Color, modifier: Modifier) {
+    Layout(
+        content = {
+            Text(key, style = StressType.Code, color = StressColors.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(value, style = NumberStyles.Small, color = color, textAlign = TextAlign.End)
+            if (source != null) {
+                Text(source, style = StressType.Code.copy(fontSize = 10.sp, lineHeight = 14.sp), color = StressColors.TextFaint)
+            }
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val gap = 12.dp.roundToPx()
+        val (keyText, valueText) = measurables
+        val keyFull = keyText.maxIntrinsicWidth(Constraints.Infinity)
+        val keyWord = keyText.minIntrinsicWidth(Constraints.Infinity)
+        val valueFull = valueText.maxIntrinsicWidth(Constraints.Infinity)
+        val keyKept = max(keyWord, min(keyFull, (width * 0.45f).toInt()))
+        val valueWidth = min(valueFull, width - gap - keyKept).coerceAtLeast(min(valueFull, width / 3))
+        val keyWidth = (width - gap - valueWidth).coerceAtLeast(0)
+        val keyPlaced = keyText.measure(Constraints(maxWidth = keyWidth))
+        val valuePlaced = valueText.measure(Constraints(maxWidth = valueWidth))
+        val sourcePlaced = measurables.getOrNull(2)?.measure(Constraints(maxWidth = keyWidth))
+        val left = keyPlaced.height + (sourcePlaced?.height ?: 0)
+        val height = max(max(left, valuePlaced.height), constraints.minHeight)
+        layout(width, height) {
+            val top = (height - left) / 2
+            keyPlaced.place(0, top)
+            sourcePlaced?.place(0, top + keyPlaced.height)
+            valuePlaced.place(width - valuePlaced.width, (height - valuePlaced.height) / 2)
         }
     }
 }

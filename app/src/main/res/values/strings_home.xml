@@ -41,9 +41,6 @@
     <string name="home_key_current">Current</string>
     <string name="home_key_raw_current">Raw current (CURRENT_NOW)</string>
     <string name="home_key_voltage">Voltage</string>
-    <string name="home_key_charger">Charger</string>
-    <string name="home_val_plugged">Connected</string>
-    <string name="home_val_unplugged">Not connected</string>
     <string name="home_key_level">Battery level</string>
     <string name="home_key_battery_temp">Battery temperature</string>
     <string name="home_key_chip">Chip (hottest of CPU and GPU)</string>

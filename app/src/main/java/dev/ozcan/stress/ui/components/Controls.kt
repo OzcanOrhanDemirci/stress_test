@@ -46,6 +46,7 @@ import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressMotion
 import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
+import java.util.Locale
 
 /** The orange primary action. [subtitle] adds an optional Code line below the label. */
 @Composable
@@ -120,7 +121,10 @@ private fun ActionButton(
     }
 }
 
-/** Equal settings [options] on a dark track. [enabled] can disable individual options. */
+/**
+ * Equal settings [options] on a dark track. [enabled] can disable individual options. Labels are upper-cased by the
+ * screen's language unless [labelLocale] names the language an option is written in ("English" on a Turkish screen).
+ */
 @Composable
 fun <T> SegmentedControl(
     options: List<T>,
@@ -130,8 +134,9 @@ fun <T> SegmentedControl(
     modifier: Modifier = Modifier,
     enabled: (T) -> Boolean = { true },
     height: Dp = 48.dp,
+    labelLocale: (T) -> Locale? = { null },
 ) {
-    ChoiceRow(options, selected, onSelect, label, modifier, enabled, height, segmented = true)
+    ChoiceRow(options, selected, onSelect, label, modifier, enabled, height, segmented = true, labelLocale = labelLocale)
 }
 
 /** Equal duration cells. [accessibleLabel] can give compact Code labels their expanded spoken name. */
@@ -158,6 +163,7 @@ private fun <T> ChoiceRow(
     height: Dp,
     segmented: Boolean,
     accessibleLabel: (@Composable (T) -> String)? = null,
+    labelLocale: (T) -> Locale? = { null },
 ) {
     val selectedColor = if (segmented) StressColors.Cool else StressColors.Accent
     val shape = if (segmented) ButtonShape else ChipShape
@@ -197,11 +203,12 @@ private fun <T> ChoiceRow(
                     .clip(shape).selectable(active, enabled = canPick, role = Role.RadioButton) { onSelect(option) }
                     .then(if (description == null) Modifier else Modifier.semantics { contentDescription = description })
                     .padding(vertical = if (segmented) 4.dp else 0.dp)
-                    .background(fill, shape).border(1.dp, line, shape).padding(horizontal = 2.dp, vertical = 4.dp),
+                    // 6 dp keeps a long label ("Until full" on a 320 dp phone) off the rule; it shrinks to fit inside.
+                    .background(fill, shape).border(1.dp, line, shape).padding(horizontal = 6.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 FitText(
-                    if (segmented) label(option).upper() else label(option),
+                    if (segmented) label(option).let { text -> labelLocale(option)?.let(text::upper) ?: text.upper() } else label(option),
                     if (segmented) StressType.Label else StressType.Code,
                     color = tint,
                     textAlign = TextAlign.Center,
