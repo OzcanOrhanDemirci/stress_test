@@ -162,7 +162,7 @@ gets "İ".
 - **Meter.** 3 dp bar, `SurfaceHighest` track, flat fill in the value's colour, square ends. No gradient, no glow.
 - **Primary button.** `Accent` fill, `OnAccent` label, Label style at 14 sp, leading icon, height 52, radius 6.
 - **Stop button.** `Danger` fill, light label, square stop icon, same size.
-- **Secondary button.** `Surface` fill, 1 dp `OutlineStrong`, `Text` label and icon.
+- **Secondary button.** `SurfaceHigh` fill, 1 dp `OutlineStrong`, `Text` label and icon.
 - **Segmented control.** `SurfaceLow` track with a 1 dp `Outline`; the selected segment `SurfaceHigh` with a 1 dp
   `Cool` rule and `Cool` label; others `TextDim`. Used for graphics quality and chart series.
 - **Choice chips** (duration): a row of equal outlined cells, Code-style labels (`1m 5m 15m 30m ∞`); the selected one
