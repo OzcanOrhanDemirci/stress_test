@@ -296,12 +296,15 @@ private fun PowerPanel(record: RunRecord) {
                     SectionLabel(stringResource(R.string.result_peak), Modifier.weight(1.15f))
                     SectionLabel(stringResource(R.string.result_sustained), Modifier.weight(1f))
                 }
+                // Without power (cable plugged in) both places are dashes: one size, so they sit level and the card
+                // keeps no hero height for nothing.
+                val measured = peak != null || sustained != null
                 Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(16.dp)) {
                     Box(Modifier.weight(1.15f).alignByBaseline()) {
-                        MetricNumber(Format.wattNumber(peak), "W", NumberStyles.Hero, StressColors.Accent)
+                        MetricNumber(Format.wattNumber(peak), "W", if (measured) NumberStyles.Hero else NumberStyles.Medium, StressColors.Accent)
                     }
                     Box(Modifier.weight(1f).alignByBaseline()) {
-                        MetricNumber(Format.wattNumber(sustained), "W", NumberStyles.Large, StressColors.Accent)
+                        MetricNumber(Format.wattNumber(sustained), "W", if (measured) NumberStyles.Large else NumberStyles.Medium, StressColors.Accent)
                     }
                 }
             }
