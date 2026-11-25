@@ -249,6 +249,7 @@ struct GpuLoad::Renderer {
     std::mutex threadMutex;
     std::condition_variable threadChanged;
     int initResult = -1;  // -1 pending, 0 ok, 1 failed
+    StartResult setupFailure = kSetupFailed;
     std::atomic<bool> finished{false};
 
     std::atomic<int> state{kStateIdle};
@@ -304,7 +305,10 @@ struct GpuLoad::Renderer {
     bool init() {
         uint32_t loader = 0;
         VK_TRY(vkEnumerateInstanceVersion(&loader));
-        if (loader < VK_API_VERSION_1_1) return false;
+        if (loader < VK_API_VERSION_1_1) {
+            setupFailure = kUnsupported;
+            return false;
+        }
         instanceVersion = std::min<uint32_t>(loader, VK_API_VERSION_1_2);
         VkApplicationInfo app{};
         app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -326,6 +330,7 @@ struct GpuLoad::Renderer {
         const auto choice = chooseDevice(instance, surface);
         if (choice.device == VK_NULL_HANDLE) {
             LOGE("no Vulkan 1.1 hardware device with graphics, compute and present");
+            setupFailure = kUnsupported;
             return false;
         }
         physical = choice.device;
@@ -371,6 +376,7 @@ struct GpuLoad::Renderer {
         const bool float16 = vulkan12 ? supported12.shaderFloat16 == VK_TRUE : supportedFloat16.shaderFloat16 == VK_TRUE;
         if (burner == kFp16 && !float16) {
             LOGE("FP16 arithmetic not supported");
+            setupFailure = kUnsupported;
             return false;
         }
         VkPhysicalDeviceVulkan12Features enabled12{};
@@ -443,7 +449,8 @@ struct GpuLoad::Renderer {
         // Limit the first draw on high-resolution phones too. The timed
         // frames that follow decide whether the requested settings fit.
         const double pixels = static_cast<double>(screen.width) * screen.height;
-        sceneScale = std::min({requestedScale, 0.30f, static_cast<float>(std::sqrt(280'000.0 / pixels))});
+        const double probePixels = sceneKind == SceneRenderer::Kind::Hole ? 120'000.0 : 280'000.0;
+        sceneScale = std::min({requestedScale, 0.30f, static_cast<float>(std::sqrt(probePixels / pixels))});
         probeFrames = kProbeFrames;
         probePeak = 0;
         slowFrames = 0;
@@ -1262,7 +1269,14 @@ GpuLoad::~GpuLoad() { stop(); }
 GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene,
                                     int sceneScalePercent, int sceneKind, int sceneQuality) {
     std::unique_lock lock(control_);
-    if (retiring_ && retiring_->finished.load()) retiring_.reset();
+    if (retiring_) {
+        const auto previous = retiring_;
+        std::unique_lock wait(previous->threadMutex);
+        if (previous->threadChanged.wait_for(wait, std::chrono::milliseconds(2200),
+                                              [&] { return previous->finished.load(); })) {
+            retiring_.reset();
+        }
+    }
     if (renderer_ || retiring_) {
         ANativeWindow_release(window);
         return renderer_ ? kAlreadyRunning : kSetupFailed;
@@ -1301,6 +1315,7 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
         return renderer->initResult >= 0 || renderer->stopRequested.load();
     });
     const bool started = reported && renderer->initResult == 0 && !renderer->stopRequested.load();
+    const StartResult failure = renderer->initResult == 1 ? renderer->setupFailure : kSetupFailed;
     wait.unlock();
 
     if (!started) {
@@ -1311,7 +1326,7 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
             retiring_ = std::move(renderer_);
             lastState_.store(kStateFailed);
         }
-        return kSetupFailed;
+        return failure;
     }
     return kStarted;
 }
