@@ -12,7 +12,7 @@ FOREST_PUSH uniform Forest {
     float time;       // seconds
     uint frame;       // reseeds the random samples
     uint part;        // which geometry the draw makes: PART_*
-    float spare;
+    float projectionY; // principal-point displacement in image heights
 } params;
 
 const uint PART_TERRAIN = 0u;

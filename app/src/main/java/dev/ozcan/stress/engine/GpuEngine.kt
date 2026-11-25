@@ -203,6 +203,7 @@ class GpuEngine {
     private val stopBuffer = LongArray(stride)
 
     private var surface: Surface? = null
+    private var framedScene = false
     private var request: GpuRequest? = null
 
     // Written under the engine lock, read by snapshot() without it: a snapshot
@@ -220,27 +221,31 @@ class GpuEngine {
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "stress-gpu-control") }
     private val surfaceGeneration = AtomicLong()
 
-    fun attachAsync(target: Surface) {
+    fun attachAsync(target: Surface, framedScene: Boolean = false) {
         val generation = surfaceGeneration.incrementAndGet()
         worker.execute {
             synchronized(this) {
                 // SurfaceView can reuse the same Java Surface for a new native
                 // window. Validity alone cannot identify an old callback.
-                if (surfaceGeneration.get() == generation) attach(target)
+                if (surfaceGeneration.get() == generation) attach(target, framedScene)
             }
         }
     }
 
     fun requestAsync(wanted: GpuRequest?) = worker.execute { request(wanted) }
 
+    /** Publishes the latest layout without waiting for renderer setup or a frame. */
+    internal fun setSceneOffsetY(offset: Float) = NativeBridge.gpuSetSceneOffsetY(offset)
+
     fun burner(key: String): GpuBurner = burners.first { it.key == key }
 
     @Synchronized
-    fun attach(target: Surface) {
+    fun attach(target: Surface, framedScene: Boolean = false) {
         // Attach requests are queued; the surface may be gone by the time one runs.
         if (target == surface || !target.isValid) return
         stopRenderer()
         surface = target
+        this.framedScene = framedScene
         reconcile()
     }
 
@@ -279,6 +284,7 @@ class GpuEngine {
                 wanted.sceneScalePercent,
                 wanted.sceneKind.code,
                 wanted.quality.code,
+                framedScene,
             )
             val result = GpuStartResult.fromCode(code)
             lastStart = result

@@ -11,15 +11,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -27,9 +24,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.GppBad
 import androidx.compose.material.icons.rounded.Shield
@@ -40,48 +35,52 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.ozcan.stress.R
-import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.run.RunState
 import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.safety.SafetyCheck
 import dev.ozcan.stress.safety.SafetyLevel
 import dev.ozcan.stress.safety.SafetyLimits
-import dev.ozcan.stress.telemetry.ThermalGroup
-import dev.ozcan.stress.ui.ClusterLive
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
 import dev.ozcan.stress.ui.components.ChartSeries
+import dev.ozcan.stress.ui.components.EngineeringRow
 import dev.ozcan.stress.ui.components.Hairline
-import dev.ozcan.stress.ui.components.InfoRow
 import dev.ozcan.stress.ui.components.MeterBar
 import dev.ozcan.stress.ui.components.MetricNumber
-import dev.ozcan.stress.ui.components.MetricTile
-import dev.ozcan.stress.ui.components.Panel
 import dev.ozcan.stress.ui.components.SectionLabel
-import dev.ozcan.stress.ui.components.Sparkline
-import dev.ozcan.stress.ui.components.Stack
 import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StopButton
-import dev.ozcan.stress.ui.components.TileRow
+import dev.ozcan.stress.ui.components.Temperatures
 import dev.ozcan.stress.ui.components.TimeChart
-import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
+import dev.ozcan.stress.ui.upper
 
 private val Limits = SafetyLimits()
 
+/**
+ * The run's simple page (DESIGN "What each simple page keeps", Run): a slim status line on top, the scene (or the
+ * live chart) in the middle, and below it the progress, three large values, at most one notice line, the
+ * engineering row and the stop button. [onWindow] reports the part of the screen a scene stays visible in.
+ */
 @Composable
 internal fun RunReadings(
     mode: StressMode,
@@ -92,108 +91,62 @@ internal fun RunReadings(
     history: LiveHistory,
     safety: SafetyCheck,
     safetyOn: Boolean,
+    engineeringCaption: String,
+    onWindow: (Rect) -> Unit,
+    onEngineering: () -> Unit,
     onStop: () -> Unit,
 ) {
     val scene = mode.scene != null
+    val elapsed = ((now - state.startedAtNanos) / 1e9).coerceAtLeast(0.0)
+    val total = state.endsAtNanos?.let { (it - state.startedAtNanos) / 1e9 }
     val ground = if (scene) Modifier else Modifier.background(StressColors.Background)
-    BoxWithConstraints(Modifier.fillMaxSize().then(ground).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
-        val sceneReadingsHeight = maxHeight * 0.40f
-        Column(Modifier.fillMaxSize()) {
-            RunTopBar(mode, quality, state, now, live, safety, safetyOn)
-            if (scene) SceneCorners(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp))
-            val body = if (scene) Modifier.heightIn(max = sceneReadingsHeight) else Modifier.weight(1f)
-            Stack(
-                body.fillMaxWidth().background(StressColors.Background)
-                    .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
-                spacing = if (scene) 8 else 12,
-            ) {
-                val plugged = live?.plugged == true
-                val watts = live?.watts.takeUnless { plugged }
-                LivePower(watts, state.idleWatts, history, live, scene)
-                MainTiles(mode, live)
-                if (scene) ClusterReadings(live?.clusters.orEmpty(), compact = true)
-                val missing = watts == null || live?.chipCelsius == null || live.batteryCelsius == null ||
-                    live.levelPercent == null || listOf(ThermalGroup.Cpu, ThermalGroup.Gpu, ThermalGroup.Skin).any { it !in live.temperatures } ||
-                    (mode.usesGpu && (live.gpuLoad == null || live.gpu.frameMillis == null || live.gpu.framesPerSecond == null ||
-                        (mode.scene == null && (live.gpu.burner == null || live.gpu.rate == null)))) ||
-                    (mode.usesCpu && (live.clusters.isEmpty() || live.clusters.any { it.khz == null } || live.cpuRate == null))
-                if (missing) {
-                    Text(
-                        stringResource(if (plugged) R.string.run_unavailable_charging else R.string.run_unavailable),
-                        style = StressType.BodySmall, color = StressColors.TextDim,
-                    )
-                }
-                if (!scene) {
-                    LiveChart(history)
-                    ClusterReadings(live?.clusters.orEmpty(), compact = false)
-                }
-                LoadDetails(mode, live)
+    Column(Modifier.fillMaxSize().then(ground).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+        RunStatusLine(scene, elapsed, total, safety, safetyOn)
+        if (scene) {
+            SceneCorners(
+                Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { onWindow(it.boundsInRoot()) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        } else {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                LiveChart(history, height = (maxHeight - 40.dp).coerceIn(96.dp, 240.dp))
             }
+        }
+        Column(Modifier.fillMaxWidth().background(StressColors.Background)) {
             Hairline()
-            Box(
-                Modifier.fillMaxWidth().background(StressColors.SurfaceLow).navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                Arrangement.spacedBy(12.dp),
             ) {
+                if (total != null) MeterBar((elapsed / total).toFloat())
+                RunValues(mode, live)
+                RunNotice(mode, quality, live, safety, safetyOn)
+                EngineeringRow(engineeringCaption, onEngineering)
                 StopButton(stringResource(R.string.run_stop), onClick = onStop)
             }
         }
     }
 }
 
+/** Recording dot and timer on the left, the protection state on the right; over a scene, on a scrim. */
 @Composable
-private fun RunTopBar(
-    mode: StressMode,
-    quality: SceneQuality,
-    state: RunState.Running,
-    now: Long,
-    live: LiveView?,
-    safety: SafetyCheck,
-    safetyOn: Boolean,
-) {
-    val elapsed = ((now - state.startedAtNanos) / 1e9).coerceAtLeast(0.0)
-    val total = state.endsAtNanos?.let { (it - state.startedAtNanos) / 1e9 }
-    val remaining = total?.minus(elapsed)?.coerceAtLeast(0.0)
-    val caption = mode.scene?.let { kind ->
-        "${stringResource(Labels.quality(quality))} ${Format.percentValue(quality.scalePercent(kind))}"
-    } ?: mode.recipe.replace("+", " + ")
-    TopBar(
-        title = Labels.modeName(context(), mode),
-        caption = caption,
-        modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
-        supporting = {
-            Stack(Modifier.fillMaxWidth(), spacing = 4) {
-                Row(
-                    Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp), Alignment.CenterVertically,
-                ) {
-                    RecordingDot()
-                    Text(
-                        "${Format.clock(elapsed)} / ${total?.let(Format::clock) ?: stringResource(R.string.duration_endless)}",
-                        Modifier.weight(1f), style = StressType.Code,
-                    )
-                    RunProtection(safety, safetyOn, showFinding = false)
-                }
-                live?.gpu?.sceneDraw?.let { DrawnQualityNotice(mode.scene, quality, it.quality, it.scalePercent) }
-                if (total != null) MeterBar((elapsed / total).toFloat())
-                if (remaining != null || mode.usesGpu) {
-                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                        Text(
-                            remaining?.let { stringResource(R.string.run_remaining, Format.clock(kotlin.math.ceil(it))) }.orEmpty(),
-                            style = StressType.Code, color = StressColors.TextDim,
-                        )
-                        if (mode.usesGpu) {
-                            val fps = live?.gpu?.framesPerSecond
-                            val frame = live?.gpu?.frameMillis
-                            Text(
-                                "${reading(fps, 0, "fps")} · ${reading(frame, 1, "ms")}",
-                                style = StressType.Code, color = StressColors.Cool,
-                            )
-                        }
-                    }
-                }
-                RunProtection(safety, safetyOn, showFinding = true)
-            }
-        },
-    )
+private fun RunStatusLine(scene: Boolean, elapsed: Double, total: Double?, safety: SafetyCheck, safetyOn: Boolean) {
+    val scrim = if (scene) {
+        Modifier.background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.72f), Color.Transparent)))
+    } else Modifier
+    Row(
+        Modifier.fillMaxWidth().then(scrim).statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+        Arrangement.spacedBy(8.dp),
+        Alignment.CenterVertically,
+    ) {
+        RecordingDot()
+        Text(
+            "${Format.clock(elapsed)} / ${total?.let(Format::clock) ?: stringResource(R.string.duration_endless)}",
+            style = NumberStyles.Small, color = StressColors.Text, maxLines = 1,
+        )
+        Spacer(Modifier.weight(1f))
+        RunProtection(safety, safetyOn)
+    }
 }
 
 @Composable
@@ -208,23 +161,78 @@ private fun RecordingDot() {
 }
 
 @Composable
-private fun RunProtection(check: SafetyCheck, enabled: Boolean, showFinding: Boolean) {
-    if (showFinding) {
-        if (enabled && check.level != SafetyLevel.Ok) {
-            StatusChip(
-                Labels.safetyFinding(context(), check),
-                if (check.level == SafetyLevel.Stop) StressColors.Bad else StressColors.Warn,
-                icon = Icons.Rounded.Warning,
-            )
-        }
-    } else if (!enabled) {
+private fun RunProtection(check: SafetyCheck, enabled: Boolean) {
+    if (!enabled) {
         StatusChip(stringResource(R.string.safety_off_short), StressColors.Bad, icon = Icons.Rounded.GppBad)
-    } else if (check.level == SafetyLevel.Ok) {
+    } else {
+        // The finding itself is the notice line's; the chip only turns to its colour.
+        val ok = check.level == SafetyLevel.Ok
         StatusChip(
             stringResource(R.string.home_protection_limit, Limits.chipStop.toInt()),
-            StressColors.Good, icon = Icons.Rounded.Shield,
+            safetyColor(check.level), icon = if (ok) Icons.Rounded.Shield else Icons.Rounded.Warning,
         )
     }
+}
+
+/** Power, chip temperature and the mode's own rate: frames for a scene, work for a burner or the CPU. */
+@Composable
+private fun RunValues(mode: StressMode, live: LiveView?) {
+    val context = context()
+    val watts = live?.watts.takeUnless { live?.plugged == true }
+    val chip = live?.chipCelsius
+    Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp)) {
+        LargeValue(stringResource(R.string.home_live_power), Format.number(watts, 2), "W", StressColors.Accent)
+        LargeValue(stringResource(R.string.home_live_chip), Format.number(chip, 0), "°C", Temperatures.chip(chip))
+        when {
+            mode.scene != null ->
+                LargeValue(stringResource(R.string.chart_fps), Format.number(live?.gpu?.framesPerSecond, 0), "fps", StressColors.Cool)
+            mode.usesGpu -> {
+                val burner = live?.gpu?.burner
+                val (number, unit) = Format.rateParts(live?.gpu?.rate, burner?.let { Labels.rateSymbol(context, it.unit) })
+                LargeValue(stringResource(R.string.run_value_gpu), number, unit, StressColors.Cool)
+            }
+            else -> {
+                val (number, unit) = Format.rateParts(live?.cpuRate, live?.unit?.let { Labels.rateSymbol(context, it) })
+                LargeValue(stringResource(R.string.run_value_cpu), number, unit, StressColors.Cool)
+            }
+        }
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.LargeValue(label: String, value: String, unit: String?, color: Color) {
+    Column(Modifier.weight(1f), Arrangement.spacedBy(4.dp)) {
+        Text(label.upper(), style = StressType.Label, color = StressColors.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        MetricNumber(value, unit, NumberStyles.Large, color)
+    }
+}
+
+/**
+ * The one notice the simple page has room for, most urgent first: a safety finding, wrong results, a scene drawn
+ * below the requested quality, then readings the phone did not give. The rest is in the engineering sheet.
+ */
+@Composable
+private fun RunNotice(mode: StressMode, quality: SceneQuality, live: LiveView?, safety: SafetyCheck, safetyOn: Boolean) {
+    val context = context()
+    val errors = live?.let { it.errors + it.gpu.errors } ?: 0L
+    val plugged = live?.plugged == true
+    val draw = live?.gpu?.sceneDraw
+    val drawn = draw?.let { drawnQualityText(mode.scene, quality, it.quality, it.scalePercent) }
+    val third = when {
+        mode.scene != null -> live?.gpu?.framesPerSecond
+        mode.usesGpu -> live?.gpu?.rate
+        else -> live?.cpuRate
+    }
+    val missing = live?.watts == null || plugged || live.chipCelsius == null || third == null
+    val (text, color) = when {
+        safetyOn && safety.level != SafetyLevel.Ok -> Labels.safetyFinding(context, safety) to safetyColor(safety.level)
+        errors > 0 -> pluralStringResource(R.plurals.run_notice_errors, errors.toInt(), errors.toInt()) to StressColors.Bad
+        drawn != null -> drawn to StressColors.Warn
+        live != null && missing ->
+            stringResource(if (plugged) R.string.run_unavailable_charging else R.string.run_unavailable) to StressColors.TextDim
+        else -> return
+    }
+    Text(text, style = StressType.BodySmall, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis)
 }
 
 @Composable
@@ -242,136 +250,9 @@ private fun SceneCorners(modifier: Modifier = Modifier) {
     }
 }
 
+/** Power and chip temperature over the last two minutes: the middle of a run without a scene, and the sheet's chart. */
 @Composable
-private fun LivePower(watts: Double?, idle: Double?, history: LiveHistory, live: LiveView?, compact: Boolean) {
-    val aboveIdle = if (idle != null && watts != null) (watts - idle).takeIf { it >= 0 } else null
-    val errors = live?.let { it.errors + it.gpu.errors }
-    Panel(Modifier.fillMaxWidth(), padding = if (compact) 12.dp else 16.dp) {
-        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-            SectionLabel(stringResource(R.string.home_live_power), Modifier.weight(1f))
-            StatusChip(
-                errors?.let { stringResource(R.string.run_errors, it) } ?: Format.MISSING,
-                when {
-                    errors == null -> StressColors.TextDim
-                    errors > 0 -> StressColors.Bad
-                    else -> StressColors.Good
-                },
-            )
-        }
-        Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(16.dp), Alignment.CenterVertically) {
-            MetricNumber(Format.number(watts, 2), "W", if (compact) NumberStyles.Large else NumberStyles.Hero, StressColors.Accent)
-            if (compact && history.peakWatts != null) {
-                val values = remember(history) { history.readings.map { it.watts } }
-                Stack(Modifier.weight(1f), spacing = 4) {
-                    Text(
-                        stringResource(R.string.run_peak, Format.watts(history.peakWatts)),
-                        style = StressType.Code, color = StressColors.TextDim,
-                    )
-                    Sparkline(values, StressColors.Accent, Modifier.fillMaxWidth().height(20.dp))
-                }
-            }
-        }
-        Text(
-            stringResource(R.string.run_power_caption, Format.watts(idle), aboveIdle?.let { "+${Format.watts(it)}" } ?: Format.MISSING),
-            style = StressType.Code, color = StressColors.TextDim,
-        )
-    }
-}
-
-@Composable
-private fun MainTiles(mode: StressMode, live: LiveView?) {
-    val chip = live?.chipCelsius
-    val battery = live?.batteryCelsius
-    val chipColor = StressColors.temperature(chip, Limits.chipWarn, Limits.chipStop)
-    val batteryColor = StressColors.temperature(battery, Limits.batteryWarn, Limits.batteryStop)
-    val context = context()
-    val gpu = live?.gpu
-    val gpuLoad = live?.gpuLoad
-    val tile = Modifier.fillMaxHeight()
-    TileRow(Modifier.height(IntrinsicSize.Min)) {
-        MetricTile(
-            stringResource(R.string.home_live_chip), Format.number(chip, 0), tile.weight(1f),
-            unit = "°C", color = chipColor, statusColor = chipColor.takeIf { chip != null },
-            caption = live?.let { stringResource(Labels.thermalStatus(it.thermalStatus)) } ?: Format.MISSING,
-            padding = 8.dp,
-        )
-        MetricTile(
-            stringResource(R.string.home_live_battery), Format.number(battery, 0), tile.weight(1f),
-            unit = "°C", color = batteryColor, statusColor = batteryColor.takeIf { battery != null },
-            caption = Format.percentValue(live?.levelPercent), padding = 8.dp,
-        )
-        if (mode.usesGpu) {
-            MetricTile(
-                stringResource(R.string.run_gpu_load), Format.percent(gpuLoad), tile.weight(1f),
-                statusColor = gpu?.let { gpuColor(it.state) },
-                caption = stringResource(gpu?.state?.let(::gpuLabel) ?: R.string.run_gpu_unknown),
-                padding = 8.dp,
-            )
-        } else {
-            val (number, unit) = Format.rateParts(live?.cpuRate, live?.unit?.let { Labels.rateSymbol(context, it) })
-            MetricTile(
-                stringResource(R.string.temp_cpu), number, tile.weight(1f), unit = unit,
-                statusColor = StressColors.Text.takeIf { live?.cpuRate != null },
-                caption = live?.runningKernel?.key ?: Format.MISSING, padding = 8.dp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ClusterReadings(clusters: List<ClusterLive>, compact: Boolean) {
-    Panel(Modifier.fillMaxWidth(), padding = if (compact) 8.dp else 12.dp) {
-        Stack(spacing = 8) {
-            if (!compact || clusters.isEmpty()) SectionLabel(stringResource(R.string.chart_clock))
-            if (clusters.isEmpty()) Text(Format.MISSING, style = StressType.Code, color = StressColors.TextDim)
-            clusters.withIndex().chunked(3).forEach { row ->
-                TileRow {
-                    row.forEach { (index, cluster) ->
-                        val color = Labels.clusterColor(index, clusters.size)
-                        Stack(Modifier.weight(1f), spacing = 4) {
-                            Text(cluster.label, style = StressType.BodySmall, color = StressColors.TextDim)
-                            MetricNumber(
-                                Format.number(cluster.khz?.div(1000.0), 0), "MHz",
-                                style = NumberStyles.Small, color = color,
-                            )
-                            cluster.load?.let { MeterBar(it, color = color) }
-                            if (!compact) {
-                                Text(
-                                    pluralStringResource(R.plurals.run_threads, cluster.threads, cluster.threads),
-                                    style = StressType.Code, color = StressColors.TextDim,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LoadDetails(mode: StressMode, live: LiveView?) {
-    val context = context()
-    val gpu = live?.gpu
-    val cpuRate = Format.rate(live?.cpuRate, live?.unit?.let { Labels.rateSymbol(context, it) })
-    val temperatures = live?.temperatures.orEmpty()
-    Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.run_workload)) {
-        if (mode.usesCpu) {
-            InfoRow(stringResource(R.string.run_cpu_kernel), live?.runningKernel?.key ?: Format.MISSING)
-            InfoRow(stringResource(R.string.result_cpu_perf), cpuRate)
-        }
-        if (mode.usesGpu && (mode.scene == null || gpu?.burner != null)) {
-            InfoRow(stringResource(R.string.run_gpu_burner), gpu?.burner?.key ?: Format.MISSING)
-            InfoRow(stringResource(R.string.result_gpu_perf), Format.rate(gpu?.rate, gpu?.burner?.let { Labels.rateSymbol(context, it.unit) }))
-        }
-        TemperatureRow(R.string.temp_cpu, temperatures[ThermalGroup.Cpu], Limits.chipWarn, Limits.chipStop)
-        TemperatureRow(R.string.temp_gpu, temperatures[ThermalGroup.Gpu], Limits.chipWarn, Limits.chipStop)
-        TemperatureRow(R.string.temp_skin, temperatures[ThermalGroup.Skin], Limits.skinWarn, Limits.skinStop)
-    }
-}
-
-@Composable
-private fun LiveChart(history: LiveHistory) {
+internal fun LiveChart(history: LiveHistory, height: Dp, modifier: Modifier = Modifier) {
     val points = history.readings
     val origin = points.firstOrNull()?.second ?: 0
     val seconds = remember(points) { points.map { (it.second - origin).toDouble() } }
@@ -388,36 +269,17 @@ private fun LiveChart(history: LiveHistory) {
             add(ChartSeries(heatLabel, StressColors.Cool, heat, "°C", range))
         }
     }
-    Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.run_live_chart), padding = 12.dp) {
+    Column(modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp)) {
         if (series.isEmpty()) {
+            SectionLabel(stringResource(R.string.run_live_chart))
             Text(Format.MISSING, style = StressType.Code, color = StressColors.TextDim)
         } else {
             SectionLabel(series.first().name, caption = series.first().unit)
             TimeChart(
-                seconds, series, series.first().unit.orEmpty(), height = 124.dp,
+                seconds, series, series.first().unit.orEmpty(), height = height,
                 yMin = 0.0.takeIf { series.first().unit == "W" },
                 timeLabel = { Format.clock(it + origin) },
             )
         }
     }
-}
-
-@Composable
-private fun TemperatureRow(label: Int, value: Double?, warn: Double, stop: Double) {
-    InfoRow(stringResource(label), Format.celsius(value, 0), valueColor = StressColors.temperature(value, warn, stop))
-}
-
-private fun reading(value: Double?, decimals: Int, unit: String): String =
-    value?.let { "${Format.number(it, decimals)} $unit" } ?: Format.MISSING
-
-private fun gpuLabel(state: GpuState): Int = when (state) {
-    GpuState.Idle -> R.string.run_gpu_idle
-    GpuState.Running -> R.string.run_gpu_running
-    GpuState.DeviceLost, GpuState.Failed -> R.string.run_gpu_failed
-}
-
-private fun gpuColor(state: GpuState): Color = when (state) {
-    GpuState.Idle -> StressColors.TextDim
-    GpuState.Running -> StressColors.Cool
-    GpuState.DeviceLost, GpuState.Failed -> StressColors.Bad
 }

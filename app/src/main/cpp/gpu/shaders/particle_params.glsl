@@ -28,7 +28,7 @@ layout(push_constant) uniform ParticleParams {
     uint count;
     uint frame;       // 0 on the first step: every particle is born
     float maxPointSize;
-    float spare1;
+    float projectionY; // principal-point displacement in image heights
 } params;
 
 const float KIND_BUBBLE = 0.0;

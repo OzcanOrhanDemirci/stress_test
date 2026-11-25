@@ -28,15 +28,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +64,7 @@ import dev.ozcan.stress.ui.GpuSurface
 import dev.ozcan.stress.ui.KeepScreenOnEffect
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.MaxDisplayEffect
+import dev.ozcan.stress.ui.components.EngineeringSheet
 import dev.ozcan.stress.ui.components.MeterBar
 import dev.ozcan.stress.ui.components.MetricNumber
 import dev.ozcan.stress.ui.components.Panel
@@ -65,7 +72,9 @@ import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.components.SecondaryButton
 import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StressDialog
+import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.upper
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressMotion
@@ -81,9 +90,13 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
     val live by model.live.collectAsStateWithLifecycle()
     val history by model.history.collectAsStateWithLifecycle()
     val safety by model.safety.collectAsStateWithLifecycle()
+    val events by model.events.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
     var overlay by remember { mutableStateOf(true) }
     var confirmStop by remember { mutableStateOf(false) }
+    var engineering by rememberSaveable { mutableStateOf(false) }
+    var window by remember { mutableStateOf<Rect?>(null) }
+    var screenHeight by remember { mutableFloatStateOf(0f) }
 
     KeepScreenOnEffect()
     if (model.settings.maxDisplay) MaxDisplayEffect()
@@ -94,6 +107,9 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
     val active = state is RunState.Baseline || running != null || state == RunState.Preparing
     LaunchedEffect(active) {
         if (!active) confirmStop = false
+    }
+    LaunchedEffect(running != null) {
+        if (running == null) engineering = false
     }
     BackHandler {
         if (active) confirmStop = true else if (state is RunState.Failed) onLeave()
@@ -128,9 +144,27 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
         ) { overlay = !overlay }
     } else Modifier
 
-    Box(Modifier.fillMaxSize().background(if (mode.usesGpu) Color.Black else StressColors.Background).then(toggle)) {
-        // The surface stays full size even when a scene's viewport or the readings change.
-        if (mode.usesGpu) GpuSurface(graph.gpu, Modifier.fillMaxSize())
+    // A scene's subject sits in the window the panels leave; with the engineering sheet open, in what is left
+    // above it; with the panels hidden, in the centre.
+    val windowCenterY = window?.takeIf { canHide && overlay }?.let { shown ->
+        if (engineering) (shown.top + screenHeight * (1f - SHEET_FRACTION)) / 2f else shown.center.y
+    }
+    val log = running?.let {
+        runLog(mode, model.settings.quality, it, now, live, history, safety, model.settings.deviceSafety)
+    }.orEmpty()
+    val chartTitle = stringResource(R.string.run_live_chart)
+    val eventsTitle = stringResource(R.string.run_log_events)
+    val eventsSummary = pluralStringResource(R.plurals.run_log_event_count, events.events.size, events.events.size)
+    val noEvents = stringResource(R.string.run_log_no_events)
+
+    Box(
+        Modifier.fillMaxSize().background(if (mode.usesGpu) Color.Black else StressColors.Background).then(toggle)
+            .onGloballyPositioned { screenHeight = it.boundsInRoot().height },
+    ) {
+        // The surface stays full size whatever the panels or the sheet cover, so the GPU's work does not depend on them.
+        if (mode.usesGpu) {
+            GpuSurface(graph.gpu, Modifier.fillMaxSize(), framedScene = mode.scene != null, windowCenterY = windowCenterY)
+        }
 
         AnimatedVisibility(
             visible = running != null && (!canHide || overlay),
@@ -138,9 +172,14 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
             exit = fadeOut(StressMotion.exit()),
         ) {
             if (running != null) {
+                val values = log.valueCount()
                 RunReadings(
                     mode, model.settings.quality, running, now, live, history,
-                    safety, model.settings.deviceSafety, onStop = { confirmStop = true },
+                    safety, model.settings.deviceSafety,
+                    engineeringCaption = pluralStringResource(R.plurals.parts_values, values, values).upper(),
+                    onWindow = { window = it },
+                    onEngineering = { engineering = true },
+                    onStop = { confirmStop = true },
                 )
             }
         }
@@ -153,6 +192,16 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
                 is RunState.Finished -> FinishedCard(phase)
                 is RunState.Failed -> FailedCard(phase, onLeave)
                 is RunState.Running -> Unit
+            }
+        }
+
+        if (engineering && running != null) {
+            EngineeringSheet(onDismiss = { engineering = false }, heightFraction = SHEET_FRACTION) {
+                logBlocks(log)
+                logSection(chartTitle, key = "chart") {
+                    item(key = "chart") { LiveChart(history, height = 140.dp) }
+                }
+                runEvents(events, eventsTitle, eventsSummary, noEvents)
             }
         }
     }
@@ -173,6 +222,9 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
         )
     }
 }
+
+/** The engineering sheet's share of the screen; the scene keeps the rest. */
+private const val SHEET_FRACTION = 0.62f
 
 @Composable
 private fun BaselineCard(mode: StressMode, state: RunState.Baseline?, now: Long, onCancel: () -> Unit) {

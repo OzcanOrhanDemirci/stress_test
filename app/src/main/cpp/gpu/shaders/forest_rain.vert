@@ -64,6 +64,9 @@ void main() {
 #ifdef VULKAN
     gl_Position.y = -gl_Position.y;
 #endif
+#ifdef SCENE_WINDOW
+    gl_Position.y += 2.0 * params.projectionY * w;
+#endif
     local = vec2(q.x, q.y * 2.0 - 1.0);
     viewDistance = length(mix(p, tail, q.x) - ro);
     // Grey sky light, and the sun scattered forwards through the drop where a beam crosses it.

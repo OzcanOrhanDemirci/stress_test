@@ -37,6 +37,8 @@ class RunViewModel(graph: AppGraph, mode: StressMode, duration: StressDuration) 
     val safety: StateFlow<SafetyCheck> = controller.safety
     private val _history = MutableStateFlow(LiveHistory())
     internal val history: StateFlow<LiveHistory> = _history.asStateFlow()
+    private val _events = MutableStateFlow(RunEvents())
+    internal val events: StateFlow<RunEvents> = _events.asStateFlow()
 
     val live: StateFlow<LiveView?> = combine(graph.sampler.latest, state) { _, phase ->
         val recent = graph.sampler.log.recent(LiveView.WINDOW_SAMPLES)
@@ -48,6 +50,7 @@ class RunViewModel(graph: AppGraph, mode: StressMode, duration: StressDuration) 
             _history.value = _history.value.append(
                 LiveReading(second, view.watts.takeUnless { view.plugged }, view.chipCelsius, view.batteryCelsius),
             )
+            _events.value = _events.value.observe(second, RunObservation.of(view, controller.safety.value, mode.usesGpu))
         }
         view
     }

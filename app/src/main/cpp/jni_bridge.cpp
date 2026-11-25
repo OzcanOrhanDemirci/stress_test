@@ -196,11 +196,16 @@ Java_dev_ozcan_stress_engine_NativeBridge_gpuBurnerTable(JNIEnv* env, jclass) {
 JNIEXPORT jint JNICALL
 Java_dev_ozcan_stress_engine_NativeBridge_gpuStart(JNIEnv* env, jclass, jobject surface, jint burner,
                                                    jint targetFrameMillis, jboolean scene, jint sceneScalePercent,
-                                                   jint sceneKind, jint sceneQuality) {
+                                                   jint sceneKind, jint sceneQuality, jboolean framedScene) {
     ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
     if (window == nullptr) return stress::GpuLoad::kSetupFailed;
     return gGpuLoad.start(window, burner, targetFrameMillis, scene == JNI_TRUE, sceneScalePercent, sceneKind,
-                          sceneQuality);
+                          sceneQuality, framedScene == JNI_TRUE);
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ozcan_stress_engine_NativeBridge_gpuSetSceneOffsetY(JNIEnv*, jclass, jfloat offset) {
+    gGpuLoad.setSceneOffsetY(offset);
 }
 
 // The GPU as Vulkan names it (GpuLoad::describeDevice); empty without Vulkan 1.1.

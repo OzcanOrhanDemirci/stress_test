@@ -83,6 +83,14 @@ add_shader(particles.frag particles_frag kParticlesFragSpirv)
 add_shader(water_step.comp water_step_comp kWaterStepCompSpirv)
 add_shader(water_surface.comp water_surface_comp kWaterSurfaceCompSpirv)
 
+# Only the run screen moves the principal point. Keep the lab shaders centred at compile time.
+add_shader(taa.frag taa_window_frag kTaaWindowFragSpirv -DSCENE_WINDOW)
+add_shader(taa.frag taa_forest_window_frag kTaaForestWindowFragSpirv -DSCENE_WINDOW -DSCENE_FOREST)
+add_shader(taa.frag taa_white_window_frag kTaaWhiteWindowFragSpirv -DSCENE_WINDOW -DSCENE_WHITE)
+add_shader(taa.frag taa_hole_window_frag kTaaHoleWindowFragSpirv -DSCENE_WINDOW -DSCENE_HOLE)
+add_shader(particles.vert particles_window_vert kParticlesWindowVertSpirv -DSCENE_WINDOW)
+add_shader(forest_rain.vert forest_rain_window_vert kForestRainWindowVertSpirv -DSCENE_WINDOW)
+
 target_compile_features(stress PRIVATE cxx_std_20)
 target_include_directories(stress PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
