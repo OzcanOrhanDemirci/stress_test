@@ -76,6 +76,7 @@ class ComparisonTest {
         assertEquals(8.9, honor.wattsFor(medium))
         assertNull(honor.wattsFor(medium.copy(quality = "High")))
         assertNull(honor.wattsFor(medium.copy(quality = "High", drawnQuality = "High", drawnScalePercent = 65.0)))
+        assertNull(honor.wattsFor(medium.copy(summary = medium.summary.copy(gpuUnit = "GFLOPS"))))
     }
 
     @Test
