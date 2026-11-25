@@ -168,7 +168,7 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
             .joinToString(" // ").upper()
     }
     TopBar(
-        title = stringResource(if (record?.isCharge == true) R.string.charge_result else R.string.result_title),
+        title = stringResource(R.string.result_title),
         caption = caption,
         onBack = onBack,
         modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
