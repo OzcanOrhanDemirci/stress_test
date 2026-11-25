@@ -95,6 +95,17 @@ bool Context::createImage(VkExtent2D size, VkFormat format, VkImageUsageFlags us
     return createView(out.image, format, out.view);
 }
 
+bool Context::supportsImage(VkExtent2D size, VkFormat format, VkImageUsageFlags usage,
+                            VkFormatFeatureFlags features) const {
+    VkFormatProperties formatProperties{};
+    vkGetPhysicalDeviceFormatProperties(physical, format, &formatProperties);
+    if ((formatProperties.optimalTilingFeatures & features) != features) return false;
+    VkImageFormatProperties limits{};
+    return vkGetPhysicalDeviceImageFormatProperties(physical, format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
+                                                    usage, 0, &limits) == VK_SUCCESS &&
+           size.width <= limits.maxExtent.width && size.height <= limits.maxExtent.height;
+}
+
 bool Context::createView(VkImage image, VkFormat format, VkImageView& out) const {
     VkImageViewCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

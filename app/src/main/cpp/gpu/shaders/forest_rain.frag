@@ -14,7 +14,7 @@ layout(location = 0) out vec4 outColour;
 
 void main() {
     if (viewDistance > texelFetch(distances, ivec2(gl_FragCoord.xy), 0).r) discard;
-    float ends = smoothstep(0.0, 0.3, local.x) * smoothstep(1.0, 0.7, local.x);
+    float ends = smoothstep(0.0, 0.3, local.x) * (1.0 - smoothstep(0.7, 1.0, local.x));
     float edge = 1.0 - local.y * local.y;
     outColour = vec4(colour * ends * edge, 1.0);
 }

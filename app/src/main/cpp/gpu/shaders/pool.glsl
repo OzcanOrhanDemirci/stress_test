@@ -477,7 +477,7 @@ vec3 shadeAir(vec3 p, vec3 rd, vec3 n, float mat, bool primary) {
         albedo = vec3(0.06, 0.065, 0.07);
         roughness = 0.5;
         metal = 0.4;
-        float strip = smoothstep(0.03, 0.0, abs(fract(p.y * 0.25) - 0.5) - 0.02);
+        float strip = 1.0 - smoothstep(0.0, 0.03, abs(fract(p.y * 0.25) - 0.5) - 0.02);
         emission = AMBER * 0.6 * strip;
     } else if (mat == M_WALL) {
         albedo = vec3(0.025, 0.027, 0.03);
@@ -493,7 +493,7 @@ vec3 shadeAir(vec3 p, vec3 rd, vec3 n, float mat, bool primary) {
         float h = hash21(cell);
         float on = step(0.35, h) * (h > 0.9 ? step(0.5, fract(gTime * (0.5 + h) + h * 7.0)) : 1.0);
         vec3 hue = h > 0.97 ? vec3(1.0, 0.1, 0.05) : (h > 0.7 ? AMBER : vec3(0.2, 1.0, 0.35));
-        emission += hue * 2.5 * band * on * smoothstep(0.22, 0.12, length(f));
+        emission += hue * 2.5 * band * on * (1.0 - smoothstep(0.12, 0.22, length(f)));
     } else if (mat == M_PIPE) {
         albedo = vec3(0.12, 0.11, 0.1);
         roughness = 0.35;
@@ -547,7 +547,8 @@ vec3 shadeWater(vec3 p, vec3 rd, vec3 n, float mat) {
         // Steel cladding bathed in the glow between the rods; the end
         // fittings on top face away from it and stay dark, so from above the
         // core reads as dark discs in blue light.
-        float inside = 1.0 / (1.0 + pow(coreBoxDistance(p) / 0.22, 2.0));
+        float coreDistance = coreBoxDistance(p) / 0.22;
+        float inside = 1.0 / (1.0 + coreDistance * coreDistance);
         float facing = n.y > 0.5 ? 0.12 : 1.0;
         vec3 glow = CHERENKOV * CORE_GLOW * 0.3 * inside * facing * pulse();
         float spacer = 1.0 - 0.5 * step(0.92, fract((p.y - CORE.y) * 2.5));  // thin dark rings

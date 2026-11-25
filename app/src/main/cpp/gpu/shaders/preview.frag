@@ -34,11 +34,11 @@ void main() {
     if (angle < -150.0) angle += 360.0;
     float along = (210.0 - angle) / 240.0;  // 0 at the lower left, 1 at the lower right
     bool onScale = along >= 0.0 && along <= 1.0;
-    float band = smoothstep(0.011, 0.005, abs(r - 0.17));
+    float band = 1.0 - smoothstep(0.005, 0.011, abs(r - 0.17));
     if (onScale) {
         c = mix(c, ACCENT * (along <= reading ? 1.0 : 0.22), band);
         // A tick every tenth of the scale, outside the band.
-        float tick = smoothstep(0.004, 0.0, abs(fract(along * 10.0 + 0.5) - 0.5) / 10.0 * 240.0 * 0.0174533 * r)
+        float tick = (1.0 - smoothstep(0.0, 0.004, abs(fract(along * 10.0 + 0.5) - 0.5) / 10.0 * 240.0 * 0.0174533 * r))
                      * step(0.188, r) * step(r, 0.206);
         c = mix(c, vec3(0.75), tick);
     }
@@ -46,7 +46,7 @@ void main() {
     float pointing = radians(210.0 - 240.0 * reading);
     vec2 dir = vec2(cos(pointing), sin(pointing));
     float across = abs(dot(uv, vec2(-dir.y, dir.x)));
-    float needle = smoothstep(0.006, 0.002, across) * step(0.0, dot(uv, dir)) * step(r, 0.12);
-    c = mix(c, ACCENT, max(needle, smoothstep(0.018, 0.012, r)));
+    float needle = (1.0 - smoothstep(0.002, 0.006, across)) * step(0.0, dot(uv, dir)) * step(r, 0.12);
+    c = mix(c, ACCENT, max(needle, 1.0 - smoothstep(0.012, 0.018, r)));
     color = vec4(presentColor(c, params.srgb), 1.0);
 }
