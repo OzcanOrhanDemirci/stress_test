@@ -1,5 +1,6 @@
 package dev.ozcan.stress.report
 
+import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.run.RunAnalysis
 import dev.ozcan.stress.run.RunRecord
 import java.io.File
@@ -27,6 +28,14 @@ object ReportCsv {
         val s = record.series
         val columns = buildList<Pair<String, (Int) -> String>> {
             add("t_s" to { i -> number(s.seconds.getOrNull(i)) })
+            if (record.isCharge) {
+                add("battery_input_w" to { i -> number(s.watts.getOrNull(i)) })
+                add("battery_current_a" to { i -> number(s.chargeCurrentAmps.getOrNull(i)) })
+                add("battery_v" to { i -> number(s.batteryVolts.getOrNull(i)) })
+                add("temp_${RunAnalysis.BATTERY}_c" to { i -> number(s.batteryCelsius.getOrNull(i)) })
+                add("battery_percent" to { i -> s.batteryPercent.getOrNull(i)?.toString().orEmpty() })
+                return@buildList
+            }
             add("power_w" to { i -> number(s.watts.getOrNull(i)) })
             s.temperatures.forEach { (key, values) -> add("temp_${slug(key)}_c" to { i -> number(values.getOrNull(i)) }) }
             add("temp_${RunAnalysis.BATTERY}_c" to { i -> number(s.batteryCelsius.getOrNull(i)) })

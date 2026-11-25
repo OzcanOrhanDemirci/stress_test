@@ -38,8 +38,8 @@ class StringsTest {
         }
     }
 
-    private val english = strings("src/main/res/values/strings.xml")
-    private val turkish = strings("src/main/res/values-tr/strings.xml")
+    private val english = strings("src/main/res/values/strings.xml") + strings("src/main/res/values/strings_charge.xml")
+    private val turkish = strings("src/main/res/values-tr/strings.xml") + strings("src/main/res/values-tr/strings_charge.xml")
     private val englishPlurals = plurals("src/main/res/values/strings.xml")
     private val turkishPlurals = plurals("src/main/res/values-tr/strings.xml")
 

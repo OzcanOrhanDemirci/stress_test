@@ -34,6 +34,8 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.R
 import dev.ozcan.stress.graph
+import dev.ozcan.stress.run.StressMode
+import dev.ozcan.stress.ui.charge.ChargeRunScreen
 import dev.ozcan.stress.ui.compare.CompareScreen
 import dev.ozcan.stress.ui.components.BarDestination
 import dev.ozcan.stress.ui.components.BottomBar
@@ -131,7 +133,11 @@ private fun Screen(entry: NavEntry, navigator: Navigator) {
         Route.Tab.History -> HistoryScreen(onOpen = { navigator.push(Route.Result(it)) })
         Route.Tab.Settings -> SettingsScreen(onOpenDevice = { navigator.select(Route.Tab.Device) })
         Route.Tab.Device -> DeviceScreen()
-        is Route.Run -> RunScreen(
+        is Route.Run -> if (route.mode == StressMode.Charge) ChargeRunScreen(
+            duration = route.duration,
+            onFinished = { navigator.replace(Route.Result(it)) },
+            onLeave = { navigator.back() },
+        ) else RunScreen(
             mode = route.mode,
             duration = route.duration,
             onFinished = { navigator.replace(Route.Result(it)) },

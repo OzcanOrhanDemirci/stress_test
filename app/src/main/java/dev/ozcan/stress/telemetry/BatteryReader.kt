@@ -30,6 +30,8 @@ data class BatteryReading(
     val energyCounterNanoWattHours: Long? = null,
     val plugStateKnown: Boolean = true,
     val currentFresh: Boolean = true,
+    val plugType: Int? = null,
+    val status: Int? = null,
 ) {
     val onBattery: Boolean get() = plugStateKnown && !plugged
     val measurableCurrent: Long? get() = currentRaw.takeIf { onBattery && currentFresh }
@@ -76,6 +78,7 @@ class BatteryReader(private val context: Context) {
         val level: Int,
         val scale: Int,
         val plugged: Int,
+        val status: Int,
         val receivedNanos: Long,
     )
 
@@ -120,6 +123,7 @@ class BatteryReader(private val context: Context) {
             level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1),
             scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1),
             plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1),
+            status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN),
             receivedNanos = SystemClock.elapsedRealtimeNanos(),
         )
         broadcastCount.incrementAndGet()
@@ -145,8 +149,13 @@ class BatteryReader(private val context: Context) {
                 ?.takeIf { it in 1..300_000_000_000L },
             plugStateKnown = plugState != null,
             currentFresh = currentFreshness.update(current, plugState == 0, nowNanos),
+            plugType = plugState,
+            status = b?.status,
         )
     }
+
+    fun chargeTimeRemainingMillis(): Long? =
+        runCatching { manager?.computeChargeTimeRemaining() }.getOrNull()?.takeIf { it >= 0 }
 
     /** Unsupported properties read as [Long.MIN_VALUE]. */
     private fun property(id: Int): Long? = runCatching { manager?.getLongProperty(id) }.getOrNull()

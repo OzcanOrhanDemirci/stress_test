@@ -38,12 +38,15 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
+import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.analysis.Comparison
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
+import dev.ozcan.stress.ui.charge.ChargeCompare
+import dev.ozcan.stress.ui.charge.ChargeLoadComparisonMessage
 import dev.ozcan.stress.ui.components.CenteredBox
 import dev.ozcan.stress.ui.components.ChartSeries
 import dev.ozcan.stress.ui.components.GlassCard
@@ -91,6 +94,8 @@ fun CompareScreen(first: String, second: String, onBack: () -> Unit) {
         when {
             pair == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             a == null || b == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
+            a.isCharge && b.isCharge -> ChargeCompare(a, b)
+            a.isCharge || b.isCharge -> ChargeLoadComparisonMessage()
             else -> Body(a, b)
         }
     }

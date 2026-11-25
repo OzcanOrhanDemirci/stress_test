@@ -111,13 +111,16 @@ fun TimeChart(
     yMax: Double? = null,
     decimals: Int = 1,
     timeLabel: (Double) -> String = { Format.elapsedShort(it).padStart(5, '0') },
+    xEnd: Double? = null,
+    xStep: Double? = null,
+    xReadoutPrefix: String = "t = ",
 ) {
     val measurer = rememberTextMeasurer()
     val axisStyle = StressType.Code.copy(color = StressColors.TextFaint)
     val primaryRange = remember(series, yMin, yMax) {
         series.firstOrNull()?.range ?: chartRange(series.filter { it.range == null }, yMin, yMax)
     }
-    val span = seconds.lastOrNull()?.takeIf { it > 0 } ?: 1.0
+    val span = xEnd ?: seconds.lastOrNull()?.takeIf { it > 0 } ?: 1.0
     var cursor by remember(seconds, series) { mutableIntStateOf(-1) }
     val readout = cursor.takeIf { it in seconds.indices } ?: seconds.lastIndex
 
@@ -127,7 +130,7 @@ fun TimeChart(
                 Modifier.fillMaxWidth().background(StressColors.SurfaceLow).padding(horizontal = 8.dp, vertical = 4.dp),
                 Arrangement.spacedBy(8.dp), Alignment.CenterVertically,
             ) {
-                Text("t = ${timeLabel(seconds[readout])}", style = StressType.Code, color = StressColors.TextDim)
+                Text("$xReadoutPrefix${timeLabel(seconds[readout])}", style = StressType.Code, color = StressColors.TextDim)
                 FlowRow(
                     Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
@@ -191,7 +194,7 @@ fun TimeChart(
             }
 
             val labelWidth = measurer.measure(timeLabel(span), axisStyle).size.width + 12.dp.toPx()
-            val step = timeStep(span, (width / labelWidth).toInt())
+            val step = xStep ?: timeStep(span, (width / labelWidth).toInt())
             val lastRegular = floor(span / step) * step
             val ticks = generateSequence(0.0) { it + step }
                 .takeWhile { it < span && (it < lastRegular || x(span) - x(it) >= labelWidth) }
@@ -202,7 +205,7 @@ fun TimeChart(
                 drawText(label, topLeft = Offset(lx, bottom + 4.dp.toPx()))
             }
 
-            clipRect(left, top - 2.dp.toPx(), right, bottom + 2.dp.toPx()) {
+            clipRect(left - 2.dp.toPx(), top - 2.dp.toPx(), right + 2.dp.toPx(), bottom + 2.dp.toPx()) {
                 series.forEachIndexed { index, line ->
                     val path = Path()
                     val fill = Path()
@@ -210,8 +213,10 @@ fun TimeChart(
                     val filled = index == 0 && line.color == StressColors.Accent
                     var startX: Float? = null
                     var lastX = 0f
+                    var firstY = 0f
                     fun finishSegment() {
                         val start = startX ?: return
+                        if (start == lastX && xEnd != null) drawCircle(line.color, 2.dp.toPx(), Offset(start, firstY))
                         if (filled) {
                             fill.lineTo(lastX, bottom)
                             fill.lineTo(start, bottom)
@@ -231,6 +236,7 @@ fun TimeChart(
                             path.moveTo(px, py)
                             if (filled) fill.moveTo(px, py)
                             startX = px
+                            firstY = py
                         } else {
                             path.lineTo(px, py)
                             if (filled) fill.lineTo(px, py)

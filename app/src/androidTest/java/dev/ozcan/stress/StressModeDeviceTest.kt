@@ -23,7 +23,7 @@ class StressModeDeviceTest {
 
     @Test
     fun everyRecipeIsARealWorkload() {
-        for (mode in StressMode.entries) {
+        for (mode in StressMode.entries.filter { it.recipe.isNotEmpty() }) {
             val workload = Workload.parse(mode.recipe, kernels, burners, 8)
             assertEquals("${mode.name} recipe", mode.recipe, workload.describe())
             assertEquals("${mode.name} usesGpu", workload.gpu != null, mode.usesGpu)
@@ -32,7 +32,7 @@ class StressModeDeviceTest {
 
     @Test
     fun onlyTheCinematicModesDrawAScene() {
-        for (mode in StressMode.entries) {
+        for (mode in StressMode.entries.filter { it.recipe.isNotEmpty() }) {
             val gpu = Workload.parse(mode.recipe, kernels, burners, 8).gpu ?: continue
             assertEquals("${mode.name} scene", mode.scene != null, gpu.scene != false)
         }

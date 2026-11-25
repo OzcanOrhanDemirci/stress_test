@@ -174,14 +174,14 @@ internal class HomeViewModel(private val graph: AppGraph) : ViewModel() {
     }
 
     /** Why device safety would not start a test now, or null. */
-    fun startBlock(): SafetyCheck? {
-        if (!graph.settings.current.deviceSafety) return null
+    fun startBlock(mode: StressMode): SafetyCheck? {
+        if (!graph.settings.current.deviceSafety || mode == StressMode.Charge) return null
         return graph.sampler.latest.value?.let { SafetyPolicy.startBlock(it) }
     }
 
     /** [startBlock], kept current, so the home screen can say so before the button is pressed. */
     val block: StateFlow<SafetyCheck?> = combine(graph.sampler.latest, graph.settings.settings) { sample, settings ->
-        if (settings.deviceSafety) sample?.let { SafetyPolicy.startBlock(it) } else null
+        if (settings.deviceSafety && settings.lastMode != StressMode.Charge) sample?.let { SafetyPolicy.startBlock(it) } else null
     }
         .distinctUntilChanged { a, b -> a?.reason == b?.reason && a?.value?.toInt() == b?.value?.toInt() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(1_000), null)
@@ -213,12 +213,13 @@ fun HomeScreen(
 
     val gpuOk = capabilities?.gpuTests == true
     val mode = settings.lastMode.takeIf { capabilities?.gpuTests != false || !it.usesGpu } ?: StressMode.Cpu
-    val duration = settings.lastDuration
+    val durations = if (mode == StressMode.Charge) ChargeDurations else StressDuration.entries
+    val duration = settings.lastDuration.takeIf { it in durations } ?: StressDuration.Five
     val quality = settings.quality
     val safety = settings.deviceSafety
     val summary = listOfNotNull(
         Labels.modeName(context, mode),
-        stringResource(Labels.duration(duration)),
+        stringResource(Labels.duration(duration, mode)),
         if (mode.scene != null) stringResource(Labels.quality(quality)) else null,
     ).joinToString(" · ")
 
@@ -246,8 +247,10 @@ fun HomeScreen(
         ) {
             SelectedTest(mode, duration, quality, device?.vulkan)
             LiveStatus(live)
-            if (live?.plugged == true) {
-                Notice(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_plugged), StressColors.Warn)
+            if (live?.plugged == true && mode != StressMode.Charge) {
+                Notice(Icons.Rounded.BatteryChargingFull, stringResource(R.string.charge_home_plugged), StressColors.Warn) {
+                    model.choose(mode = StressMode.Charge)
+                }
             }
             if (capabilities?.gpuTests == false) {
                 Notice(Icons.Rounded.Info, stringResource(R.string.home_no_vulkan), StressColors.Cool)
@@ -300,12 +303,12 @@ fun HomeScreen(
 
             SectionLabel(stringResource(R.string.home_section_duration))
             ChoiceChips(
-                options = StressDuration.entries,
+                options = durations,
                 selected = duration,
                 onSelect = { model.choose(duration = it) },
                 label = { it.seconds?.let { seconds -> stringResource(R.string.home_duration_short, seconds / 60) }
-                    ?: stringResource(R.string.duration_endless) },
-                accessibleLabel = { stringResource(Labels.duration(it)) },
+                    ?: stringResource(Labels.duration(it, mode)) },
+                accessibleLabel = { stringResource(Labels.duration(it, mode)) },
             )
 
             runs.last?.let { LastRun(it) { onOpenRun(it.id) } }
@@ -322,7 +325,7 @@ fun HomeScreen(
                 icon = Icons.Rounded.PlayArrow,
                 enabled = !mode.usesGpu || gpuOk,
                 onClick = {
-                    val block = model.startBlock()
+                    val block = model.startBlock(mode)
                     if (block != null) {
                         blocked = block
                         if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
@@ -374,7 +377,7 @@ private fun deviceCaption(device: DeviceInfo): String {
 private fun SelectedTest(mode: StressMode, duration: StressDuration, quality: SceneQuality, vulkan: String?) {
     val scene = mode.scene
     val selectedDuration = duration.seconds?.let { Format.clock(it.toDouble()).padStart(5, '0') }
-        ?: stringResource(R.string.duration_endless)
+        ?: stringResource(Labels.duration(duration, mode))
     val settings = if (scene == null) selectedDuration else
         "${stringResource(Labels.quality(quality))} ${Format.percentValue(quality.scalePercent(scene))} // $selectedDuration"
     Panel(Modifier.fillMaxWidth(), padding = 0.dp) {
@@ -409,7 +412,7 @@ private fun SelectedTest(mode: StressMode, duration: StressDuration, quality: Sc
                     style = StressType.Display,
                 )
                 Text(
-                    mode.recipe.replace("+", " + "),
+                    if (mode == StressMode.Charge) stringResource(R.string.mode_charge_detail) else mode.recipe.replace("+", " + "),
                     style = StressType.Code,
                     color = if (scene == null) StressColors.TextDim else StressColors.Text,
                 )
@@ -458,8 +461,8 @@ private fun LiveStatus(live: LiveView?) {
 }
 
 @Composable
-private fun Notice(icon: ImageVector, text: String, color: Color) {
-    Panel(Modifier.fillMaxWidth(), padding = 12.dp) {
+private fun Notice(icon: ImageVector, text: String, color: Color, onClick: (() -> Unit)? = null) {
+    Panel(Modifier.fillMaxWidth(), padding = 12.dp, onClick = onClick) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
             Text(text, style = StressType.BodySmall, color = StressColors.TextDim)
@@ -467,11 +470,14 @@ private fun Notice(icon: ImageVector, text: String, color: Color) {
     }
 }
 
+private val ChargeDurations = listOf(StressDuration.Five, StressDuration.Fifteen, StressDuration.Thirty, StressDuration.Endless)
+
 @Composable
 private fun ModeGrid(selected: StressMode, gpuOk: Boolean, bestWatts: Map<StressMode, Double>, onSelect: (StressMode) -> Unit) {
     val (large, compact) = HomeModes.partition { it == StressMode.Full || it.scene != null }
+    val (charge, load) = compact.partition { it == StressMode.Charge }
     Column(Modifier.fillMaxWidth().selectableGroup(), Arrangement.spacedBy(12.dp)) {
-        for ((width, modes) in listOf(2 to large, 3 to compact)) {
+        for ((width, modes) in listOf(2 to large, 3 to load, 1 to charge)) {
             for (row in modes.chunked(width)) {
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), Arrangement.spacedBy(12.dp)) {
                     row.forEach { mode ->
