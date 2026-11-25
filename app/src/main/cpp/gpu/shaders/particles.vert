@@ -34,6 +34,9 @@ void main() {
 #else
     const float clipUp = 1.0;
 #endif
+#ifdef SCENE_WINDOW
+    uv.y -= params.projectionY;
+#endif
     gl_Position = z > 0.1 ? vec4(uv.x * 2.0 * params.resolution.y / params.resolution.x, clipUp * uv.y * 2.0, 0.5, 1.0)
                           : vec4(2.0, 2.0, 2.0, 1.0);
 

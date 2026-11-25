@@ -36,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -84,6 +86,7 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
     val haptics = LocalHapticFeedback.current
     var overlay by remember { mutableStateOf(true) }
     var confirmStop by remember { mutableStateOf(false) }
+    var windowCenterY by remember { mutableStateOf<Float?>(null) }
 
     KeepScreenOnEffect()
     if (model.settings.maxDisplay) MaxDisplayEffect()
@@ -130,7 +133,15 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
 
     Box(Modifier.fillMaxSize().background(if (mode.usesGpu) Color.Black else StressColors.Background).then(toggle)) {
         // The surface stays full size even when a scene's viewport or the readings change.
-        if (mode.usesGpu) GpuSurface(graph.gpu, Modifier.fillMaxSize())
+        // A scene's subject sits in the window the panels leave; with the panels hidden, in the centre.
+        if (mode.usesGpu) {
+            GpuSurface(
+                graph.gpu,
+                Modifier.fillMaxSize(),
+                framedScene = mode.scene != null,
+                windowCenterY = windowCenterY.takeIf { canHide && overlay },
+            )
+        }
 
         AnimatedVisibility(
             visible = running != null && (!canHide || overlay),
@@ -140,7 +151,9 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
             if (running != null) {
                 RunReadings(
                     mode, model.settings.quality, running, now, live, history,
-                    safety, model.settings.deviceSafety, onStop = { confirmStop = true },
+                    safety, model.settings.deviceSafety,
+                    sceneWindowModifier = Modifier.onGloballyPositioned { windowCenterY = it.boundsInRoot().center.y },
+                    onStop = { confirmStop = true },
                 )
             }
         }

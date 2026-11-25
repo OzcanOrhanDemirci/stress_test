@@ -175,6 +175,7 @@ struct GpuLoad::Renderer {
     int burner = -1;
     int64_t targetFrameNanos = 0;
     bool scene = true;        // draw a scene; otherwise the cheap preview ring
+    std::shared_ptr<const std::atomic<float>> sceneOffsetY;  // only the run screen frames the scene
     SceneRenderer::Kind sceneKind = SceneRenderer::Kind::Pool;
     SceneDraw sceneSettings;
     SceneDraw currentDraw;
@@ -879,7 +880,7 @@ struct GpuLoad::Renderer {
 
     bool createVisiblePipeline() {
         if (scene) return sceneRenderer.init(vk, screen, sceneSettings.scale / 10'000.0f, presentPass, sceneKind,
-                                             sceneSettings.quality);
+                                             sceneSettings.quality, sceneOffsetY != nullptr);
         return vk.graphicsPipeline(presentPass, 1, graphicsLayout, kFullscreenVertSpirv, kPreviewFragSpirv,
                                    vk::Blend::None, previewPipeline);
     }
@@ -1160,7 +1161,10 @@ struct GpuLoad::Renderer {
 
         const float seconds = static_cast<float>(static_cast<double>(nowNanos() - startNanos) * 1e-9);
         const float load = burner >= 0 ? 1.0f : 0.0f;
-        if (scene) sceneRenderer.record(cmd, seconds);
+        if (scene) {
+            const float offsetY = sceneOffsetY ? sceneOffsetY->load(std::memory_order_relaxed) : 0.0f;
+            sceneRenderer.record(cmd, seconds, offsetY);
+        }
 
         VkRenderPassBeginInfo pass{};
         pass.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1356,8 +1360,12 @@ GpuLoad::GpuLoad() = default;
 
 GpuLoad::~GpuLoad() { stop(); }
 
+void GpuLoad::setSceneOffsetY(float offset) {
+    sceneOffsetY_->store(offset, std::memory_order_relaxed);
+}
+
 GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene,
-                                    int sceneScalePercent, int sceneKind, int sceneQuality) {
+                                    int sceneScalePercent, int sceneKind, int sceneQuality, bool framedScene) {
     std::unique_lock lock(control_);
     if (retiring_) {
         const auto previous = retiring_;
@@ -1380,6 +1388,7 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->burner = burner;
     renderer->targetFrameNanos = int64_t{std::clamp(targetFrameMillis, 5, 200)} * 1'000'000;
     renderer->scene = scene;
+    if (scene && framedScene) renderer->sceneOffsetY = sceneOffsetY_;
     renderer->requestedScale = static_cast<float>(std::clamp(sceneScalePercent, 10, 100)) / 100.0f;
     renderer->sceneKind = sceneKind == 1   ? SceneRenderer::Kind::Forest
                           : sceneKind == 2 ? SceneRenderer::Kind::White

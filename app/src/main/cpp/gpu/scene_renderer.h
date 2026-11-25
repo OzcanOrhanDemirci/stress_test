@@ -56,7 +56,7 @@ public:
         float time;
         uint32_t frame;
         uint32_t part;
-        float spare;
+        float projectionY;
     };
 
     struct FrameParams {
@@ -89,7 +89,7 @@ public:
         uint32_t count;
         uint32_t frame;
         float maxPointSize;
-        float spare1;
+        float projectionY;
     };
 
     /** Bubbles and sparks together, half each: enough to read as streams, few enough not to veil the scene. */
@@ -132,10 +132,10 @@ public:
 
     /** `presentPass` is the render pass the final picture is drawn in; `screen` its size. */
     bool init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind,
-              Quality quality);
+              Quality quality, bool framed);
 
-    /** Records scene, TAA and bloom for one frame; call before the present pass begins. */
-    void record(VkCommandBuffer cmd, float time);
+    /** Records scene, TAA and bloom. offsetY moves the principal point by a fraction of the image height. */
+    void record(VkCommandBuffer cmd, float time, float offsetY);
 
     /** Records the final picture; call inside the present pass. */
     void recordFinal(VkCommandBuffer cmd, VkExtent2D screen, float time,
@@ -155,12 +155,12 @@ private:
     bool createForestShadow();
     void recordForest(VkCommandBuffer cmd, const FrameParams& frame);
     void recordForestShadow(VkCommandBuffer cmd);
-    void recordRain(VkCommandBuffer cmd, const FrameParams& frame);
+    void recordRain(VkCommandBuffer cmd, const FrameParams& frame, float offsetY);
     void clearParticles(VkCommandBuffer cmd);
     void clearWater(VkCommandBuffer cmd);
     void recordWater(VkCommandBuffer cmd, float time);
     bool createPipelines(VkRenderPass presentPass);
-    void recordParticles(VkCommandBuffer cmd, float time);
+    void recordParticles(VkCommandBuffer cmd, float time, float offsetY);
     void pass(VkCommandBuffer cmd, VkRenderPass renderPass, VkFramebuffer framebuffer, VkExtent2D extent);
     void readable(VkCommandBuffer cmd);
 
@@ -177,6 +177,7 @@ private:
     vk::Image dof_;  // half the scene, like bloom_[0]
     Kind kind_ = Kind::Pool;
     Quality quality_ = Quality::Medium;
+    bool framed_ = false;
 
     // The forest's own pass: colour and distance as the pool's, plus depth.
     vk::Image depth_;
@@ -252,6 +253,7 @@ private:
     uint32_t frame_ = 0;
     uint32_t written_ = 0;  // history image written by the last record()
     float previousTime_ = 0.0f;
+    float previousProjectionY_ = 0.0f;  // scene pixels, positive down
 };
 
 }  // namespace stress

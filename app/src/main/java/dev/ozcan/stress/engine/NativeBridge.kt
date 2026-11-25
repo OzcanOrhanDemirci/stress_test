@@ -54,7 +54,10 @@ internal object NativeBridge {
         sceneScalePercent: Int,
         sceneKind: Int,
         sceneQuality: Int,
+        framedScene: Boolean,
     ): Int
+
+    @JvmStatic external fun gpuSetSceneOffsetY(offset: Float)
 
     /** `name|api version|driver version|vendor id|device id` of the Vulkan GPU; empty without Vulkan 1.1. */
     @JvmStatic external fun gpuDescribe(): String
