@@ -8,7 +8,9 @@ import dev.ozcan.stress.engine.GpuRunStatus
 import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.LoadControl
 import dev.ozcan.stress.engine.LoadSettings
+import dev.ozcan.stress.engine.SceneDraw
 import dev.ozcan.stress.engine.SceneKind
+import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.engine.WorkUnit
 import dev.ozcan.stress.engine.Workload
 import dev.ozcan.stress.safety.SafetyReason
@@ -276,7 +278,7 @@ class RunControllerTest {
         val runs = store()
         val controller = controller(source, driver, runs)
         val samples = emit(source) { t ->
-            val gpu = if (driver.started == 0) sample(t).gpu else sample(t).gpu.copy(state = GpuState.Failed)
+            val gpu = if (driver.started == 0) sample(t).gpu else sample(t).gpu.copy(state = GpuState.Failed, frames = 1)
             driver.status = GpuRunStatus().include(gpu)
             sample(t, gpu = gpu)
         }
@@ -341,6 +343,25 @@ class RunControllerTest {
         assertEquals("gpu_fp32", gpu.burner?.key)
         assertEquals(true, gpu.scene)
         assertEquals(SceneKind.Pool, gpu.kind)
+    }
+
+    @Test
+    fun `a cinematic run stores the settled minimum from teardown`() = runTest {
+        val source = StubSource()
+        val driver = StubDriver().apply {
+            finalStatus = GpuRunStatus(lowestSceneDraw = SceneDraw(SceneQuality.Medium, 4325))
+        }
+        val runs = store()
+        val controller = controller(source, driver, runs)
+        val samples = emit(source) { sample(it) }
+
+        controller.run(StressMode.CinematicHole, StressDuration.One, RunOptions(quality = SceneQuality.High))
+        samples.cancel()
+
+        val record = runs.list().single()
+        assertEquals("High", record.quality)
+        assertEquals("Medium", record.drawnQuality)
+        assertEquals(43.25, record.drawnScalePercent)
     }
 
     @Test

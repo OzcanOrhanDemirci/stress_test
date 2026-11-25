@@ -20,6 +20,7 @@ object SampleCsv {
             repeat(layout.cpuCount) { add("misplaced_cpu$it") }
             add("errors")
             addAll(listOf("gpu_state", "gpu_frames", "gpu_dispatches", "gpu_work", "gpu_ns", "gpu_per_frame", "gpu_errors"))
+            addAll(listOf("scene_quality", "scene_scale_percent", "lowest_scene_quality", "lowest_scene_scale_percent"))
         }
         out.appendLine(header.joinToString(","))
         for ((phase, samples) in phases) {
@@ -49,6 +50,10 @@ object SampleCsv {
                     add(s.gpu.gpuNanos.toString())
                     add(s.gpu.dispatchesPerFrame.toString())
                     add(s.gpu.errors.toString())
+                    add(s.gpu.sceneDraw?.quality?.name.text())
+                    add(s.gpu.sceneDraw?.scalePercent.text())
+                    add(s.gpu.lowestSceneDraw?.quality?.name.text())
+                    add(s.gpu.lowestSceneDraw?.scalePercent.text())
                 }
                 out.appendLine(row.joinToString(","))
             }

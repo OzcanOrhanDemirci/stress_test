@@ -4,6 +4,9 @@ import dev.ozcan.stress.TestSamples
 import dev.ozcan.stress.TestSamples.sample
 import dev.ozcan.stress.engine.CoreAssignment
 import dev.ozcan.stress.engine.GpuPart
+import dev.ozcan.stress.engine.GpuRunStatus
+import dev.ozcan.stress.engine.SceneDraw
+import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.engine.Workload
 import dev.ozcan.stress.telemetry.GpuBusy
 import dev.ozcan.stress.telemetry.Sample
@@ -112,6 +115,18 @@ class LabAnalysisTest {
         assertEquals(0.98, g.busyFraction!!, 1e-9)
         assertEquals(10L, g.dispatchesPerFrame)
         assertEquals("Running", g.finalState)
+    }
+
+    @Test
+    fun `scene output carries the settled settings instead of the probe frames`() {
+        val (idle, load) = run()
+        val probe = load.first().let { it.copy(gpu = it.gpu.copy(sceneDraw = SceneDraw(SceneQuality.Low, 1800))) }
+        val settled = GpuRunStatus(lowestSceneDraw = SceneDraw(SceneQuality.Medium, 4300))
+        val requested = spec.copy(quality = SceneQuality.High)
+        val r = LabAnalysis.analyze(requested, context, LabRunner.STARTED, idle, listOf(probe), TestSamples.clusters, settled)
+        assertEquals("High", r.quality)
+        assertEquals("Medium", r.drawnQuality)
+        assertEquals(43.0, r.drawnScalePercent)
     }
 
     @Test
