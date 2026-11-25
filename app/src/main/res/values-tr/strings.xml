@@ -144,7 +144,7 @@
     <string name="drawn_quality_unsettled">Koşu, kalite denemesi bitmeden sona erdi</string>
     <string name="run_analysis_failed">Sonuç hazırlanamadı</string>
     <string name="run_analysis_failed_text">Yük bitti ama sayıları hesaplanamadı (%1$s).</string>
-    <string name="run_power_caption">boşta %1$s · yük +%2$s</string>
+    <string name="run_power_caption">boşta %1$s · yük %2$s</string>
     <string name="run_power_invalid">şarjda: güç ölçülemez</string>
     <string name="run_safety_ok">Güvenli</string>
     <string name="run_gpu_load">GPU yükü</string>

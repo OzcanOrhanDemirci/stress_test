@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="run_recording">Kaydediliyor</string>
+    <string name="run_remaining">%1$s kaldı</string>
+    <string name="run_unavailable">Telefon, — işaretli ölçümleri vermedi.</string>
+    <string name="run_unavailable_charging">Şarj sırasında pil gücü ölçülemez, telefon bazı sensör okumalarını da vermeyebilir.</string>
+    <plurals name="run_threads">
+        <item quantity="one">%1$d iş parçacığı</item>
+        <item quantity="other">%1$d iş parçacığı</item>
+    </plurals>
+    <string name="run_workload">Uygulanan yük</string>
+    <string name="run_cpu_kernel">CPU çekirdeği</string>
+    <string name="run_gpu_burner">GPU yükü</string>
+    <string name="run_gpu_idle">Boşta</string>
+    <string name="run_gpu_running">Çalışıyor</string>
+    <string name="run_gpu_failed">Hata</string>
+    <string name="run_gpu_unknown">—</string>
+    <string name="run_chart_chip">Çip sıcaklığı</string>
+    <string name="run_live_chart">Canlı ölçümler</string>
+    <string name="run_peak">Tepe %1$s</string>
+</resources>
