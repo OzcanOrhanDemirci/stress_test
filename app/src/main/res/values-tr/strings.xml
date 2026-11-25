@@ -249,10 +249,8 @@
     <string name="export_pdf_title">PDF rapor</string>
     <string name="export_pdf_detail">Test, cihaz, öne çıkan değerler, analiz ve grafikler; iki A4 sayfa.</string>
     <string name="export_share_pdf">Raporu paylaş</string>
-    <string name="export_save_pdf">PDF kaydet</string>
     <string name="export_csv">Veri (CSV)</string>
     <string name="export_share_title">Paylaş</string>
-    <string name="export_saved">Rapor kaydedildi</string>
     <string name="export_failed">Rapor yazılamadı</string>
     <string name="report_title">Koşu raporu</string>
     <string name="report_run_id">Koşu %1$s</string>

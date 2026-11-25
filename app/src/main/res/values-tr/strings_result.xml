@@ -9,7 +9,6 @@
     <string name="result_insight_drain">Saatlik pil kaybı</string>
     <string name="result_insight_fps">Ortalama kare hızı</string>
     <string name="result_csv">CSV</string>
-    <string name="result_share_pdf">PDF paylaş</string>
     <string name="result_verdict">Özet</string>
     <string name="result_power_curve">Güç eğrisi</string>
     <string name="result_charge_sustained">Sürekli</string>
@@ -82,5 +81,5 @@
     <string name="result_log_readings">Okumalar</string>
     <string name="result_log_cadence">Akım okuması değişme aralığı</string>
     <string name="result_log_cadence_normal">yaklaşık 1 sn</string>
-    <string name="result_pdf_save">PDF</string>
+    <string name="result_pdf">PDF</string>
 </resources>

@@ -2,8 +2,6 @@ package dev.ozcan.stress.ui.result
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -374,82 +372,50 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
     val graph = context.graph
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
-    val savePdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+
+    // Both formats go to the share sheet, which also offers saving to the phone's files.
+    fun export(type: String, write: () -> File) {
         scope.launch {
             busy = true
-            val ok = withContext(Dispatchers.IO) {
-                runCatching {
-                    val file = ReportPdf.write(context, record, insights, graph.reportDir)
-                    context.contentResolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } } != null
-                }.getOrDefault(false)
-            }
+            val file = withContext(Dispatchers.IO) { runCatching(write).getOrNull() }
             busy = false
-            Toast.makeText(context, if (ok) R.string.export_saved else R.string.export_failed, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    fun share(file: File, type: String) {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.reports", file)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            this.type = type
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, file.nameWithoutExtension)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(intent, context.getString(R.string.export_share_title)))
-    }
-
-    // Below 360 dp the icons give their room to the labels, so no label breaks mid-word ("CS / V").
-    BoxWithConstraints(Modifier.fillMaxWidth().windowBand(StressColors.SurfaceLow, ruleAtTop = true)) {
-        val roomy = maxWidth >= 360.dp
-        Column(Modifier.fillMaxWidth()) {
-            Hairline()
-            Row(
-                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SecondaryButton(
-                    text = stringResource(R.string.result_csv),
-                    icon = Icons.Rounded.TableChart.takeIf { roomy || record.isCharge },
-                    enabled = !busy,
-                    modifier = Modifier.weight(if (record.isCharge) 1f else if (roomy) 0.9f else 0.8f),
-                    onClick = {
-                        scope.launch {
-                            busy = true
-                            val file = withContext(Dispatchers.IO) {
-                                runCatching { ReportCsv.write(record, graph.reportDir) }.getOrNull()
-                            }
-                            busy = false
-                            if (file != null) share(file, "text/csv") else Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                )
-                if (record.isCharge) return@Row
-                // "PDF" with a download icon: the full "save PDF" wraps to two lines beside the other two on a 360 dp screen.
-                SecondaryButton(
-                    text = stringResource(R.string.result_pdf_save),
-                    icon = Icons.Rounded.Download.takeIf { roomy },
-                    enabled = !busy,
-                    modifier = Modifier.weight(if (roomy) 0.9f else 0.8f).semantics { contentDescription = context.getString(R.string.export_save_pdf) },
-                    onClick = { savePdf.launch(ReportPdf.fileName(record)) },
-                )
-                PrimaryButton(
-                    text = stringResource(R.string.result_share_pdf),
-                    enabled = !busy,
-                    modifier = Modifier.weight(if (roomy) 1.25f else 1.4f),
-                    onClick = {
-                        scope.launch {
-                            busy = true
-                            val file = withContext(Dispatchers.IO) {
-                                runCatching { ReportPdf.write(context, record, insights, graph.reportDir) }.getOrNull()
-                            }
-                            busy = false
-                            if (file != null) share(file, "application/pdf") else Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                )
+            if (file == null) {
+                Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                return@launch
             }
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.reports", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                this.type = type
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, file.nameWithoutExtension)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, context.getString(R.string.export_share_title)))
+        }
+    }
+
+    Column(Modifier.fillMaxWidth().windowBand(StressColors.SurfaceLow, ruleAtTop = true)) {
+        Hairline()
+        Row(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SecondaryButton(
+                text = stringResource(R.string.result_csv),
+                icon = Icons.Rounded.TableChart,
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
+                onClick = { export("text/csv") { ReportCsv.write(context, record, graph.reportDir) } },
+            )
+            // The charge test has no PDF report: its result is the CSV alone.
+            if (record.isCharge) return@Row
+            PrimaryButton(
+                text = stringResource(R.string.result_pdf),
+                icon = Icons.Rounded.PictureAsPdf,
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
+                onClick = { export("application/pdf") { ReportPdf.write(context, record, insights, graph.reportDir) } },
+            )
         }
     }
 }
