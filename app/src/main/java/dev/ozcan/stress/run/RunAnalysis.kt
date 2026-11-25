@@ -101,7 +101,7 @@ object RunAnalysis {
             gpuMeanRate = if (gpuRunning && load.any { it.gpu.burner != null }) rates(load) { it.gpu.work.toDouble() }?.mean else null,
             gpuUnit = load.firstNotNullOfOrNull { it.gpu.burner }?.unit?.name,
             meanFps = if (scene) rates(load) { it.gpu.frames.toDouble() }?.mean else null,
-            maxThermalStatus = load.maxOfOrNull { it.thermalStatus },
+            maxThermalStatus = load.map { it.thermalStatus }.filter { it >= 0 }.maxOrNull(),
             powerFromCounter = counterWatts != null,
         )
         val series = series(load, watts, clusters, clusterName, origin)

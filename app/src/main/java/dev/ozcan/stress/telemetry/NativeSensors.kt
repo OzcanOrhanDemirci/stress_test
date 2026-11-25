@@ -1,6 +1,7 @@
 package dev.ozcan.stress.telemetry
 
 import dev.ozcan.stress.engine.NativeBridge
+import kotlin.math.abs
 
 /** The GPU's load as its driver counts it: busy time out of total (a percentage reads as out of 100). */
 data class GpuBusy(val busy: Long, val total: Long) {
@@ -58,7 +59,7 @@ class NativeSensors(val layout: SysfsLayout) : AutoCloseable {
         private const val MISSING = Long.MIN_VALUE
 
         /** Readings outside this range, in °C, are sensor placeholders (e.g. -273000) or not temperatures. */
-        private val PLAUSIBLE_CELSIUS = -40.0..150.0
+        private val PLAUSIBLE_CELSIUS = -39.9..150.0
 
         /**
          * A zone's reading in °C. Kernels report millidegrees, but some
@@ -66,13 +67,15 @@ class NativeSensors(val layout: SysfsLayout) : AutoCloseable {
          * puts it in a phone's range. Zero is a sensor that is not running.
          */
         fun celsius(raw: Long): Double? {
-            if (raw == 0L) return null
-            val value = when {
-                raw in -40L..150L -> raw.toDouble()
-                raw in 151L..1500L -> raw / 10.0
+            when (raw) {
+                0L, MISSING, -40L, -400L, -40_000L, -273L, -2730L -> return null
+            }
+            val value = when (abs(raw)) {
+                in 1L..150L -> raw.toDouble()
+                in 151L..1500L -> raw / 10.0
                 else -> raw / 1000.0
             }
-            return value.takeIf { it in PLAUSIBLE_CELSIUS }
+            return value.takeIf { it in PLAUSIBLE_CELSIUS && it != 127.0 }
         }
 
         /** Turns the flat native value array into a reading. Separate from I/O so it can be tested. */

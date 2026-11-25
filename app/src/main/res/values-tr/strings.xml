@@ -96,6 +96,7 @@
     <string name="safety_reason_chip_hot">Çip sıcaklığı</string>
     <string name="safety_reason_skin_hot">Gövde sıcaklığı</string>
     <string name="safety_reason_thermal">Android termal durumu</string>
+    <string name="safety_reason_headroom">Android termal payı</string>
     <string name="safety_reason_battery_low">Pil</string>
 
     <!-- Termal durum -->

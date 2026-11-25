@@ -28,25 +28,28 @@ enum class ThermalGroup(val key: String) {
          * milliamps and millivolts through the same file, and the battery's
          * own sensor is read from the battery broadcast instead.
          */
-        private val NOT_TEMPERATURES = listOf("ibat", "vbat", "bcl", "socd", "lmh", "limit", "freq", "batt", "charger", "usb")
+        private val EXCLUDED = listOf("ibat", "vbat", "bcl", "socd", "lmh", "limit", "freq", "batt", "charger", "charging", "usb", "ambient", "rfpa")
+        private val excludedToken = Regex("(^|[-_.])(pa[0-9]*|usr|cfg)([-_.]|$)")
+        private val cpuName = Regex("(^|[-_.])(cpu(ss|top)?[0-9]*|big[0-9]*|mid[0-9]*|little[0-9]*|apc[0-9]*|cluster[0-9]*|silver|gold)([-_.]|$)")
+        private val gpuName = Regex("(^|[-_.])(gpu(ss|top)?[0-9]*|g3d|mali|sgpu|xclipse)([-_.]|$)")
 
         private val RULES: List<Pair<ThermalGroup, (String) -> Boolean>> = listOf(
-            Gpu to { t -> "gpu" in t || "g3d" in t || "mali" in t },
+            Skin to { t -> t == "virtual-skin" || !t.startsWith("virtual-skin-") &&
+                listOf("skin", "shell", "quiet", "xo-therm", "xo_therm", "sys-therm", "sys_therm").any { it in t } },
+            Gpu to { t -> gpuName.containsMatchIn(t) || t == "mtktsgpu" },
             Npu to { t -> listOf("nsp", "npu", "apu", "tpu", "cdsp", "hvx").any { it in t } },
             Modem to { t -> "mdm" in t || "modem" in t && !t.endsWith("_cfg") },
             // ("isp" alone would take "display" too.)
             Camera to { t -> "camera" in t || t.startsWith("cam") || t.startsWith("isp") || "_isp" in t || "-isp" in t },
             Memory to { t -> "ddr" in t || "dram" in t || t.startsWith("mem") },
-            Skin to { t -> listOf("skin", "shell", "quiet", "xo-therm", "xo_therm", "sys-therm", "sys_therm").any { it in t } },
             Cpu to { t ->
-                "cpu" in t || t == "big" || t == "mid" || t == "little" || t.startsWith("big") ||
-                    t.startsWith("little") || t.startsWith("cluster") || t.startsWith("apc") || "silver" in t || "gold" in t
+                cpuName.containsMatchIn(t) || t in setOf("mtktscpu", "soc-max", "soc_max", "mtk-soc-max")
             },
         )
 
         fun of(zoneType: String): ThermalGroup? {
             val t = zoneType.trim().lowercase(Locale.ROOT)
-            if (t.isEmpty() || NOT_TEMPERATURES.any { it in t }) return null
+            if (t.isEmpty() || EXCLUDED.any { it in t } || excludedToken.containsMatchIn(t)) return null
             return RULES.firstOrNull { (_, matches) -> matches(t) }?.first
         }
     }
