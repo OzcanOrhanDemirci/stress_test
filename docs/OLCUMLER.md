@@ -257,3 +257,21 @@ Telefon %19-20 pilde, USB'den (500 mA) şarjda; GPU bölgesi en çok 69 °C.
 - Kara delik Orta'da öbür sahnelerin yarısından hafif: aynı oturumda Orta'da havuz 47,6 ms, beyaz 39,2 ms, orman 41,1 ms
   (havuz 10-02'de 39,6 ms ölçülmüştü; fark bu oturumda telefonun ılık ve şarjda olması olabilir, ayrıca ölçülmedi).
 - Sinematik · Havuz, kısa koşu (Orta, CPU tam yükte): 22,9 fps, en düşük 16,0; kararlılık %82; en sıcak çip 86 °C (54 sn).
+
+## 0.3.0 · Sahne açılış yoklaması (2026-11-25)
+
+Honor 400, uyumluluk düzeltmeleri birleştirildikten sonra. Lab koşuları, yalnız sahne (yakıcısız, CPU boşta), 15 sn.
+Dört sahne de üç kalitede istenen kalite ve ölçeğe ulaştı, hata 0. Süreler kare başına.
+
+| Sahne | Düşük (%30) | Orta (%45) | Yüksek (%65, orman %100) |
+|---|---|---|---|
+| Havuz | 25,9 ms | 48,5 ms | 295–311 ms |
+| Orman | 26,7 ms | 41,4 ms | 137,6 ms |
+| Beyaz | 20,3 ms | 38,7 ms | 174,2 ms |
+| Kara delik | 12,9 ms | 25,3 ms | 122,3 ms |
+
+- İlk kareler ölçülerek bir sonraki kalite veya ölçek adımının kare süresi kestirilir. **Her adımın bütçesi 500 ms.**
+  Yoklamanın tek amacı sürücüyü sıfırlatacak kadar uzun bir kareye karşı korumak. Kare hızı hedefi seçmez.
+- Orta için önceki 125 ms bütçe, GPU'nun frekansı henüz yükselmeden kara deliği Düşük'te bırakabiliyordu. Ortak bütçeyle
+  yukarıdaki koşularda bu olmadı. Ayar düşerse canlı ekran ve sonuç bunu gösterir. Kayıt istenen ve çizilen ayarları
+  saklar, koşu karşılaştırmaya ve Honor 400 referans satırına girmez.
