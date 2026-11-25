@@ -78,6 +78,16 @@ object AppLanguages {
         legacyLocale(context)?.let(Locale::setDefault)
     }
 
+    /**
+     * [context] in the app's language, for text written outside an activity (a notification). From Android 13 the
+     * process already uses it; before that it is laid over here as over each activity.
+     */
+    fun localized(context: Context): Context {
+        if (perAppLocales) return context
+        val locale = legacyLocale(context) ?: return context
+        return context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(locale) })
+    }
+
     private fun legacyLocale(context: Context): Locale? =
         AppLanguage.of(prefs(context).getString(KEY, null)).tag?.let(Locale::forLanguageTag)
 

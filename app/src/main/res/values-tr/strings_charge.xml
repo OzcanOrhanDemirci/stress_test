@@ -66,4 +66,11 @@
     <string name="charge_already_full_short">Pil dolu</string>
     <string name="charge_already_full">Pil zaten dolu; ölçülecek şarj yok. Test kaydedilmedi.</string>
     <string name="charge_home_full">Pil zaten dolu; ölçülecek şarj yok. Şarj testini pil yüzde 100’ün altındayken başlat.</string>
+    <string name="charge_notify_channel">Şarj testi</string>
+    <string name="charge_notify_title">Pil doldu</string>
+    <string name="charge_notify_time">%1$s sürdü.</string>
+    <string name="charge_notify_peak">%1$s sürdü. Tepe %2$s W.</string>
+    <string name="charge_notify_full">%1$s sürdü. Tepe %2$s W, sürekli %3$s W.</string>
+    <string name="charge_notify_rationale_title">Pil doldu bildirimi</string>
+    <string name="charge_notify_rationale">Uygulama, şarj testi pili doldurduğunda ekrana bakmasan da sana haber verebilir. Başka bildirim göndermez.</string>
 </resources>

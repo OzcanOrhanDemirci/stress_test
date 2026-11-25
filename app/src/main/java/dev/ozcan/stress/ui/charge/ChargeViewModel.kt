@@ -89,6 +89,8 @@ internal class ChargeViewModel(private val graph: AppGraph, private val duration
                         val saved = runCatching { graph.runs.save(record) }
                             .onFailure { Log.e("stress-charge", "Could not save charge run", it) }
                             .isSuccess
+                        // While it charges nobody watches the screen: say so where it will be heard.
+                        if (saved && session.reachedFull) graph.chargeNotifier.batteryFull(record)
                         record.id.takeIf { saved }
                     }
                     _state.value = _state.value.copy(saving = false, saveFailed = id == null, recordId = id)
