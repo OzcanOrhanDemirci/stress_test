@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -218,12 +219,33 @@ fun InsightRow(
     }
 }
 
-/** A label and reading in a technical inventory. */
+/**
+ * A label and reading in a technical inventory. [detail] describes its source or why it is absent.
+ * Set [valueWeight] to reserve proportional space for a long value that needs to wrap beside its label.
+ */
 @Composable
-fun InfoRow(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = StressColors.Text) {
-    Row(modifier.fillMaxWidth().padding(vertical = 4.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f), color = StressColors.TextDim, style = StressType.Body)
-        Text(value, color = valueColor, style = NumberStyles.Small)
+fun InfoRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = StressColors.Text,
+    detail: String? = null,
+    valueWeight: Float? = null,
+) {
+    Column(modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
+            Text(label, Modifier.weight(1f), color = StressColors.TextDim, style = StressType.Body)
+            Text(
+                value,
+                modifier = if (valueWeight == null) Modifier else Modifier.weight(valueWeight),
+                textAlign = if (valueWeight == null) TextAlign.Start else TextAlign.End,
+                color = valueColor,
+                style = NumberStyles.Small,
+            )
+        }
+        if (detail != null) {
+            Text(detail, Modifier.padding(top = 4.dp), color = StressColors.TextDim, style = StressType.BodySmall)
+        }
     }
 }
 

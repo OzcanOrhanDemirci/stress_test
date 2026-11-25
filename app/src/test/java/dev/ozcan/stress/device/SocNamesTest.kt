@@ -48,4 +48,15 @@ class SocNamesTest {
         )
         assertEquals(listOf("Cortex-A55 ×2", "Cortex-A76 ×2"), DeviceInfo.cpuLabels(layout))
     }
+
+    @Test
+    fun `inventory can list clusters without repeating the clocks panel`() {
+        val layout = SysfsLayout(
+            clusters = listOf(CpuCluster(0, listOf(0, 1), 1_800_000, "p0", "Cortex-A55")),
+            zones = emptyList(),
+            gpuBusyPath = null,
+        )
+        assertEquals(listOf("Cortex-A55 ×2 @ 1.80 GHz"), DeviceInfo.cpuLabels(layout))
+        assertEquals(listOf("Cortex-A55 ×2"), DeviceInfo.cpuLabels(layout, includeClocks = false))
+    }
 }

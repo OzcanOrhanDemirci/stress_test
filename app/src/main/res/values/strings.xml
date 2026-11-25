@@ -353,7 +353,7 @@
     <string name="device_thermal_status">Thermal status</string>
     <string name="device_headroom">Thermal headroom</string>
     <string name="device_unreadable">Not readable on this phone.</string>
-    <string name="device_sensors_detail">What this app may read on this phone. Phones close some sensors to apps; the app then measures without them.</string>
+    <string name="device_sensors_detail">This list shows which sensor files the app can read. Tests use the readings the phone makes available.</string>
     <string name="device_clock_of">Clock · %1$s</string>
     <string name="device_gpu_counter">GPU load counter</string>
     <string name="device_readable">readable</string>

@@ -82,9 +82,10 @@ data class DeviceInfo(
             )
         }
 
-        internal fun cpuLabels(layout: SysfsLayout): List<String> {
+        /** [includeClocks] adds the maximum clock to labels used without a separate clock readout. */
+        internal fun cpuLabels(layout: SysfsLayout, includeClocks: Boolean = true): List<String> {
             val namesWithPolicy = layout.clusters.sortedBy { it.maxFreqKhz }.map { c ->
-                if (c.maxFreqKhz <= 0) c.label() else {
+                if (!includeClocks || c.maxFreqKhz <= 0) c.label() else {
                     val ghz = String.format(Locale.ROOT, "%.2f", c.maxFreqKhz / 1e6)
                     "${c.label()} @ $ghz GHz"
                 }
