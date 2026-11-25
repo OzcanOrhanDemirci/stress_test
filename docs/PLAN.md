@@ -376,3 +376,36 @@ telefon oturumunda üç kalite için ms OLCUMLER'e yazılacak ve gerekirse HOLE_
 **Bekleyen işler.** (1) Telefonda "her sahne her kalite" instrumented testi (SceneKind.entries'den otomatik düşer).
 (2) Ölçüm oturumu: Sinematik · Kara delik'in W'si; §13/7'deki deney anahtarıyla (scene+gpu_fp32) tam yüke yaklaşıp
 yaklaşmadığı ölçülür. (3) README'deki telefon ekran görüntüleri yeni seçim ekranı ve sahne ile yenilenecek.
+
+## 18 · Şarj testi (0.3.0)
+
+**Karar (Özcan, 2026-11-25).** Uygulamaya tek bir yeni özellik eklenir: şarj testi ("şarj testini ekleyelim başka gerek
+yok"). 0.2.0 kablo takılıyken güç göstermez, çünkü telefonun çektiğini ölçer. Şarj testi öbür yönü ölçer: pile gerçekte
+kaç watt girdiği, yüzde ilerledikçe nerede yavaşladığı; böylece insan şarj cihazının ya da kablonun yavaş olup olmadığını
+anlar. Uygulamanın tek ölçütüne (watt) ve dürüst karakterine uyar; ayrı bir ekran gibi değil, bir test modu olarak.
+
+**Ne ölçülür.** Pile giren net güç = şarj akımı × pil gerilimi (`CURRENT_NOW`, pil yayınının gerilimi), saniyede bir.
+Bu, şarj cihazının verdiği güç değildir: arada telefonun o anki tüketimi ve şarj devresinin kaybı vardır. Test
+kablosuz başlatılırsa önce 20 sn boşta ölçülür: telefonun bu ekrandaki tüketimi (aynı ekran, aynı parlaklık) ve
+akımın birimi ile işareti buradan çıkar (`CurrentConvention`). Kablo takılınca "telefona giren (tahmini)" = pile giren +
+o tüketim gösterilir; şarj devresinin kaybı ölçülemez, bunu ekran söyler. Kablo takılıyken başlatılırsa boşta ölçümü
+yoktur: birim büyüklükten, işaret şarj sayacının ve yüzdenin yönünden çıkar; tahmini giriş gösterilmez.
+
+**Ne gösterilir.** Canlı: pile giren W (büyük), akım ve gerilim, yüzde, pil sıcaklığı, takılı olan (USB, AC, kablosuz,
+dock; `EXTRA_PLUGGED`), Android'in dolma tahmini (`computeChargeTimeRemaining`, API 28+, yoksa gösterilmez), ve yüzdeye
+göre güç eğrisi (x ekseni pil %). Sonuç: tepe W, sürekli W (tepeden sonraki en iyi 2 dk), yavaşlamanın başladığı yüzde
+(güç tepenin %70'inin altına kalıcı indiği yer), pile giren enerji (Wh), 10 dakikada kazanılan yüzde, en yüksek pil
+sıcaklığı, ve bulgular: hız sınıfı ("bu kurulum pile en çok X W verdi": 4,5 W altı USB bilgisayar portu düzeyi; 4,5-9 W
+standart 5-10 W şarj; 9-18 W hızlı şarj devrede; 18 W üstü yüksek güçlü hızlı şarj), ısı yüzünden yavaşlama (pil
+sıcaklığı 40 °C'yi geçip güç düştüyse), yüksek yüzdede başlama (%80 üstü: telefon zaten yavaşlatır, kıyas için %20-50
+arası önerilir), seyrek okuma (akım 1 sn'den seyrek güncelleniyorsa söylenir), okunamayan akım (ölçüm yok, test
+başlamaz). İki şarj koşusu Karşılaştır'la yan yana konur: iki şarj cihazını ya da kabloyu ayırmanın yolu budur.
+
+**Akış.** Ana ekranda bir mod: "Şarj testi". Süre: 5 / 15 / 30 dk ya da dolana kadar. Kablosuz başlarsa: boşta ölçümü,
+sonra "şarj cihazını tak" beklemesi; takılınca ölçüm. Kablo çıkarılınca test biter ve kayıt saklanır. Ekran açık kalır,
+düşük parlaklıkta, yük yoktur; telefonu kullanmak ölçümü bozar, ekran bunu söyler. Ana ekranda kablo takılıyken çıkan
+"güç ölçülemez" notu şarj testine yönlendirir.
+
+**Güvenlik.** Şarj testi yük vermez. Başlatma kapısının pil yüzdesi ve çip sıcaklığı koşulları ona uygulanmaz; pil
+sıcaklığı izlenir: 45 °C'de uyarı, 47 °C'de test durur ve "pil çok ısındı, şarjı kesmek için kabloyu çıkar" der
+(uygulama şarjı kendisi kesemez).
