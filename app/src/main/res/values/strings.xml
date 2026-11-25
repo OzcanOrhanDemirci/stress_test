@@ -302,7 +302,7 @@
     <string name="language_system">System</string>
     <string name="language_turkish">Türkçe</string>
     <string name="language_english">English</string>
-    <string name="settings_section_device">Device</string>
+    <string name="settings_section_device">Device and storage</string>
     <string name="settings_device">Device info and sensors</string>
     <string name="settings_device_detail">Processor, GPU, live readings, which sensors the app can read, manual load tests.</string>
     <string name="settings_clear">Clear history</string>
@@ -314,11 +314,11 @@
     <string name="settings_about_tagline">The stress test that finds your phone\'s real limits.</string>
     <string name="settings_about_text" formatted="false">Stress Test does not settle for the 100% on the screen. It truly works the processor\'s arithmetic units, its memory path and the graphics chip all at once, and measures the most power your phone can draw, how hot it gets and how it slows down as it heats up.</string>
     <string name="settings_about_cpu">CPU loads written in ARM assembly; each one checks its own results, so a calculation error is caught at once.</string>
-    <string name="settings_about_gpu">Vulkan GPU burners and three real-time cinematic 3D scenes.</string>
+    <string name="settings_about_gpu">Vulkan GPU loads and four real-time 3D scenes — Pool, Forest, White World and Black Hole.</string>
     <string name="settings_about_analysis">Power, temperatures, clocks and throttling followed second by second, then a clear analysis and a PDF report.</string>
     <string name="settings_about_quality">Graphics quality for every phone, from entry level to the latest flagships.</string>
     <string name="settings_developer">Developed by</string>
-    <string name="settings_licenses">Fonts: Space Grotesk, JetBrains Mono (SIL Open Font License 1.1)</string>
+    <string name="settings_licenses">The interface uses Instrument Sans, Space Mono and Space Grotesk. The PDF report uses JetBrains Mono. The fonts are under the SIL Open Font License 1.1.</string>
 
     <!-- Safety notice at launch -->
     <string name="notice_title">Device safety</string>
@@ -353,7 +353,7 @@
     <string name="device_thermal_status">Thermal status</string>
     <string name="device_headroom">Thermal headroom</string>
     <string name="device_unreadable">Not readable on this phone.</string>
-    <string name="device_sensors_detail">What this app may read on this phone. Phones close some sensors to apps; the app then measures without them.</string>
+    <string name="device_sensors_detail">This list shows which sensor files the app can read. Tests use the readings the phone makes available.</string>
     <string name="device_clock_of">Clock · %1$s</string>
     <string name="device_gpu_counter">GPU load counter</string>
     <string name="device_readable">readable</string>
@@ -375,7 +375,7 @@
     <string name="compare_pick_title">Compare with</string>
     <string name="compare_none">There is no other run to compare with yet.</string>
     <string name="compare_metrics">Side by side</string>
-    <string name="compare_hint">Δ is B against A. Green: more power and work, a cooler phone, a later throttle; amber: the opposite.</string>
+    <string name="compare_hint">Δ shows the percentage change from A to B. A dash means a measurement is missing or A is zero.</string>
     <string name="compare_chart_chip">Hottest chip</string>
     <string name="compare_chart_battery">Battery temperature</string>
     <string name="compare_chart_cpu">CPU performance</string>

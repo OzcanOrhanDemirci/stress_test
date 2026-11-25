@@ -1,36 +1,30 @@
 package dev.ozcan.stress.ui.compare
 
-import androidx.compose.foundation.background
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,8 +32,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
-import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.analysis.Comparison
+import dev.ozcan.stress.charge.isCharge
+import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.ui.Dates
@@ -49,20 +44,26 @@ import dev.ozcan.stress.ui.charge.ChargeCompare
 import dev.ozcan.stress.ui.charge.ChargeLoadComparisonMessage
 import dev.ozcan.stress.ui.components.CenteredBox
 import dev.ozcan.stress.ui.components.ChartSeries
-import dev.ozcan.stress.ui.components.GlassCard
-import dev.ozcan.stress.ui.components.SectionHeader
+import dev.ozcan.stress.ui.components.CodeTag
+import dev.ozcan.stress.ui.components.Hairline
+import dev.ozcan.stress.ui.components.Panel
+import dev.ozcan.stress.ui.components.SectionLabel
+import dev.ozcan.stress.ui.components.SegmentedControl
+import dev.ozcan.stress.ui.components.Stack
 import dev.ozcan.stress.ui.components.TimeChart
+import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.context
-import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
-/** The two runs' colours, the same on every row and chart. */
+/** The same run colours identify the records, table columns and chart lines. */
 private val ColorA = StressColors.Accent
 private val ColorB = StressColors.Cool
 
@@ -82,149 +83,172 @@ fun CompareScreen(first: String, second: String, onBack: () -> Unit) {
     val graph = context().graph
     val model: CompareViewModel = viewModel { CompareViewModel(graph, first, second) }
     val runs by model.runs.collectAsStateWithLifecycle()
+    val pair = runs
+    val a = pair?.first
+    val b = pair?.second
 
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
-            Text(stringResource(R.string.compare_title), style = MaterialTheme.typography.titleLarge)
-        }
-        val pair = runs
-        val a = pair?.first
-        val b = pair?.second
+    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+        TopBar(
+            title = stringResource(R.string.compare_title),
+            modifier = Modifier.statusBarsPadding(),
+            onBack = onBack,
+        )
         when {
+            first == second -> Refusal(R.string.compare_same_run)
             pair == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
-            a == null || b == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
+            a == null || b == null -> Refusal(R.string.compare_run_missing)
             a.isCharge && b.isCharge -> ChargeCompare(a, b)
             a.isCharge || b.isCharge -> ChargeLoadComparisonMessage()
-            !Comparison.isEligible(a) || !Comparison.isEligible(b) ->
-                CenteredBox { Text(stringResource(R.string.compare_none), color = StressColors.TextDim) }
+            // A reduced or GPU-failed run has no fair counterpart.
+            !Comparison.isEligible(a) || !Comparison.isEligible(b) -> Refusal(R.string.compare_not_eligible)
             else -> Body(a, b)
         }
     }
 }
 
 @Composable
+private fun Refusal(@StringRes reason: Int) {
+    CenteredBox(Modifier.padding(16.dp)) {
+        Panel(Modifier.fillMaxWidth()) {
+            Text(stringResource(reason), style = StressType.Body)
+        }
+    }
+}
+
+@Composable
 private fun Body(a: RunRecord, b: RunRecord) {
-    val rows = Comparison.rows(a, b)
-    Column(
-        Modifier
-            .fillMaxSize()
+    val rows = remember(a, b) { Comparison.rows(a, b) }
+    Stack(
+        Modifier.fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp)
-            .navigationBarsPadding()
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(16.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RunChip(a, ColorA, "A", Modifier.weight(1f))
-            RunChip(b, ColorB, "B", Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RunPanel(a, ColorA, "A", Modifier.weight(1f))
+            RunPanel(b, ColorB, "B", Modifier.weight(1f))
         }
 
-        SectionHeader(stringResource(R.string.compare_metrics))
-        GlassCard(Modifier.fillMaxWidth(), padding = 14.dp) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+        SectionLabel(stringResource(R.string.compare_metrics))
+        Panel(Modifier.fillMaxWidth(), padding = 12.dp) {
+            val peakDifference = rows.firstOrNull { it.metric == Comparison.Metric.PeakPower }?.difference
+            val summary = if (peakDifference == null) {
+                stringResource(R.string.compare_peak_unavailable)
+            } else {
+                val signed = (if (peakDifference > 0) "+" else "") + Format.watts(peakDifference)
+                stringResource(R.string.compare_peak_difference, signed)
+            }
+            Text(summary, style = StressType.Body, modifier = Modifier.padding(bottom = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                 Spacer(Modifier.weight(1.4f))
-                Header("A", ColorA, Modifier.weight(1f))
-                Header("B", ColorB, Modifier.weight(1f))
-                Header("Δ", StressColors.TextDim, Modifier.weight(0.8f))
+                Value("A", Modifier.weight(1f), ColorA)
+                Value("B", Modifier.weight(1f), ColorB)
+                Value("Δ", Modifier.weight(1f), StressColors.TextDim)
             }
             rows.forEach { row ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Hairline()
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
                         stringResource(metricName(row.metric)),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = StressType.BodySmall,
                         color = StressColors.TextDim,
                         modifier = Modifier.weight(1.4f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                     )
                     Value(format(row.metric, row.a), Modifier.weight(1f))
                     Value(format(row.metric, row.b), Modifier.weight(1f))
                     val delta = row.change
-                    Text(
-                        delta?.let { (if (it > 0) "+" else "") + Format.percent(it) } ?: Format.MISSING,
-                        style = NumberStyles.Tiny,
-                        color = when {
-                            delta == null || kotlin.math.abs(delta) < 0.02 -> StressColors.TextDim
-                            (delta > 0) == row.metric.higherIsBetter -> StressColors.Good
-                            else -> StressColors.Warn
-                        },
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.weight(0.8f),
-                    )
+                    val color = when {
+                        delta == null || abs(delta) < 0.02 -> StressColors.TextDim
+                        (delta > 0) == row.metric.higherIsBetter -> StressColors.Good
+                        else -> StressColors.Warn
+                    }
+                    val change = delta?.let { (if (it > 0) "+" else "") + Format.percent(it) } ?: Format.MISSING
+                    Value(change, Modifier.weight(1f), color)
                 }
             }
-            Text(stringResource(R.string.compare_hint), style = MaterialTheme.typography.labelSmall, color = StressColors.TextFaint)
+            Hairline()
+            Text(
+                stringResource(R.string.compare_hint),
+                style = StressType.BodySmall,
+                color = StressColors.TextDim,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
 
-        SectionHeader(stringResource(R.string.result_charts))
-        if (a.series.watts.any { it != null } || b.series.watts.any { it != null }) {
-            Overlay(stringResource(R.string.chart_power), "W", a, b) { it.series.watts }
-        }
-        Overlay(stringResource(R.string.compare_chart_chip), "°C", a, b) { r -> Comparison.chipSeries(r) }
-        Overlay(stringResource(R.string.compare_chart_battery), "°C", a, b) { it.series.batteryCelsius }
-        if (a.series.cpuRelative.any { it != null } && b.series.cpuRelative.any { it != null }) {
-            Overlay(stringResource(R.string.compare_chart_cpu), "%", a, b, yMin = 0.0, yMax = 105.0) { r -> r.series.cpuRelative.map { it?.times(100) } }
-        }
-        if (a.series.fps.any { it != null } || b.series.fps.any { it != null }) {
-            Overlay(stringResource(R.string.chart_fps), "fps", a, b, yMin = 0.0) { it.series.fps }
+        Charts(a, b)
+    }
+}
+
+@Composable
+private fun RunPanel(record: RunRecord, color: Color, letter: String, modifier: Modifier) {
+    Panel(modifier, padding = 12.dp) {
+        Stack(spacing = 4) {
+            CodeTag(letter, color)
+            Text(Labels.recordModeName(context(), record), style = StressType.Heading)
+            SceneQuality.entries.firstOrNull { it.name == record.quality }?.let {
+                Text(stringResource(Labels.quality(it)), style = StressType.BodySmall, color = StressColors.TextDim)
+            }
+            Text(Dates.short(record.startedAtMillis), style = StressType.Code, color = StressColors.TextDim)
+            Text(Format.clock(record.loadSeconds), style = StressType.Code, color = StressColors.TextDim)
         }
     }
 }
 
 @Composable
-private fun RunChip(record: RunRecord, color: Color, letter: String, modifier: Modifier) {
-    val context = context()
-    GlassCard(modifier, padding = 12.dp, highlight = true, accent = color) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(22.dp).background(color, RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-                Text(letter, style = MaterialTheme.typography.labelMedium, color = StressColors.Background)
-            }
-            Column {
-                Text(Labels.recordModeName(context, record), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    "${Dates.short(record.startedAtMillis)} · ${Format.clock(record.loadSeconds)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = StressColors.TextDim,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
+private fun Value(text: String, modifier: Modifier, color: Color = StressColors.Text) {
+    Text(text, style = StressType.Code, color = color, textAlign = TextAlign.End, modifier = modifier.padding(start = 4.dp))
 }
 
-@Composable
-private fun Header(text: String, color: Color, modifier: Modifier) {
-    Text(text, style = MaterialTheme.typography.labelLarge, color = color, textAlign = TextAlign.End, modifier = modifier)
-}
-
-@Composable
-private fun Value(text: String, modifier: Modifier) {
-    Text(text, style = NumberStyles.Tiny, color = StressColors.Text, textAlign = TextAlign.End, modifier = modifier, maxLines = 1)
-}
-
-/**
- * Two runs on one chart. Each keeps its own time axis from its start; the
- * chart spans the longer one, the shorter ends early.
- */
-@Composable
-private fun Overlay(
-    title: String,
-    unit: String,
-    a: RunRecord,
-    b: RunRecord,
-    yMin: Double? = null,
-    yMax: Double? = null,
-    values: (RunRecord) -> List<Double?>,
+private enum class Reading(
+    @param:StringRes val label: Int,
+    @param:StringRes val title: Int,
+    val unit: String,
+    val yMin: Double? = null,
+    val yMax: Double? = null,
+    val values: (RunRecord) -> List<Double?>,
 ) {
-    val va = values(a)
-    val vb = values(b)
-    if (va.none { it != null } && vb.none { it != null }) return
-    val (seconds, first, second) = Comparison.align(a.series.seconds, va, b.series.seconds, vb)
-    GlassCard(Modifier.fillMaxWidth(), padding = 14.dp) {
-        Text(title, style = MaterialTheme.typography.titleSmall)
-        Spacer(Modifier.height(10.dp))
-        TimeChart(seconds, listOf(ChartSeries("A", ColorA, first), ChartSeries("B", ColorB, second)), unit, yMin = yMin, yMax = yMax)
+    Power(R.string.chart_power, R.string.chart_power, "W", values = { it.series.watts }),
+    Chip(R.string.compare_tab_chip, R.string.compare_chart_chip, "°C", values = Comparison::chipSeries),
+    Battery(R.string.temp_battery, R.string.compare_chart_battery, "°C", values = { it.series.batteryCelsius }),
+    Cpu(R.string.temp_cpu, R.string.compare_chart_cpu, "%", 0.0, 105.0, { it.series.cpuRelative.map { v -> v?.times(100) } }),
+    Fps(R.string.chart_fps, R.string.chart_fps, "fps", 0.0, values = { it.series.fps }),
+}
+
+@Composable
+private fun Charts(a: RunRecord, b: RunRecord) {
+    val readings = remember(a, b) {
+        Reading.entries.mapNotNull { reading ->
+            val va = reading.values(a)
+            val vb = reading.values(b)
+            val hasA = va.any { it != null }
+            val hasB = vb.any { it != null }
+            // Relative CPU curves are only shown when both runs captured CPU work.
+            val available = if (reading == Reading.Cpu) hasA && hasB else hasA || hasB
+            if (available) reading to Comparison.align(a.series.seconds, va, b.series.seconds, vb) else null
+        }.toMap()
+    }
+    val options = readings.keys.toList()
+    if (options.isEmpty()) return
+    var selected by rememberSaveable { mutableStateOf(options.first()) }
+    val reading = selected.takeIf { it in options } ?: options.first()
+    val (seconds, first, second) = readings.getValue(reading)
+    SectionLabel(stringResource(R.string.result_charts))
+    Panel(Modifier.fillMaxWidth(), padding = 12.dp) {
+        Stack(spacing = 8) {
+            if (options.size > 1) {
+                SegmentedControl(options, reading, { selected = it }, label = { stringResource(it.label) })
+            }
+            Text(stringResource(reading.title), style = StressType.Heading)
+            TimeChart(
+                seconds,
+                listOf(ChartSeries("A", ColorA, first), ChartSeries("B", ColorB, second)),
+                reading.unit,
+                yMin = reading.yMin,
+                yMax = reading.yMax,
+            )
+        }
     }
 }
 
@@ -247,7 +271,7 @@ private fun format(metric: Comparison.Metric, value: Double?): String {
     return when (metric) {
         Comparison.Metric.PeakPower, Comparison.Metric.SustainedPower, Comparison.Metric.MeanPower -> Format.watts(value)
         Comparison.Metric.HottestChip, Comparison.Metric.HottestBattery -> Format.celsius(value)
-        Comparison.Metric.CpuRate, Comparison.Metric.GpuRate -> Format.scaled(value).let { (v, p) -> "${Format.number(v, 1)} $p" }
+        Comparison.Metric.CpuRate, Comparison.Metric.GpuRate -> Format.scaled(value).let { (v, p) -> "${Format.number(v, 1)} $p".trimEnd() }
         Comparison.Metric.Fps -> Format.number(value, 1)
         Comparison.Metric.Stability -> Format.percent(value)
         Comparison.Metric.FirstThrottle -> Format.clock(value)

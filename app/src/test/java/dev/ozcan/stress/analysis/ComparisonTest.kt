@@ -40,6 +40,7 @@ class ComparisonTest {
     fun `rows show what either run measured, with the change from A to B`() {
         val rows = Comparison.rows(record(peak = 10.0), record(peak = 11.5, temps = mapOf("cpu" to 80.0, "battery" to 44.0)))
         val peak = rows.first { it.metric == Comparison.Metric.PeakPower }
+        assertEquals(1.5, peak.difference!!, 1e-9)
         assertEquals(0.15, peak.change!!, 1e-9)
         val chip = rows.first { it.metric == Comparison.Metric.HottestChip }
         assertEquals(95.0, chip.a!!, 0.0)
@@ -54,6 +55,7 @@ class ComparisonTest {
     fun `power measured on a charger is left out`() {
         val row = Comparison.rows(record(peak = 10.0), record(peak = 9.0, powerValid = false)).first { it.metric == Comparison.Metric.PeakPower }
         assertNull(row.b)
+        assertNull(row.difference)
         assertNull(row.change)
     }
 

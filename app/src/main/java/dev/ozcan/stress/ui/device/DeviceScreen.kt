@@ -1,36 +1,27 @@
 package dev.ozcan.stress.ui.device
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.RemoveCircleOutline
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,8 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,24 +49,30 @@ import dev.ozcan.stress.engine.GpuState
 import dev.ozcan.stress.engine.StartResult
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.safety.SafetyLimits
-import dev.ozcan.stress.telemetry.ClusterRole
 import dev.ozcan.stress.telemetry.SensorAvailability
 import dev.ozcan.stress.telemetry.ThermalGroup
-import dev.ozcan.stress.telemetry.label
+import dev.ozcan.stress.telemetry.ThermalReader
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.GpuSurface
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
-import dev.ozcan.stress.ui.components.GlassCard
+import dev.ozcan.stress.ui.components.Hairline
 import dev.ozcan.stress.ui.components.InfoRow
 import dev.ozcan.stress.ui.components.MeterBar
+import dev.ozcan.stress.ui.components.MetricNumber
+import dev.ozcan.stress.ui.components.Panel
 import dev.ozcan.stress.ui.components.PrimaryButton
-import dev.ozcan.stress.ui.components.SecondaryButton
-import dev.ozcan.stress.ui.components.SectionHeader
+import dev.ozcan.stress.ui.components.SectionLabel
+import dev.ozcan.stress.ui.components.Stack
+import dev.ozcan.stress.ui.components.StatusChip
+import dev.ozcan.stress.ui.components.StopButton
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressMotion
+import dev.ozcan.stress.ui.theme.StressType
+import dev.ozcan.stress.ui.upper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -93,7 +90,7 @@ class DeviceViewModel(private val graph: AppGraph) : ViewModel() {
     val kernels: List<CpuKernel> = graph.cpu.kernels
     val burners: List<GpuBurner> = graph.gpu.burners
     val availability: SensorAvailability = graph.sensors.availability
-    val roles: List<ClusterRole> = ClusterRole.of(graph.layout.clusters, graph.layout.cpuCount)
+    val cpuClusters: List<String> = DeviceInfo.cpuLabels(graph.layout, includeClocks = false)
     val gpuBusyPath: String? = graph.layout.gpuBusyPath
 
     val live: StateFlow<LiveView?> = graph.sampler.latest
@@ -155,161 +152,230 @@ class DeviceViewModel(private val graph: AppGraph) : ViewModel() {
 fun DeviceScreen() {
     val graph = context().graph
     val model: DeviceViewModel = viewModel { DeviceViewModel(graph) }
-    val live by model.live.collectAsStateWithLifecycle()
     val device by model.device.collectAsStateWithLifecycle()
+    val live by model.live.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(title = stringResource(R.string.device_title), modifier = Modifier.statusBarsPadding())
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp)
-                .navigationBarsPadding()
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        TopBar(stringResource(R.string.device_title), modifier = Modifier.statusBarsPadding())
+        Stack(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         ) {
-            DeviceCard(device)
-            PowerCard(live)
-            ClockCard(live, model.roles)
-            TemperatureCard(live)
-            AvailabilityCard(model.availability, model.gpuBusyPath)
-            AdvancedCard(model, live)
-        }
-    }
-}
-
-@Composable
-private fun DeviceCard(device: DeviceInfo?) {
-    SectionHeader(stringResource(R.string.device_section_hardware))
-    GlassCard(Modifier.fillMaxWidth()) {
-        if (device == null) {
-            Text(Format.MISSING, color = StressColors.TextDim)
-            return@GlassCard
-        }
-        Text(device.title, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(6.dp))
-        device.soc?.let { InfoRow(stringResource(R.string.device_soc), it) }
-        device.cpuClusters.forEach { InfoRow(stringResource(R.string.device_cpu), it) }
-        InfoRow(stringResource(R.string.device_cores), device.cpuCount.toString())
-        InfoRow(stringResource(R.string.device_gpu), device.gpu ?: stringResource(R.string.device_no_vulkan))
-        device.vulkan?.let { InfoRow("Vulkan", it) }
-        InfoRow(stringResource(R.string.device_android), "${device.androidVersion} (API ${device.sdk})")
-        device.ramGigabytes?.let { InfoRow(stringResource(R.string.device_ram), "${Format.number(it, 1)} GB") }
-        device.display?.let { InfoRow(stringResource(R.string.device_display), it) }
-    }
-}
-
-@Composable
-private fun PowerCard(live: LiveView?) {
-    SectionHeader(stringResource(R.string.device_section_power))
-    GlassCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                if (live?.plugged == true) stringResource(R.string.home_live_charging) else Format.number(live?.watts, 2),
-                style = NumberStyles.Large,
-                color = StressColors.Accent,
-            )
-            if (live?.watts != null) Text("W", style = MaterialTheme.typography.titleMedium, color = StressColors.TextDim, modifier = Modifier.padding(bottom = 4.dp))
-        }
-        if (live?.plugged == true) {
-            Text(stringResource(R.string.home_plugged), style = MaterialTheme.typography.bodySmall, color = StressColors.Warn)
-        } else if (live != null && live.watts == null) {
-            Text(stringResource(R.string.power_unavailable), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-        }
-        Spacer(Modifier.height(6.dp))
-        InfoRow(stringResource(R.string.device_current), Format.number(live?.dischargeAmps, 3) + " A")
-        InfoRow(stringResource(R.string.device_current_raw), live?.currentRaw?.toString() ?: Format.MISSING)
-        InfoRow(stringResource(R.string.device_voltage), Format.number(live?.volts, 3) + " V")
-        InfoRow(stringResource(R.string.temp_battery), "${Format.percentValue(live?.levelPercent)} · ${Format.celsius(live?.batteryCelsius)}")
-        InfoRow(stringResource(R.string.device_thermal_status), live?.let { stringResource(Labels.thermalStatus(it.thermalStatus)) } ?: Format.MISSING)
-        InfoRow(stringResource(R.string.device_headroom), Format.number(live?.headroom?.toDouble(), 2))
-    }
-}
-
-@Composable
-private fun ClockCard(live: LiveView?, roles: List<ClusterRole>) {
-    SectionHeader(stringResource(R.string.device_section_clocks))
-    GlassCard(Modifier.fillMaxWidth()) {
-        val clusters = live?.clusters.orEmpty()
-        if (clusters.isEmpty()) Text(stringResource(R.string.device_unreadable), color = StressColors.TextDim, style = MaterialTheme.typography.bodySmall)
-        clusters.forEachIndexed { i, c ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "${stringResource(Labels.role(roles.getOrElse(i) { c.role }))} · ${c.label}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val max = c.maxKhz.takeIf { it > 0 }?.let { (it / 1000).toString() } ?: Format.MISSING
-                Text("${Format.mhz(c.khz)} / $max", style = NumberStyles.Small, color = StressColors.TextDim)
+            HardwareCard(device, model.cpuClusters)
+            val readings = live
+            if (readings == null) {
+                Text(stringResource(R.string.device_waiting), style = StressType.Body, color = StressColors.TextDim)
+            } else {
+                PowerCard(readings)
+                ClockCard(readings, model.availability)
+                TemperatureCard(readings, model.availability)
             }
-            Spacer(Modifier.height(4.dp))
-            MeterBar(c.load ?: 0f, color = Labels.clusterColor(i, clusters.size))
-            Spacer(Modifier.height(10.dp))
+            SensorCard(model.availability, model.gpuBusyPath)
+            AdvancedCard(model, readings)
         }
-        InfoRow(stringResource(R.string.run_gpu_load), Format.percent(live?.gpuLoad))
     }
 }
 
 @Composable
-private fun TemperatureCard(live: LiveView?) {
+private fun DeviceSection(@StringRes label: Int, content: @Composable ColumnScope.() -> Unit) {
+    Stack(spacing = 8) {
+        SectionLabel(stringResource(label))
+        Panel(Modifier.fillMaxWidth(), content = content)
+    }
+}
+
+@Composable
+private fun HardwareCard(device: DeviceInfo?, cpuClusters: List<String>) {
+    DeviceSection(R.string.device_section_hardware) {
+        if (device == null) {
+            Text(stringResource(R.string.device_waiting_hardware), style = StressType.Body, color = StressColors.TextDim)
+            return@DeviceSection
+        }
+        Text(device.title, style = StressType.Heading, modifier = Modifier.padding(bottom = 8.dp))
+        Reading(stringResource(R.string.device_soc), device.soc, R.string.device_soc_missing)
+        Reading(stringResource(R.string.device_cores), device.cpuCount.toString(), R.string.device_cpu_missing)
+        Reading(
+            stringResource(R.string.device_cpu_clusters),
+            cpuClusters.takeIf { it.isNotEmpty() }?.joinToString("\n"),
+            R.string.device_cpu_missing,
+        )
+        Hairline(Modifier.padding(vertical = 4.dp))
+        Reading(stringResource(R.string.device_gpu), device.gpu, R.string.device_gpu_missing)
+        Reading("Vulkan", device.vulkan, R.string.device_vulkan_missing)
+        Hairline(Modifier.padding(vertical = 4.dp))
+        InfoRow(stringResource(R.string.device_android), "${device.androidVersion} (API ${device.sdk})")
+        Reading(stringResource(R.string.device_ram), device.ramGigabytes?.let { "${Format.number(it, 1)} GB" }, R.string.device_ram_missing)
+        Reading(stringResource(R.string.device_display), device.display, R.string.device_display_missing, valueWeight = 2f)
+    }
+}
+
+@Composable
+private fun PowerCard(live: LiveView) {
+    DeviceSection(R.string.device_section_power) {
+        val powerUnavailable = if (live.plugged) R.string.device_power_plugged else R.string.device_power_missing
+        Text(stringResource(R.string.device_battery_output).upper(), style = StressType.Label, color = StressColors.TextDim)
+        MetricNumber(Format.number(live.watts, 2), "W", NumberStyles.Large, StressColors.Accent)
+        if (live.watts == null) {
+            Text(stringResource(powerUnavailable), style = StressType.BodySmall, color = StressColors.TextDim)
+        }
+        Hairline(Modifier.padding(vertical = 8.dp))
+        Reading(stringResource(R.string.device_battery_level), Format.percentValue(live.levelPercent), R.string.device_level_missing)
+        val battery = live.batteryCelsius
+        Reading(
+            stringResource(R.string.device_battery_temperature),
+            Format.celsius(battery),
+            R.string.device_battery_temp_missing,
+            StressColors.temperature(battery, Limits.batteryWarn, Limits.batteryStop),
+        )
+        Reading(
+            stringResource(R.string.device_current),
+            live.dischargeAmps?.let { "${Format.number(it, 3)} A" },
+            if (live.plugged) R.string.device_current_plugged else R.string.device_current_missing,
+        )
+        Reading(stringResource(R.string.device_current_raw), live.currentRaw?.toString(), R.string.device_raw_missing)
+        Reading(stringResource(R.string.device_voltage), live.volts?.let { "${Format.number(it, 3)} V" }, R.string.device_voltage_missing)
+    }
+}
+
+@Composable
+private fun ClockCard(live: LiveView, availability: SensorAvailability) {
+    DeviceSection(R.string.device_section_clocks) {
+        val clusters = live.clusters
+        if (clusters.isEmpty()) {
+            Reading(stringResource(R.string.device_cpu), null, R.string.device_clocks_missing)
+        }
+        clusters.forEachIndexed { index, cluster ->
+            val readable = availability.clusters.getOrNull(index)?.second == true
+            Text(
+                stringResource(R.string.title_with_part, stringResource(Labels.role(cluster.role)), cluster.label),
+                style = StressType.Heading,
+            )
+            Reading(
+                stringResource(R.string.device_clock_now),
+                deviceClock(cluster.khz),
+                if (readable) R.string.device_clock_no_sample else R.string.device_clock_not_readable,
+            )
+            Reading(
+                stringResource(R.string.device_clock_max),
+                deviceClock(cluster.maxKhz),
+                R.string.device_clock_max_missing,
+            )
+            cluster.load?.let {
+                MeterBar(it, color = Labels.clusterColor(index, clusters.size), modifier = Modifier.padding(top = 4.dp))
+            }
+            Hairline(Modifier.padding(vertical = 8.dp))
+        }
+        val estimated = live.gpuBusy == null && live.gpuLoad != null
+        Reading(
+            stringResource(R.string.run_gpu_load),
+            Format.percent(live.gpuLoad),
+            if (availability.gpuBusy) R.string.device_gpu_busy_no_sample else R.string.device_gpu_busy_missing,
+            detail = if (estimated) stringResource(R.string.device_gpu_busy_estimated) else null,
+        )
+    }
+}
+
+/** Keep small reported clocks readable instead of rounding them down to zero MHz. */
+internal fun deviceClock(khz: Long?): String = when {
+    khz == null || khz <= 0 -> Format.MISSING
+    khz < 1000 -> "$khz kHz"
+    else -> Format.mhz(khz)
+}
+
+@Composable
+private fun TemperatureCard(live: LiveView, availability: SensorAvailability) {
     val context = context()
-    SectionHeader(stringResource(R.string.chart_temperature))
-    GlassCard(Modifier.fillMaxWidth()) {
+    DeviceSection(R.string.chart_temperature) {
+        Reading(
+            stringResource(R.string.device_thermal_status),
+            live.thermalStatus.takeUnless { it == ThermalReader.UNAVAILABLE }?.let { stringResource(Labels.thermalStatus(it)) },
+            R.string.device_status_missing,
+        )
+        Reading(
+            stringResource(R.string.device_headroom),
+            Format.number(live.headroom?.toDouble(), 2),
+            R.string.device_headroom_missing,
+        )
+        Hairline(Modifier.padding(vertical = 8.dp))
         ThermalGroup.entries.forEach { group ->
-            val value = live?.temperatures?.get(group)
+            val value = live.temperatures[group]
             val color = when (group) {
                 ThermalGroup.Cpu, ThermalGroup.Gpu -> StressColors.temperature(value, Limits.chipWarn, Limits.chipStop)
                 ThermalGroup.Skin -> StressColors.temperature(value, Limits.skinWarn, Limits.skinStop)
-                else -> if (value == null) StressColors.TextDim else StressColors.Text
+                else -> StressColors.Text
             }
-            InfoRow(Labels.temperature(context, group.key), Format.celsius(value), valueColor = color)
+            val reason = when {
+                availability.totalZones(group) == 0 -> R.string.device_zone_missing
+                !availability.readable(group) -> R.string.device_zone_not_readable
+                else -> R.string.device_zone_no_sample
+            }
+            Reading(Labels.temperature(context, group.key), Format.celsius(value), reason, color)
         }
-        val battery = live?.batteryCelsius
-        InfoRow(stringResource(R.string.temp_battery), Format.celsius(battery), valueColor = StressColors.temperature(battery, Limits.batteryWarn, Limits.batteryStop))
     }
 }
 
 @Composable
-private fun AvailabilityCard(availability: SensorAvailability, gpuBusyPath: String?) {
+private fun SensorCard(availability: SensorAvailability, gpuBusyPath: String?) {
     val context = context()
-    SectionHeader(stringResource(R.string.device_section_sensors))
-    GlassCard(Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.device_sensors_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
-        Spacer(Modifier.height(8.dp))
-        availability.clusters.forEach { (cluster, ok) -> Readable(stringResource(R.string.device_clock_of, cluster.label()), ok) }
-        ThermalGroup.entries.forEach { group ->
-            val total = availability.totalZones(group)
-            Readable(
-                "${Labels.temperature(context, group.key)} (${availability.readableZones(group)}/$total)",
-                total > 0 && availability.readable(group),
-            )
+    DeviceSection(R.string.device_section_sensors) {
+        Text(stringResource(R.string.device_sensors_detail), style = StressType.BodySmall, color = StressColors.TextDim)
+        Hairline(Modifier.padding(vertical = 8.dp))
+        val zones = availability.zones.groupBy { it.first.group }
+        if (zones.isEmpty()) {
+            Reading(stringResource(R.string.device_thermal_zones), null, R.string.device_zone_missing)
         }
-        Readable(stringResource(R.string.device_gpu_counter) + (gpuBusyPath?.let { " · ${it.substringAfterLast('/')}" } ?: ""), availability.gpuBusy)
+        zones.forEach { (group, entries) ->
+            Text(
+                stringResource(R.string.device_zones_count, Labels.temperature(context, group.key), availability.readableZones(group), entries.size),
+                style = StressType.Heading,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            entries.forEach { (zone, readable) ->
+                SensorRow(zone.type, readable, R.string.device_zone_not_readable)
+            }
+            Hairline(Modifier.padding(vertical = 8.dp))
+        }
+        val counter = stringResource(R.string.device_gpu_counter)
+        val fileName = gpuBusyPath?.substringAfterLast('/')
+        val label = if (fileName == null) counter else stringResource(R.string.title_with_part, counter, fileName)
+        SensorRow(label, availability.gpuBusy, R.string.device_gpu_busy_missing)
     }
 }
 
 @Composable
-private fun Readable(label: String, ok: Boolean) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(
-            if (ok) Icons.Rounded.CheckCircle else Icons.Rounded.RemoveCircleOutline,
-            null,
-            tint = if (ok) StressColors.Good else StressColors.TextFaint,
-            modifier = Modifier.size(16.dp),
-        )
-        Text(label, style = MaterialTheme.typography.bodySmall, color = if (ok) StressColors.Text else StressColors.TextDim, modifier = Modifier.weight(1f))
-        Text(
-            stringResource(if (ok) R.string.device_readable else R.string.device_closed),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (ok) StressColors.Good else StressColors.TextFaint,
-        )
+private fun SensorRow(label: String, readable: Boolean, @StringRes missingReason: Int) {
+    if (readable) {
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(label, Modifier.weight(1f), style = StressType.Code, color = StressColors.TextDim)
+            StatusChip(stringResource(R.string.device_readable), StressColors.Good)
+        }
+    } else {
+        Reading(label, null, missingReason)
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Reading(
+    label: String,
+    value: String?,
+    @StringRes missingReason: Int,
+    color: Color = StressColors.Text,
+    detail: String? = null,
+    valueWeight: Float = 1.2f,
+) {
+    val missing = value == null || value == Format.MISSING
+    InfoRow(
+        label,
+        value ?: Format.MISSING,
+        valueColor = if (missing) StressColors.TextDim else color,
+        detail = if (missing) stringResource(missingReason) else detail,
+        valueWeight = valueWeight,
+    )
+}
+
 @Composable
 private fun AdvancedCard(model: DeviceViewModel, live: LiveView?) {
     val context = context()
@@ -318,67 +384,67 @@ private fun AdvancedCard(model: DeviceViewModel, live: LiveView?) {
     val burner by model.burner.collectAsStateWithLifecycle()
     val message by model.message.collectAsStateWithLifecycle()
     val gpuTests by model.gpuTests.collectAsStateWithLifecycle()
-    SectionHeader(stringResource(R.string.device_section_advanced))
-    GlassCard(Modifier.fillMaxWidth(), onClick = { open = !open }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.device_advanced), style = MaterialTheme.typography.titleSmall)
-                Text(stringResource(R.string.device_advanced_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+    DeviceSection(R.string.device_section_advanced) {
+        Panel(Modifier.fillMaxWidth(), padding = 12.dp, onClick = { open = !open }) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Stack(Modifier.weight(1f), spacing = 4) {
+                    Text(stringResource(R.string.device_advanced), style = StressType.Heading)
+                    Text(stringResource(R.string.device_advanced_detail), style = StressType.BodySmall, color = StressColors.TextDim)
+                }
+                Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = StressColors.TextDim)
             }
-            Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = StressColors.TextDim)
         }
-        AnimatedVisibility(open) {
-            Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.device_cpu_kernels), style = MaterialTheme.typography.labelLarge, color = StressColors.TextDim)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        AnimatedVisibility(open, enter = fadeIn(StressMotion.enter()), exit = fadeOut(StressMotion.exit())) {
+            Stack(Modifier.padding(top = 12.dp), spacing = 8) {
+                SectionLabel(stringResource(R.string.device_cpu_kernels))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     model.kernels.filter { it.supported }.forEach { k ->
-                        Chip("${k.code} · ${k.key}", k == kernel) { model.select(k) }
+                        LoadChoice("${k.code} · ${k.key}", k == kernel) { model.select(k) }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PrimaryButton(stringResource(R.string.device_start), onClick = model::startCpu, icon = Icons.Rounded.PlayArrow, height = 48.dp, modifier = Modifier.weight(1f))
-                    SecondaryButton(stringResource(R.string.run_stop), onClick = model::stopCpu, icon = Icons.Rounded.Stop, modifier = Modifier.weight(1f))
-                }
-                message?.let { Text(stringResource(R.string.device_start_failed, it), color = StressColors.Bad, style = MaterialTheme.typography.bodySmall) }
+                LoadActions(start = model::startCpu, stop = model::stopCpu)
+                message?.let { Text(stringResource(R.string.device_start_failed, it), color = StressColors.Bad, style = StressType.BodySmall) }
                 InfoRow(
                     stringResource(R.string.device_running),
                     live?.runningKernel?.let { "${it.code} · ${it.key}" } ?: stringResource(R.string.device_none),
+                    valueWeight = 1.2f,
                 )
                 live?.clusters?.forEach { c ->
-                    InfoRow(c.label, Format.rate(c.rate, live.unit?.let { Labels.rateSymbol(context, it) }))
+                    InfoRow(c.label, Format.rate(c.rate, live.unit?.let { Labels.rateSymbol(context, it) }), valueWeight = 1.2f)
                 }
-                InfoRow(
-                    stringResource(R.string.result_errors),
-                    (live?.errors ?: 0L).toString(),
-                    valueColor = if ((live?.errors ?: 0L) > 0) StressColors.Bad else StressColors.Good,
-                )
+                ErrorRow(live?.errors)
 
                 if (gpuTests == true) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(R.string.device_gpu_burners), style = MaterialTheme.typography.labelLarge, color = StressColors.TextDim)
+                    Hairline()
+                    SectionLabel(stringResource(R.string.device_gpu_burners))
                     GpuSurface(
                         context.graph.gpu,
                         Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
                         onAttached = model::showPreview,
                     )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        model.burners.forEach { b -> Chip("${b.code} · ${b.key}", b == burner) { model.select(b) } }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        model.burners.forEach { b -> LoadChoice("${b.code} · ${b.key}", b == burner) { model.select(b) } }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PrimaryButton(stringResource(R.string.device_start), onClick = model::startGpu, icon = Icons.Rounded.PlayArrow, height = 48.dp, modifier = Modifier.weight(1f))
-                        SecondaryButton(stringResource(R.string.run_stop), onClick = model::showPreview, icon = Icons.Rounded.Stop, modifier = Modifier.weight(1f))
-                    }
+                    LoadActions(start = model::startGpu, stop = model::showPreview)
                     val gpu = live?.gpu
-                    InfoRow(stringResource(R.string.device_gpu_state), gpu?.let { "${it.state.name} · ${it.burner?.code ?: "—"}" } ?: Format.MISSING)
-                    InfoRow(stringResource(R.string.device_frame), "${Format.number(gpu?.framesPerSecond, 1)} fps · ${Format.number(gpu?.frameMillis, 1)} ms")
-                    InfoRow(stringResource(R.string.device_work), Format.rate(gpu?.rate, gpu?.burner?.unit?.let { Labels.rateSymbol(context, it) }))
+                    val state = gpu?.state?.let {
+                        stringResource(when (it) {
+                            GpuState.Idle -> R.string.device_gpu_idle
+                            GpuState.Running -> R.string.device_gpu_running
+                            GpuState.DeviceLost, GpuState.Failed -> R.string.device_gpu_failed
+                        })
+                    }
                     InfoRow(
-                        stringResource(R.string.result_errors),
-                        "${gpu?.errors ?: 0} / ${gpu?.checks ?: 0}",
-                        valueColor = if ((gpu?.errors ?: 0L) > 0) StressColors.Bad else StressColors.Good,
+                        stringResource(R.string.device_gpu_state),
+                        listOfNotNull(state, gpu?.burner?.code).joinToString(" · ").ifEmpty { Format.MISSING },
                     )
+                    val fps = gpu?.framesPerSecond?.let { "${Format.number(it, 1)} fps" } ?: Format.MISSING
+                    val frame = gpu?.frameMillis?.let { "${Format.number(it, 1)} ms" } ?: Format.MISSING
+                    InfoRow(stringResource(R.string.device_frame), "$fps · $frame")
+                    InfoRow(stringResource(R.string.device_work), Format.rate(gpu?.rate, gpu?.burner?.unit?.let { Labels.rateSymbol(context, it) }))
+                    ErrorRow(gpu?.errors, gpu?.checks)
                     if (gpu?.state == GpuState.DeviceLost || gpu?.state == GpuState.Failed) {
-                        Text(stringResource(R.string.end_gpu_failed), color = StressColors.Bad, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.end_gpu_failed), color = StressColors.Bad, style = StressType.BodySmall)
                     }
                 }
             }
@@ -387,17 +453,27 @@ private fun AdvancedCard(model: DeviceViewModel, live: LiveView?) {
 }
 
 @Composable
-private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(4.dp)
-    Box(
-        Modifier
-            .clip(shape)
-            .background(if (selected) StressColors.CoolTint else StressColors.SurfaceHighest, shape)
-            .border(1.dp, if (selected) StressColors.Cool else StressColors.Outline, shape)
-            .heightIn(min = 48.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.labelMedium)
+private fun LoadChoice(label: String, selected: Boolean, onClick: () -> Unit) {
+    Panel(padding = 12.dp, selected = selected, onClick = onClick) {
+        Text(label, style = StressType.Code, color = if (selected) StressColors.Cool else StressColors.Text)
     }
+}
+
+@Composable
+private fun LoadActions(start: () -> Unit, stop: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        PrimaryButton(stringResource(R.string.device_start), onClick = start, icon = Icons.Rounded.PlayArrow, modifier = Modifier.weight(1f))
+        StopButton(stringResource(R.string.run_stop), onClick = stop, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun ErrorRow(errors: Long?, checks: Long? = null) {
+    val value = errors?.let { if (checks == null) it.toString() else "$it / $checks" }
+    val color = when {
+        errors == null -> StressColors.TextDim
+        errors > 0 -> StressColors.Bad
+        else -> StressColors.Good
+    }
+    InfoRow(stringResource(R.string.result_errors), value ?: Format.MISSING, valueColor = color)
 }
