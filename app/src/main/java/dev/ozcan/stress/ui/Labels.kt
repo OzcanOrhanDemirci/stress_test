@@ -3,6 +3,7 @@ package dev.ozcan.stress.ui
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Movie
@@ -41,6 +42,7 @@ object Labels {
         StressMode.Cpu -> R.string.mode_cpu
         StressMode.Gpu -> R.string.mode_gpu
         StressMode.Dry -> R.string.mode_dry
+        StressMode.Charge -> R.string.mode_charge
     }
 
     @StringRes
@@ -50,6 +52,7 @@ object Labels {
         StressMode.Cpu -> R.string.mode_cpu_detail
         StressMode.Gpu -> R.string.mode_gpu_detail
         StressMode.Dry -> R.string.mode_dry_detail
+        StressMode.Charge -> R.string.mode_charge_detail
     }
 
     fun modeIcon(mode: StressMode): ImageVector = when (mode) {
@@ -58,6 +61,7 @@ object Labels {
         StressMode.Cpu -> Icons.Rounded.Memory
         StressMode.Gpu -> Icons.Rounded.Videocam
         StressMode.Dry -> Icons.Rounded.Speed
+        StressMode.Charge -> Icons.Rounded.BatteryChargingFull
     }
 
     @StringRes
@@ -88,12 +92,12 @@ object Labels {
         StressMode.of(record.mode)?.let { modeName(context, it) } ?: record.mode
 
     @StringRes
-    fun duration(duration: StressDuration): Int = when (duration) {
+    fun duration(duration: StressDuration, mode: StressMode? = null): Int = when (duration) {
         StressDuration.One -> R.string.duration_1
         StressDuration.Five -> R.string.duration_5
         StressDuration.Fifteen -> R.string.duration_15
         StressDuration.Thirty -> R.string.duration_30
-        StressDuration.Endless -> R.string.duration_endless
+        StressDuration.Endless -> if (mode == StressMode.Charge) R.string.charge_until_full else R.string.duration_endless
     }
 
     @StringRes
@@ -201,6 +205,9 @@ object Labels {
         EndReason.GpuFailed -> R.string.end_gpu_failed
         EndReason.Interrupted -> R.string.end_interrupted
         EndReason.SamplerLost -> R.string.end_sampler_lost
+        EndReason.BatteryFull -> R.string.charge_end_full
+        EndReason.Unplugged -> R.string.charge_end_unplugged
+        EndReason.ChargeReadingLost -> R.string.charge_end_reading_lost
     }
 
     /** The short form, for list rows. */
@@ -212,13 +219,14 @@ object Labels {
         EndReason.GpuFailed -> R.string.end_gpu_failed_short
         EndReason.Interrupted -> R.string.end_interrupted_short
         EndReason.SamplerLost -> R.string.end_sampler_lost_short
+        EndReason.BatteryFull, EndReason.Unplugged, EndReason.ChargeReadingLost -> endReason(reason)
     }
 
     fun endReasonColor(reason: EndReason): Color = when (reason) {
-        EndReason.Completed -> StressColors.Good
-        EndReason.User -> StressColors.TextDim
+        EndReason.Completed, EndReason.BatteryFull -> StressColors.Good
+        EndReason.User, EndReason.Unplugged -> StressColors.TextDim
         EndReason.Safety -> StressColors.Warn
-        EndReason.GpuFailed, EndReason.SamplerLost, EndReason.Interrupted -> StressColors.Bad
+        EndReason.GpuFailed, EndReason.SamplerLost, EndReason.Interrupted, EndReason.ChargeReadingLost -> StressColors.Bad
     }
 
     /** A record's end, also for runs stored before the reason was kept. */

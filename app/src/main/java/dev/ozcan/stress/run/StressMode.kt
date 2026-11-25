@@ -28,7 +28,8 @@ enum class StressMode(
     CinematicHole("fp32_l2+hole", usesCpu = true, usesGpu = true, scene = SceneKind.Hole),
     Cpu("fp32_l2", usesCpu = true, usesGpu = false),
     Gpu("gpu_fp32@preview", usesCpu = false, usesGpu = true),
-    Dry("dry", usesCpu = true, usesGpu = false);
+    Dry("dry", usesCpu = true, usesGpu = false),
+    Charge("", usesCpu = false, usesGpu = false);
 
     companion object {
         val cinematic: List<StressMode> get() = entries.filter { it.scene != null }

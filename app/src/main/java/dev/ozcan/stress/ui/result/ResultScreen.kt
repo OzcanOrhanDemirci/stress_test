@@ -55,6 +55,7 @@ import dev.ozcan.stress.analysis.Comparison
 import dev.ozcan.stress.analysis.Insight
 import dev.ozcan.stress.analysis.Insights
 import dev.ozcan.stress.analysis.ReferenceDevices
+import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.report.ReportCsv
@@ -67,6 +68,7 @@ import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.InsightText
 import dev.ozcan.stress.ui.Labels
+import dev.ozcan.stress.ui.charge.ChargeResult
 import dev.ozcan.stress.ui.components.CenteredBox
 import dev.ozcan.stress.ui.components.ChartSeries
 import dev.ozcan.stress.ui.components.Hairline
@@ -85,7 +87,7 @@ import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TimeChart
-import dev.ozcan.stress.ui.components.TopBar
+import dev.ozcan.stress.ui.components.TopBar as DesignTopBar
 import dev.ozcan.stress.ui.components.TopBarAction
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.run.DrawnQualityNotice
@@ -113,7 +115,7 @@ class ResultViewModel(private val graph: AppGraph, private val runId: String) : 
     init {
         viewModelScope.launch {
             val record = withContext(Dispatchers.IO) { graph.runs.load(runId) }
-            _loaded.value = Loaded(record, record?.let(Insights::of).orEmpty())
+            _loaded.value = Loaded(record, record?.takeUnless { it.isCharge }?.let(Insights::of).orEmpty())
         }
     }
 
@@ -137,11 +139,8 @@ fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit)
         when {
             loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
-            else -> {
-                val insights = loaded?.insights.orEmpty()
-                ResultBody(record, insights, Modifier.weight(1f))
-                ReportActions(record, insights)
-            }
+            record.isCharge -> ChargeResult(record) { ExportCard(record, emptyList()) }
+            else -> ResultBody(record, loaded!!.insights)
         }
     }
 }
@@ -153,11 +152,27 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
     var others by remember { mutableStateOf<List<RunRecord>?>(null) }
-    val caption = record?.let {
-        val scene = StressMode.of(it.mode)?.scene
-        val mode = if (scene != null) stringResource(Labels.scene(scene)) else Labels.recordModeName(context, it)
-        listOfNotNull(mode, Format.clock(it.loadSeconds).padStart(5, '0'), it.device?.model)
-            .joinToString(" // ").upper()
+    if (record?.isCharge == true) {
+        DesignTopBar(stringResource(R.string.charge_result), Modifier.statusBarsPadding(), onBack = onBack) {
+            TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
+                scope.launch { others = model.others() }
+            })
+            TopBarAction(Icons.Rounded.Delete, stringResource(R.string.delete), { confirmDelete = true })
+        }
+    } else Row(
+        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
+        Text(stringResource(R.string.result_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        if (record != null) {
+            IconButton(onClick = { scope.launch { others = model.others() } }) {
+                Icon(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), tint = StressColors.TextDim)
+            }
+            IconButton(onClick = { confirmDelete = true }) {
+                Icon(Icons.Rounded.Delete, stringResource(R.string.delete), tint = StressColors.TextDim)
+            }
+        }
     }
     TopBar(
         title = stringResource(R.string.result_title),
@@ -570,15 +585,35 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.export_share_title)))
     }
 
-    Column(Modifier.fillMaxWidth().background(StressColors.SurfaceLow)) {
-        Hairline()
-        Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SecondaryButton(
-                text = stringResource(R.string.result_csv),
-                icon = Icons.Rounded.TableChart,
+    val shareCsv: () -> Unit = {
+        scope.launch {
+            val file = withContext(Dispatchers.IO) {
+                runCatching { ReportCsv.write(record, graph.reportDir) }.getOrNull()
+            }
+            if (file != null) share(file, "text/csv") else Toast.makeText(context, R.string.export_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
+    if (record.isCharge) {
+        SecondaryButton(stringResource(R.string.export_csv), shareCsv, Modifier.fillMaxWidth(), icon = Icons.Rounded.TableChart)
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader(stringResource(R.string.result_export))
+        GlassCard(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconBadge(Icons.Rounded.PictureAsPdf, StressColors.Accent)
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.export_pdf_title), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.export_pdf_detail), style = MaterialTheme.typography.bodySmall, color = StressColors.TextDim)
+                }
+                if (busy) CircularProgressIndicator(Modifier.size(22.dp), color = StressColors.Accent, strokeWidth = 2.dp)
+            }
+            Spacer(Modifier.height(12.dp))
+            PrimaryButton(
+                text = stringResource(R.string.export_share_pdf),
+                icon = Icons.Rounded.Share,
+                height = 52.dp,
                 enabled = !busy,
                 modifier = Modifier.weight(0.8f),
                 onClick = {
@@ -613,6 +648,23 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
                     }
                 },
             )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SecondaryButton(
+                    text = stringResource(R.string.export_save_pdf),
+                    icon = Icons.Rounded.Download,
+                    enabled = !busy,
+                    modifier = Modifier.weight(1f),
+                    onClick = { savePdf.launch(ReportPdf.fileName(record)) },
+                )
+                SecondaryButton(
+                    text = stringResource(R.string.export_csv),
+                    icon = Icons.Rounded.TableChart,
+                    enabled = !busy,
+                    modifier = Modifier.weight(1f),
+                    onClick = shareCsv,
+                )
+            }
         }
     }
 }

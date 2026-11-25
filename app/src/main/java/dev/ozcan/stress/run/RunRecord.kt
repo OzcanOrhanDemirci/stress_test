@@ -1,5 +1,6 @@
 package dev.ozcan.stress.run
 
+import dev.ozcan.stress.charge.ChargeDetails
 import dev.ozcan.stress.device.DeviceInfo
 import kotlinx.serialization.Serializable
 
@@ -17,6 +18,9 @@ enum class EndReason {
     Interrupted,
     /** The sampler stopped producing samples; the run would go on on frozen numbers. */
     SamplerLost,
+    BatteryFull,
+    Unplugged,
+    ChargeReadingLost,
 }
 
 /**
@@ -48,10 +52,7 @@ data class RunRecord(
     val safetyValue: Double? = null,
     /** The app's version that measured it. */
     val appVersion: String? = null,
-    /** Lowest settled quality. Null in a new cinematic run if it ended during the probe. */
-    val drawnQuality: String? = quality,
-    /** Smallest scale drawn at [drawnQuality], as a percent of the screen in each direction. */
-    val drawnScalePercent: Double? = null,
+    val charge: ChargeDetails? = null,
 )
 
 @Serializable
@@ -120,4 +121,6 @@ data class RunSeries(
     val batteryPercent: List<Int?> = emptyList(),
     /** Frames drawn each second, when the GPU drew. */
     val fps: List<Double?> = emptyList(),
+    val chargeCurrentAmps: List<Double?> = emptyList(),
+    val batteryVolts: List<Double?> = emptyList(),
 )

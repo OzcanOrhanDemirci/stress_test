@@ -37,10 +37,10 @@ class StringsTest {
                 .associate { it.attributes.getNamedItem("quantity").nodeValue to it.textContent }
         }
 
-    private val english = strings("src/main/res/values")
-    private val turkish = strings("src/main/res/values-tr")
-    private val englishPlurals = plurals("src/main/res/values")
-    private val turkishPlurals = plurals("src/main/res/values-tr")
+    private val english = strings("src/main/res/values/strings.xml") + strings("src/main/res/values/strings_charge.xml")
+    private val turkish = strings("src/main/res/values-tr/strings.xml") + strings("src/main/res/values-tr/strings_charge.xml")
+    private val englishPlurals = plurals("src/main/res/values/strings.xml")
+    private val turkishPlurals = plurals("src/main/res/values-tr/strings.xml")
 
     /** Positional arguments ("%1$s", "%2$d"), ignoring escaped percent signs. */
     private fun arguments(text: String): List<String> =
