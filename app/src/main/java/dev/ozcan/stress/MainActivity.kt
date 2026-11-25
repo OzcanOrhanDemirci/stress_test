@@ -15,7 +15,6 @@ import dev.ozcan.stress.ui.AppRoot
 import dev.ozcan.stress.ui.LabScreen
 import dev.ozcan.stress.ui.theme.StressTheme
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
 
@@ -56,7 +55,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             StressTheme {
                 if (lab == null) {
-                    AppRoot(openRun.asStateFlow()) { openRun.value = null }
+                    AppRoot(openRun) { openRun.value = null }
                 } else {
                     LabScreen(lab)
                 }

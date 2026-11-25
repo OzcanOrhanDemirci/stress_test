@@ -46,8 +46,11 @@ class ChargeNotifier(private val app: Context) {
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .build()
         // The permission can be withdrawn between the check and the post.
-        runCatching { NotificationManagerCompat.from(app).notify(NOTIFICATION_ID, notification) }
-            .onFailure { Log.w("stress-charge", "Could not post the battery-full notification", it) }
+        try {
+            NotificationManagerCompat.from(app).notify(NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            Log.w("stress-charge", "Could not post the battery-full notification", e)
+        }
     }
 
     private fun allowed(): Boolean =
