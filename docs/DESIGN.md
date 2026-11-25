@@ -13,6 +13,79 @@ What 0.2.0 had and this design removes: glass cards, glows, orange-to-red gradie
 floating tab bar, springy count-up animations, large rounded corners. What it keeps: the dark graphite ground, orange for
 power and heat, a cool blue for the second series, Space Grotesk for titles, monospaced numbers, the two-tone wordmark.
 
+## Two pages per screen (revision of 2026-11-25)
+
+The owner's verdict on the first build: the look is right, but every screen showed everything, "her şey her yerde", and
+because everything was a box, what can be pressed did not stand apart from what is only shown. His rule since: each
+screen is two pages. "Sade isteyen sade kullanır, mühendislik isteyen listeden bakar." His second set of Stitch examples
+(home, running cinematic, result, each ending in one "Mühendislik ..." row) shows the simple page.
+
+**Simple page** (what a screen opens on). Only the essentials, in wide full-width panels, with air between them; at most
+one row of two or three tiles. Rough budget: one hero value or hero card, two to four secondary values, one chart at
+most, one sentence of verdict, the decision buttons. Everything else moves to the engineering page; nothing is lost.
+
+**Engineering page** (one tap from the simple page). Every value and detail the screen knows, as an aesthetic log: a
+readable, coloured, monospaced list, not boxes. Reached by the **engineering row**, the last item of the simple page (on
+the run screen, the row above the stop button): a full-width control, `ENGINEERING VIEW` / `MÜHENDİSLİK GÖRÜNÜMÜ` in
+Label style, a Code caption on the right with what it holds (`42 VALUES`), a trailing chevron. It opens as a page of its
+own with a back arrow (top bar title: the screen's name, caption `ENGINEERING`); on the run screen it opens as a sheet
+over the lower part so the scene keeps running, and closing it returns to the simple page.
+
+The log's grammar:
+
+- **Section header**: Code style, `TextDim`, uppercase, the name followed by a 1 dp `Outline` rule to the right edge and
+  a count or summary at the end: `THERMAL ──────────────── 14 ZONES`. Sections in a fixed order per screen.
+- **Line**: one value per line, 32 dp tall, no box. Key on the left in Code style `TextDim`; value right-aligned in
+  Number S, coloured by meaning (power `Accent`, temperature by band, verdicts `Good`/`Warn`/`Bad`, plain values `Text`),
+  unit in `TextDim`; optional status tag at the far right in 10 sp Code: `OK` `Good`, `N/A` `TextFaint`, `WARN` `Warn`,
+  `STOP` `Bad`. Raw source in a second line under the key when it helps (`/sys/class/thermal/thermal_zone12`,
+  `TextFaint`).
+- **Event line** (results and live runs): timestamp first (`01:18`), an event tag (`THROTTLE`, `SAFETY`, `GPU`,
+  `ERROR`, `PLUG`) in its colour, then the sentence in Body small: `01:18  THROTTLE  big cluster 2400 → 2016 MHz`.
+- **Unavailable**: the line stays, value `—`, tag `N/A`, and the reason once under the section.
+- Charts sit in the log as their own section, full width, every series the screen has; the simple page keeps at most
+  the one that matters.
+- The page is read top to bottom like a report: summary lines first, then sections, then raw values. Long pages may
+  carry a row of section shortcuts at the top (segmented, scrolls the list).
+
+### What each simple page keeps
+
+| Screen | Simple page | Engineering page |
+|---|---|---|
+| Home (Test) | top bar with wordmark and protection chip; one hero card (selected mode, or scene image with name and quality); test modes as controls, charge test among them; scene picker when cinematic; duration chips; one-line notices that block or redirect a start (hot phone, plugged cable, no Vulkan); start button; engineering row | live readings (power, every temperature, clocks, GPU load, battery), the workload's kernels and burners, scene quality and internal resolution, device line, every notice in full |
+| Run | scene (cinematic) or a calm dark ground; progress bar with elapsed / total; three large values (power W, chip °C, frame rate or work rate); one notice line when one applies (drawn below quality, safety warning); engineering row; stop | sheet: every live reading by section (power and battery, thermal zones, clusters and clocks, GPU, workload and frame time, errors), events so far |
+| Result | header (mode, date, duration, end state chip); peak and sustained W; battery % from → to; hottest chip; the power chart; one verdict sentence (the first insight); engineering row; CSV and PDF actions | every insight, every metric, every chart with its series, Honor reference, requested and drawn quality and scale, events timeline, device and app version |
+| Charge run / result | W into the battery (hero); battery %, battery temperature, time to full (run) or sustained W, energy, % per 10 min (result); the W-against-% chart (result); verdict sentence; engineering row; stop / CSV | current, voltage, plug type, idle baseline and estimated input, slowdown point, findings with thresholds, both charts, reading cadence |
+| History | list of runs, each a control row: mode icon, mode and scene, date, peak W, chevron; compare action in the top bar | a run's engineering page is its result's |
+| Compare | A and B headers; peak W, sustained W, hottest chip, battery drain side by side with the difference; one overlaid power chart; verdict sentence; engineering row | every compared metric, every overlaid chart, both runs' settings |
+| Device | phone, chip, GPU and Vulkan, battery level and temperature; one fit line ("This phone gives 12 of 14 readings") with the missing ones named; engineering row | every cluster and clock, every thermal zone with its path and status, sensors, raw battery values, GPU counters, what the app can and cannot read and why; refresh every 2 s |
+| Settings | setting rows (device safety, scene quality, display during a test, vibration, safety notice, language, clear history); an About row | About (readout); advanced: extra GPU burner, manual load tests |
+
+## Pressable and readout
+
+One glance must tell a control from a reading. **A rule around something means it can be pressed.**
+
+- **Readout** (information): no outline. Hero and group panels are a flat `Surface` fill with no rule; values inside
+  them are separated by space or a hairline. Readouts never show a chevron, never show a pressed state, and their
+  labels are Label style `TextDim`. Log lines are readouts.
+- **Control** (anything that acts or navigates): `SurfaceHigh` fill, 1 dp `OutlineStrong` rule, radius 6, a pressed
+  state (fill one step lighter), and a visible affordance: a chevron for navigation, a switch, radio or check for a
+  setting, an icon plus a verb for an action, or the primary/secondary button shape. A selected control keeps its
+  `Cool` (or `Accent`) rule and tint.
+- **Settings** are rows of controls: the setting's name (Heading 16) and one line of what it does (Body small,
+  `TextDim`) on the left, the control on the right (switch, current value plus chevron, or a segmented control under
+  it). Information inside Settings (about, version, licences) is readout.
+- A list row that opens something (a history run, a scene, a section) is a control: rule, chevron, pressed state.
+
+This overrides the **Panel** and **Metric tile** parts below where they disagree: panels that only show information
+lose their rule; the rule belongs to controls.
+
+## Live values
+
+Readings that move faster than a person reads are shown at a calm rate. On the Device screen, clocks, temperatures,
+current, voltage and loads refresh once every 2 s (the owner's choice), numbers change in place. The run screen's live
+values keep their once-a-second rate; its engineering sheet too.
+
 ## Colour
 
 Dark theme only. One accent carries meaning: orange is power, heat and the primary action. Blue is the second series,
