@@ -35,13 +35,13 @@ fun SceneCard(
     modifier: Modifier = Modifier,
 ) {
     val line by animateColorAsState(
-        if (selected) StressColors.Cool else StressColors.Outline, StressMotion.state(), label = "scene outline",
+        if (selected) StressColors.Cool else StressColors.OutlineStrong, StressMotion.state(), label = "scene outline",
     )
     val tint by animateColorAsState(
         if (selected) StressColors.Cool else StressColors.Text, StressMotion.state(), label = "scene name",
     )
     Box(
-        modifier.heightIn(min = 48.dp).clip(PanelShape).background(StressColors.Surface)
+        modifier.heightIn(min = 48.dp).clip(PanelShape).background(StressColors.SurfaceHigh)
             .border(1.dp, line, PanelShape)
             .selectable(selected, role = Role.RadioButton, onClick = onClick),
     ) {

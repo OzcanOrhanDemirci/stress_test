@@ -50,7 +50,19 @@ internal val PanelShape = RoundedCornerShape(8.dp)
 internal val ButtonShape = RoundedCornerShape(6.dp)
 internal val ChipShape = RoundedCornerShape(4.dp)
 
-/** A flat, outlined column. [title] adds a heading and [selected] turns a clickable panel into a radio choice. */
+/** Radius of every control that is not a chip: panels, rows and cards that act or navigate. */
+internal val ControlShape = ButtonShape
+
+/**
+ * A full-width column in one of two kinds (DESIGN "Pressable and readout").
+ *
+ * - **Readout**: no [onClick] and [selected] null or false. Flat `Surface` fill, no rule, radius 8, no pressed state.
+ * - **Control**: [onClick] set, or [selected] not null. `SurfaceHigh` fill, 1 dp `OutlineStrong` rule, radius 6,
+ *   a lighter fill while pressed. [selected] true keeps the [selectionColor] rule and its 12 % tint, and with
+ *   [onClick] turns the panel into a radio choice.
+ *
+ * [title] adds a heading above [content].
+ */
 @Composable
 fun Panel(
     modifier: Modifier = Modifier,
@@ -62,29 +74,37 @@ fun Panel(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val control = onClick != null || selected != null
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val ground = when {
+        !control -> StressColors.Surface
+        pressed && enabled -> StressColors.SurfaceHighest
+        else -> StressColors.SurfaceHigh
+    }
     val line by animateColorAsState(
-        if (selected == true) selectionColor else StressColors.Outline,
+        when {
+            selected == true -> selectionColor
+            control -> StressColors.OutlineStrong
+            else -> Color.Transparent
+        },
         StressMotion.state(),
         label = "panel outline",
     )
     val fill by animateColorAsState(
-        when {
-            selected == true -> selectionColor.copy(alpha = 0.12f).compositeOver(StressColors.Surface)
-            pressed -> StressColors.SurfaceHigh
-            else -> StressColors.Surface
-        },
+        if (selected == true) selectionColor.copy(alpha = 0.12f).compositeOver(ground) else ground,
         StressMotion.state(),
         label = "panel fill",
     )
+    val shape = if (control) ControlShape else PanelShape
     val action = when {
         onClick == null -> Modifier
         selected == null -> Modifier.clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick)
         else -> Modifier.selectable(selected, interaction, null, enabled = enabled, role = Role.RadioButton, onClick = onClick)
     }
     Column(
-        modifier.clip(PanelShape).background(fill).border(1.dp, line, PanelShape)
+        modifier.clip(shape).background(fill)
+            .then(if (control) Modifier.border(1.dp, line, shape) else Modifier)
             .then(if (onClick != null) Modifier.heightIn(min = 48.dp) else Modifier)
             .then(action).padding(padding),
         verticalArrangement = Arrangement.spacedBy(if (title == null) 0.dp else 8.dp),
@@ -172,11 +192,11 @@ private fun OutlinedTag(
 fun Pill(text: String, color: Color, modifier: Modifier = Modifier, icon: ImageVector? = null) =
     StatusChip(text, color, modifier, icon)
 
-/** An icon in a compact outlined square. */
+/** An icon on a compact filled square; no rule, since it is not itself a control. */
 @Composable
 fun IconBadge(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, size: Dp = 40.dp) {
     Box(
-        modifier.size(size).background(StressColors.SurfaceHigh, ButtonShape).border(1.dp, StressColors.Outline, ButtonShape),
+        modifier.size(size).background(StressColors.SurfaceHighest, ButtonShape),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.5f)) }
 }

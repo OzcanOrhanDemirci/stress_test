@@ -70,7 +70,7 @@ fun SecondaryButton(
     icon: ImageVector? = null,
     color: Color = StressColors.Text,
     enabled: Boolean = true,
-) = ActionButton(text, onClick, modifier, icon, enabled, 48.dp, StressColors.Surface, color, outline = true)
+) = ActionButton(text, onClick, modifier, icon, enabled, 48.dp, StressColors.SurfaceHigh, color, outline = true)
 
 @Composable
 private fun ActionButton(
@@ -91,7 +91,7 @@ private fun ActionButton(
     val background by animateColorAsState(
         when {
             !enabled -> StressColors.SurfaceHighest
-            pressed && outline -> StressColors.SurfaceHigh
+            pressed && outline -> StressColors.SurfaceHighest
             pressed -> Color.Black.copy(alpha = 0.12f).compositeOver(fill)
             else -> fill
         },
@@ -181,7 +181,7 @@ private fun <T> ChoiceRow(
                     active && segmented -> StressColors.SurfaceHigh
                     active -> StressColors.AccentTint.compositeOver(StressColors.Surface)
                     segmented -> Color.Transparent
-                    else -> StressColors.Surface
+                    else -> StressColors.SurfaceHigh
                 },
                 StressMotion.state(), label = "choice fill",
             )
