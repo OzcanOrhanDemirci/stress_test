@@ -284,10 +284,10 @@ private fun Summary(record: RunRecord) {
             Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
                 Stack(Modifier.weight(1f), spacing = 4) {
                     SectionLabel(stringResource(R.string.result_peak))
-                    MetricNumber(Format.number(peak, 2), "W", NumberStyles.Hero, StressColors.Accent)
+                    MetricNumber(Format.wattNumber(peak), "W", NumberStyles.Hero, StressColors.Accent)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.result_sustained), style = StressType.BodySmall, color = StressColors.TextDim)
-                        MetricNumber(Format.number(sustained, 2), "W", NumberStyles.Small, StressColors.Accent)
+                        MetricNumber(Format.wattNumber(sustained), "W", NumberStyles.Small, StressColors.Accent)
                     }
                 }
                 StabilityArc(stability, stringResource(R.string.result_stability))
@@ -320,11 +320,11 @@ private fun PowerTiles(record: RunRecord) {
         val cell = Modifier.weight(1f).fillMaxHeight()
         val color = StressColors.Accent
         MetricTile(
-            stringResource(R.string.result_mean_short), Format.number(s.meanWatts.takeIf { s.powerValid }, 2),
+            stringResource(R.string.result_mean_short), Format.wattNumber(s.meanWatts.takeIf { s.powerValid }),
             cell, unit = "W", color = color, padding = 8.dp,
         )
         MetricTile(
-            stringResource(R.string.result_idle), Format.number(s.idleWatts.takeIf { s.powerValid }, 2),
+            stringResource(R.string.result_idle), Format.wattNumber(s.idleWatts.takeIf { s.powerValid }),
             cell, unit = "W", color = color, padding = 8.dp,
         )
         MetricTile(
@@ -463,7 +463,7 @@ private fun MainChart(record: RunRecord) {
                             add(ChartSeries(chipLabel, StressColors.Cool, chip, "°C", range))
                         }
                     }
-                    TimeChart(series.seconds, lines, "W", height = 160.dp, yMin = 0.0, decimals = 2)
+                    TimeChart(series.seconds, lines, "W", height = 160.dp, yMin = 0.0, decimals = Format.WATT_DECIMALS)
                 } else {
                     Text(Format.MISSING, style = StressType.Code, color = StressColors.TextDim)
                 }

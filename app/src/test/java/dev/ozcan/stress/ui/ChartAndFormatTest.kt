@@ -83,6 +83,17 @@ class ChartAndFormatTest {
     }
 
     @Test
+    fun `watt tiles and sentences use the same precision`() {
+        assertEquals("1,55", Format.wattNumber(1.55))
+        assertEquals("1,55 W", Format.watts(1.55))
+        Locale.setDefault(Locale.US)
+        assertEquals("1.55", Format.wattNumber(1.55))
+        assertEquals("1.55 W", Format.watts(1.55))
+        assertEquals(Format.MISSING, Format.wattNumber(null))
+        assertEquals(Format.MISSING, Format.watts(Double.NaN))
+    }
+
+    @Test
     fun `rates pick an SI prefix`() {
         assertEquals("123,4 GFLOPS", Format.rate(1.234e11, "FLOPS"))
         assertEquals("1,5 TOPS", Format.rate(1.5e12, "OPS"))

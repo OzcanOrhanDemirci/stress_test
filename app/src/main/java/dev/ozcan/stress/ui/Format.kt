@@ -9,6 +9,7 @@ import java.util.Locale
  */
 object Format {
     const val MISSING = "—"
+    const val WATT_DECIMALS = 2
 
     private val locale: Locale get() = Locale.getDefault()
 
@@ -18,7 +19,9 @@ object Format {
     fun number(value: Double?, decimals: Int): String =
         value?.takeIf { it.isFinite() }?.let { String.format(locale, "%.${decimals}f", it) } ?: MISSING
 
-    fun watts(value: Double?): String = value?.let { "${number(it, 2)} W" } ?: MISSING
+    fun wattNumber(value: Double?): String = number(value, WATT_DECIMALS)
+
+    fun watts(value: Double?): String = wattNumber(value).let { if (it == MISSING) it else "$it W" }
 
     fun celsius(value: Double?, decimals: Int = 1): String = value?.let { "${number(it, decimals)} °C" } ?: MISSING
 

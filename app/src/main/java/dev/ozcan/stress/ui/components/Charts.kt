@@ -54,6 +54,7 @@ data class ChartSeries(
     val values: List<Double?>,
     val unit: String? = null,
     val range: ClosedFloatingPointRange<Double>? = null,
+    val decimals: Int? = null,
 )
 
 /** The step [niceTicks] uses: a round number about a [count]th of the range. */
@@ -143,7 +144,7 @@ fun TimeChart(
                     style = StressType.Code, color = StressColors.TextDim,
                 )
                 series.forEach { line ->
-                    val value = Format.number(line.values.getOrNull(readout), decimals)
+                    val value = Format.number(line.values.getOrNull(readout), line.decimals ?: decimals)
                     val reading = if (value == Format.MISSING) value else "$value ${line.unit ?: unit}".trimEnd()
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (series.size > 1) Text(line.name, style = StressType.Label, color = StressColors.TextDim)
