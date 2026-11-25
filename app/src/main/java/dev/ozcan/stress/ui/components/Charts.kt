@@ -281,29 +281,44 @@ private fun chartRange(series: List<ChartSeries>, yMin: Double?, yMax: Double?):
     return bottom..top.coerceAtLeast(bottom + 1e-9)
 }
 
-/** A bare line of recent values with a soft fill, for live displays. */
+/** A bare line of recent values with a soft fill, for live displays. Null readings break the line. */
 @Composable
-fun Sparkline(values: List<Double>, color: Color, modifier: Modifier = Modifier, minSpan: Double = 0.5) {
+fun Sparkline(values: List<Double?>, color: Color, modifier: Modifier = Modifier, minSpan: Double = 0.5) {
     Canvas(modifier = modifier) {
         if (values.size < 2) return@Canvas
-        val low = values.min()
-        val high = values.max().coerceAtLeast(low + minSpan)
+        val readings = values.filterNotNull()
+        val low = readings.minOrNull() ?: return@Canvas
+        val high = readings.max().coerceAtLeast(low + minSpan)
         val line = Path()
         val fill = Path()
+        var startX: Float? = null
+        var lastX = 0f
+        fun finishSegment() {
+            val start = startX ?: return
+            fill.lineTo(lastX, size.height)
+            fill.lineTo(start, size.height)
+            fill.close()
+            startX = null
+        }
         values.forEachIndexed { i, v ->
+            if (v == null) {
+                finishSegment()
+                return@forEachIndexed
+            }
             val px = i / (values.size - 1f) * size.width
             val py = size.height - ((v - low) / (high - low)).toFloat() * size.height * 0.9f - size.height * 0.05f
-            if (i == 0) {
+            if (startX == null) {
                 line.moveTo(px, py)
                 fill.moveTo(px, size.height)
                 fill.lineTo(px, py)
+                startX = px
             } else {
                 line.lineTo(px, py)
                 fill.lineTo(px, py)
             }
+            lastX = px
         }
-        fill.lineTo(size.width, size.height)
-        fill.close()
+        finishSegment()
         drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.22f), Color.Transparent)))
         drawPath(line, color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }

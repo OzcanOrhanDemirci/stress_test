@@ -3,6 +3,7 @@ package dev.ozcan.stress.ui
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.w3c.dom.Node
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -13,35 +14,33 @@ import javax.xml.parsers.DocumentBuilderFactory
  */
 class StringsTest {
 
-    private fun strings(path: String): Map<String, String> {
-        val file = File(path)
-        assertTrue("missing $path (tests run from the app module)", file.exists())
-        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
-        val nodes = document.getElementsByTagName("string")
-        return (0 until nodes.length).associate { i ->
-            val node = nodes.item(i)
-            node.attributes.getNamedItem("name").nodeValue to node.textContent
+    private fun resources(directory: String, tag: String): List<Node> {
+        val files = File(directory).listFiles { file -> file.name.startsWith("strings") && file.extension == "xml" }.orEmpty()
+        assertTrue("missing resources in $directory (tests run from the app module)", files.isNotEmpty())
+        val builder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+        return files.flatMap { file ->
+            val nodes = builder.parse(file).getElementsByTagName(tag)
+            (0 until nodes.length).map { nodes.item(it) }
         }
     }
 
+    private fun strings(directory: String): Map<String, String> =
+        resources(directory, "string").associate { it.attributes.getNamedItem("name").nodeValue to it.textContent }
+
     /** Each plural's items, by quantity ("one", "other"). */
-    private fun plurals(path: String): Map<String, Map<String, String>> {
-        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File(path))
-        val nodes = document.getElementsByTagName("plurals")
-        return (0 until nodes.length).associate { i ->
-            val node = nodes.item(i)
+    private fun plurals(directory: String): Map<String, Map<String, String>> =
+        resources(directory, "plurals").associate { node ->
             val items = node.childNodes
             node.attributes.getNamedItem("name").nodeValue to (0 until items.length)
                 .map { items.item(it) }
                 .filter { it.nodeName == "item" }
                 .associate { it.attributes.getNamedItem("quantity").nodeValue to it.textContent }
         }
-    }
 
-    private val english = strings("src/main/res/values/strings.xml")
-    private val turkish = strings("src/main/res/values-tr/strings.xml")
-    private val englishPlurals = plurals("src/main/res/values/strings.xml")
-    private val turkishPlurals = plurals("src/main/res/values-tr/strings.xml")
+    private val english = strings("src/main/res/values")
+    private val turkish = strings("src/main/res/values-tr")
+    private val englishPlurals = plurals("src/main/res/values")
+    private val turkishPlurals = plurals("src/main/res/values-tr")
 
     /** Positional arguments ("%1$s", "%2$d"), ignoring escaped percent signs. */
     private fun arguments(text: String): List<String> =
