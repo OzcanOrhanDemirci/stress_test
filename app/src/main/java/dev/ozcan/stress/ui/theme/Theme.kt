@@ -11,13 +11,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.ozcan.stress.R
@@ -147,12 +151,36 @@ private val shapes = Shapes(
     extraLarge = RoundedCornerShape(8.dp),
 )
 
-/** Applies the dark instrument theme and provides the screen ground. */
+/**
+ * How much text grows or shrinks on a window [widthDp] wide: 0.9 up to 320 dp (small phones), 1.0 from 360 to
+ * 480 dp (the reference phones, 360 to 411 dp, stay exactly as designed), 1.12 from 600 dp (tablets), and straight
+ * lines between, so resizing a window never makes the text jump.
+ */
+fun textScaleFor(widthDp: Float): Float = when {
+    widthDp <= 320f -> 0.9f
+    widthDp < 360f -> 0.9f + 0.1f * (widthDp - 320f) / 40f
+    widthDp <= 480f -> 1f
+    widthDp < 600f -> 1f + 0.12f * (widthDp - 480f) / 120f
+    else -> 1.12f
+}
+
+/** The widest the content of a screen gets; wider windows (tablets) centre it, backgrounds still fill. */
+val ContentMaxWidth = 640.dp
+
+/**
+ * Applies the dark instrument theme and provides the screen ground. Every `sp` below it, so every text style,
+ * is scaled by [textScaleFor] the window's width, on top of the user's own font size setting; `dp` is untouched.
+ */
 @Composable
 fun StressTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
-        Surface(Modifier.fillMaxSize(), color = StressColors.Background, contentColor = StressColors.Text) {
-            content()
+    val density = LocalDensity.current
+    val scale = textScaleFor(LocalConfiguration.current.screenWidthDp.toFloat())
+    val scaled = if (scale == 1f) density else Density(density.density, density.fontScale * scale)
+    CompositionLocalProvider(LocalDensity provides scaled) {
+        MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
+            Surface(Modifier.fillMaxSize(), color = StressColors.Background, contentColor = StressColors.Text) {
+                content()
+            }
         }
     }
 }
