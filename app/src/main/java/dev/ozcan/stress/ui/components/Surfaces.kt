@@ -31,6 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -199,6 +202,22 @@ fun IconBadge(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, siz
         contentAlignment = Alignment.Center,
     ) { Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.5f)) }
 }
+
+/**
+ * Paints a bar's [color] behind it across the whole window, beyond the centred content width a tablet keeps, with
+ * its 1 dp `Outline` rule along the top ([ruleAtTop]) or bottom edge, so a bar does not end at the content's edge.
+ * On a phone the content is the window and this is the same as a background.
+ */
+fun Modifier.windowBand(color: Color, ruleAtTop: Boolean): Modifier = drawBehind {
+    val bleed = BandBleed.toPx()
+    val width = size.width + 2 * bleed
+    drawRect(color, Offset(-bleed, 0f), Size(width, size.height))
+    val rule = 1.dp.toPx()
+    drawRect(StressColors.Outline, Offset(-bleed, if (ruleAtTop) 0f else size.height - rule), Size(width, rule))
+}
+
+/** Further than any window reaches past the centred content on either side. */
+private val BandBleed = 2000.dp
 
 /** A 1 dp horizontal divider. */
 @Composable

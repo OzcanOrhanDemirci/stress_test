@@ -89,6 +89,7 @@ import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.Temperatures
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TimeChart
+import dev.ozcan.stress.ui.components.windowBand
 import dev.ozcan.stress.ui.components.simpleChartHeight
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
@@ -185,7 +186,7 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
         caption = caption,
         captionExtra = quality,
         onBack = onBack,
-        modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
+        modifier = Modifier.windowBand(StressColors.SurfaceLow, ruleAtTop = false).statusBarsPadding(),
         actions = {
             if (record != null) {
                 TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
@@ -400,7 +401,7 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
     }
 
     // Below 360 dp the icons give their room to the labels, so no label breaks mid-word ("CS / V").
-    BoxWithConstraints(Modifier.fillMaxWidth().background(StressColors.SurfaceLow)) {
+    BoxWithConstraints(Modifier.fillMaxWidth().windowBand(StressColors.SurfaceLow, ruleAtTop = true)) {
         val roomy = maxWidth >= 360.dp
         Column(Modifier.fillMaxWidth()) {
             Hairline()
