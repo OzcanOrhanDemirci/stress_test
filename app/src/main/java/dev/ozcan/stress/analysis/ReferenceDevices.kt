@@ -28,6 +28,8 @@ data class ReferenceDevice(
         if (!Comparison.isEligible(record)) return null
         // The bundled cinematic reading is the original pool scene at 45%.
         if (mode.scene != null && record.drawnQuality != null && record.drawnQuality != SceneQuality.Medium.name) return null
+        // It was measured without the optional burner; a run with it is a heavier workload.
+        if (mode.scene != null && record.summary.gpuUnit != null) return null
         return wattsFor(mode)
     }
 }
