@@ -8,19 +8,60 @@ Each version corresponds to a `v`-prefixed tag. From 0.2.0 each tag produces a
 signed package through the release pipeline described in
 [docs/RELEASE.md](docs/RELEASE.md).
 
-## [Unreleased]
+## [0.3.0] — 2026-11-26
+
+Stress Test gets an instrument-style interface and measures how much power
+goes into the battery while it charges. It also adds a fourth
+cinematic scene and handles more differences in the way phones report readings
+and run graphics. The Honor 400 remains the reference device and the only phone
+used for real-device checks.
 
 ### Added
 
-- **A fourth cinematic scene: the black hole.** A supermassive black hole
-  burning an accretion disk in deep space. Where the other scenes march
-  surfaces, this one integrates each pixel's light through the hole's field
-  (Runge–Kutta on the Schwarzschild pull): the disk's far side rises over and
-  under the shadow, a ring of orbits hugs the edge, and the starfield doubles
-  round it. No water, no particles, no textures — the scene is the arithmetic.
-  Quality grows the step budget, the per-pixel samples, the disk's
-  turbulence and the sky's star density. The desktop preview gained
-  `--scene hole` with a `--quality` override.
+- **Charge test.** See how many watts reach the battery at each charge level,
+  then compare two chargers or cables side by side. A usable idle measurement
+  also gives an estimate of power entering the phone. Charger output and
+  losses in the charging circuit are outside the measurement. Results stay in
+  History and can be exported as CSV.
+- **A fourth cinematic scene, the black hole.** The scene follows each pixel's
+  light as it bends around a supermassive black hole. The far side of the
+  accretion disk rises over and under the shadow, and stars double around its
+  edge. Higher quality uses more steps, samples and detail. The desktop preview
+  supports `--scene hole` and a `--quality` override.
+- **Honor 400 reference in results.** Eligible runs show the bundled power
+  measurement where the reference phone has a reading for that test.
+- **Optional extra GPU load in cinematic tests.** The FP32 burner can use spare
+  frame time while a scene runs. This setting starts off.
+
+### Changed
+
+- **A redesigned interface.** Every screen uses flat graphite panels and clear
+  numerical readouts. The new Device tab shows which readings the phone
+  exposes and explains missing values alongside the hardware and live readings.
+- **Scene quality is checked when a test starts.** If the GPU needs a lower
+  quality or resolution scale, the live test and result say so. The record
+  keeps the requested and drawn settings. Reduced runs stay out of comparisons
+  and omit the Honor 400 reference line.
+- **History opens faster and keeps the newest 200 runs.**
+
+### Fixed
+
+- **Battery readings across vendors.** Live and recorded discharge power use
+  the same inferred current unit and direction. Unreliable readings leave power
+  unavailable, and qualifying battery counters can supply an average.
+- **Temperatures and performance readings.** More vendor thermal zones,
+  CPU clusters and GPU counters can be identified. Missing or invalid chip
+  temperatures stay blank. Device safety still uses the readings it has, and
+  GPU usage can be estimated from frame times when a counter is unavailable.
+- **Vulkan and CPU differences.** GPU tests handle more driver and display
+  surface configurations and check for optional features before using them.
+  CPU loads work with baseline instructions and can pin themselves again when a
+  core comes back online.
+- GPU setup and frame waits time out if the driver stops responding. A GPU
+  failure before the first sample ends the run as a GPU failure. A run also ends
+  if samples stop arriving, and analysis or save errors leave the app open.
+- The run overlay has a named screen-reader action, and the app supports
+  Android's predictive back callback.
 
 ## [0.2.0] — 2026-10-02
 
@@ -110,6 +151,6 @@ much power can it really draw?
   app.
 - Lab sessions, started over adb, that compare loads on battery by themselves.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.2.0...HEAD
+[0.3.0]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/OzcanOrhanDemirci/stress_test/releases/tag/v0.1.0
