@@ -251,12 +251,12 @@ private fun ClockCard(live: LiveView, availability: SensorAvailability) {
             )
             Reading(
                 stringResource(R.string.device_clock_now),
-                Format.mhz(cluster.khz),
+                deviceClock(cluster.khz),
                 if (readable) R.string.device_clock_no_sample else R.string.device_clock_not_readable,
             )
             Reading(
                 stringResource(R.string.device_clock_max),
-                Format.mhz(cluster.maxKhz.takeIf { it > 0 }),
+                deviceClock(cluster.maxKhz),
                 R.string.device_clock_max_missing,
             )
             cluster.load?.let {
@@ -272,6 +272,13 @@ private fun ClockCard(live: LiveView, availability: SensorAvailability) {
             detail = if (estimated) stringResource(R.string.device_gpu_busy_estimated) else null,
         )
     }
+}
+
+/** Keep small reported clocks readable instead of rounding them down to zero MHz. */
+internal fun deviceClock(khz: Long?): String = when {
+    khz == null || khz <= 0 -> Format.MISSING
+    khz < 1000 -> "$khz kHz"
+    else -> Format.mhz(khz)
 }
 
 @Composable
