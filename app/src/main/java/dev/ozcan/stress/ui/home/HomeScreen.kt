@@ -78,6 +78,7 @@ import dev.ozcan.stress.settings.Settings
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
+import dev.ozcan.stress.ui.charge.rememberNotificationAsk
 import dev.ozcan.stress.ui.components.ChoiceChips
 import dev.ozcan.stress.ui.components.EngineeringRow
 import dev.ozcan.stress.ui.components.Hairline
@@ -221,6 +222,7 @@ fun HomeScreen(
     val safety = charge || settings.deviceSafety
     // A charge test begun at full would have nothing to measure; the run screen still catches a full status.
     val chargeFull = charge && ChargeSession.isFull(live?.levelPercent)
+    val askNotification = rememberNotificationAsk()
     val log = homeLog(
         context,
         HomeFacts(
@@ -246,7 +248,8 @@ fun HomeScreen(
                     if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
                 } else {
                     if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                    onStart(mode, duration)
+                    // The charge test can say when the battery fills; Android 13+ asks first.
+                    if (charge) askNotification { onStart(mode, duration) } else onStart(mode, duration)
                 }
             },
         )

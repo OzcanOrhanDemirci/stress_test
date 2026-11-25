@@ -1,19 +1,26 @@
 package dev.ozcan.stress
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import dev.ozcan.stress.charge.ChargeNotifier
 import dev.ozcan.stress.lab.LabSpec
 import dev.ozcan.stress.settings.AppLanguages
 import dev.ozcan.stress.ui.AppRoot
 import dev.ozcan.stress.ui.LabScreen
 import dev.ozcan.stress.ui.theme.StressTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
+
+    /** A run to show, from a tap on the battery-full notification; AppRoot opens it and clears it. */
+    private val openRun = MutableStateFlow<String?>(null)
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(newBase)
@@ -30,6 +37,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Only a fresh start reads it: a recreated activity has already opened that run.
+        if (savedInstanceState == null) openRun.value = intent.getStringExtra(ChargeNotifier.EXTRA_RUN)
         val lab = LabSpec.parse(labExtras(), graph.cpu.kernels, graph.gpu.burners, graph.cpu.cpuCount)
         if (lab != null) {
             // A load only reaches every core while the app is on screen (the
@@ -47,12 +56,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             StressTheme {
                 if (lab == null) {
-                    AppRoot()
+                    AppRoot(openRun.asStateFlow()) { openRun.value = null }
                 } else {
                     LabScreen(lab)
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(ChargeNotifier.EXTRA_RUN)?.let { openRun.value = it }
     }
 
     override fun onStart() {

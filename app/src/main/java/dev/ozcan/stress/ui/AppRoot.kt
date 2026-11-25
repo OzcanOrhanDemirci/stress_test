@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -52,10 +53,20 @@ import dev.ozcan.stress.ui.run.RunScreen
 import dev.ozcan.stress.ui.settings.SettingsScreen
 import dev.ozcan.stress.ui.theme.ContentMaxWidth
 import dev.ozcan.stress.ui.theme.StressMotion
+import kotlinx.coroutines.flow.StateFlow
 
+/** [openRun]: a run to show on top, from a notification; [onOpened] clears it once handled. */
 @Composable
-fun AppRoot() {
+fun AppRoot(openRun: StateFlow<String?>, onOpened: () -> Unit) {
     val navigator: Navigator = viewModel()
+    val requested by openRun.collectAsStateWithLifecycle()
+    LaunchedEffect(requested) {
+        val id = requested ?: return@LaunchedEffect
+        // A test under way keeps the screen; the run is in History. Already shown, it is not opened twice.
+        val shown = navigator.top.route
+        if (shown !is Route.Run && shown != Route.Result(id)) navigator.push(Route.Result(id))
+        onOpened()
+    }
     val holder = rememberSaveableStateHolder()
     val top = navigator.top
     val showTabs = top.route is Route.Tab

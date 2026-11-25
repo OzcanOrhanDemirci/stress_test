@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.StrictMode
+import dev.ozcan.stress.charge.ChargeNotifier
 import dev.ozcan.stress.device.DeviceInfo
 import dev.ozcan.stress.device.GpuInfo
 import dev.ozcan.stress.engine.CpuEngine
@@ -45,6 +46,7 @@ class AppGraph(context: Context) {
     val driver = LoadDriver(cpu, gpu)
     val runs = RunStore(File(app.filesDir, "runs"))
     val settings = SettingsStore(app)
+    val chargeNotifier = ChargeNotifier(app)
 
     /** Asking Vulkan takes a moment: done once, off the main thread. */
     val capabilities: Deferred<Capabilities> = scope.async { Capabilities(DeviceInfo.describeGpu(app)) }
