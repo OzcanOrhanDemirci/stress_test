@@ -60,6 +60,7 @@ import dev.ozcan.stress.analysis.Comparison
 import dev.ozcan.stress.analysis.Insight
 import dev.ozcan.stress.analysis.Insights
 import dev.ozcan.stress.charge.isCharge
+import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.report.ReportCsv
 import dev.ozcan.stress.report.ReportPdf
@@ -169,31 +170,19 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
     var others by remember { mutableStateOf<List<RunRecord>?>(null) }
-    if (record?.isCharge == true) {
-        DesignTopBar(stringResource(R.string.charge_result), Modifier.statusBarsPadding(), onBack = onBack) {
-            TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
-                scope.launch { others = model.others() }
-            })
-            TopBarAction(Icons.Rounded.Delete, stringResource(R.string.delete), { confirmDelete = true })
-        }
-    } else Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
-        Text(stringResource(R.string.result_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        if (record != null) {
-            IconButton(onClick = { scope.launch { others = model.others() } }) {
-                Icon(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), tint = StressColors.TextDim)
-            }
-            IconButton(onClick = { confirmDelete = true }) {
-                Icon(Icons.Rounded.Delete, stringResource(R.string.delete), tint = StressColors.TextDim)
-            }
-        }
+    // Mode and length always; a scene's quality only when it fits. The phone model is on the engineering page.
+    val scene = record?.let { StressMode.of(it.mode)?.scene }
+    val caption = record?.let {
+        val mode = if (scene != null) stringResource(Labels.scene(scene)) else Labels.recordModeName(context, it)
+        "$mode // ${Format.clock(it.loadSeconds).padStart(5, '0')}".upper()
     }
+    val quality = record?.takeIf { scene != null }
+        ?.let { r -> SceneQuality.entries.firstOrNull { it.name == r.quality } }
+        ?.let { stringResource(Labels.quality(it)).upper() }
     TopBar(
         title = stringResource(R.string.result_title),
         caption = caption,
+        captionExtra = quality,
         onBack = onBack,
         modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
         actions = {
