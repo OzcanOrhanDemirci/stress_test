@@ -18,9 +18,21 @@ fun DrawnQualityNotice(
     drawn: SceneQuality?,
     drawnScalePercent: Double?,
 ) {
-    if (kind == null || requested == null) return
+    val notice = drawnQualityText(kind, requested, drawn, drawnScalePercent) ?: return
+    Text(notice, style = StressType.BodySmall, color = StressColors.Warn)
+}
+
+/** The sentence [DrawnQualityNotice] shows, or null when the scene is drawn as requested. */
+@Composable
+internal fun drawnQualityText(
+    kind: SceneKind?,
+    requested: SceneQuality?,
+    drawn: SceneQuality?,
+    drawnScalePercent: Double?,
+): String? {
+    if (kind == null || requested == null) return null
     val requestedScale = requested.scalePercent(kind)
-    val notice = when {
+    return when {
         drawn == null -> stringResource(R.string.drawn_quality_unsettled)
         drawn != requested && drawnScalePercent != null && drawnScalePercent != drawn.scalePercent(kind).toDouble() ->
             stringResource(
@@ -39,9 +51,8 @@ fun DrawnQualityNotice(
             scaleText(drawnScalePercent),
             Format.percentValue(requestedScale),
         )
-        else -> return
+        else -> null
     }
-    Text(notice, style = MaterialTheme.typography.bodySmall, color = StressColors.Warn)
 }
 
 private fun scaleText(percent: Double): String =
