@@ -182,7 +182,7 @@ float hotspot(float radius, float angle, float time) {
     float lap = mod(time, SHOT_SECONDS * float(SHOTS));
     float at = mod(lap * 2.2 - angle + PI, 2.0 * PI) - PI;
     float near = exp(-14.0 * (radius - DISK_IN) * (radius - DISK_IN));
-    return 1.0 + 2.6 * near * exp(-9.0 * at * at) * smoothstep(DISK_OUT, DISK_IN + 1.5, radius);
+    return 1.0 + 2.6 * near * exp(-9.0 * at * at) * (1.0 - smoothstep(DISK_IN + 1.5, DISK_OUT, radius));
 }
 
 // The colour and weight of the disk where the ray crosses its plane at `p`.
@@ -190,7 +190,7 @@ float hotspot(float radius, float angle, float time) {
 // side coming towards the camera and dims the side going away.
 vec3 disk(vec3 p, vec3 dir, out float weight) {
     float r = length(p.xz);
-    float h = DISK_HALF * smoothstep(DISK_OUT, DISK_IN, r);
+    float h = DISK_HALF * (1.0 - smoothstep(DISK_IN, DISK_OUT, r));
     float vertical = exp(-p.y * p.y / max(h * h, 1e-4));
     if (vertical < 0.01 || r < DISK_IN - 0.1 || r > DISK_OUT + 0.4) {
         weight = 0.0;
@@ -199,7 +199,7 @@ vec3 disk(vec3 p, vec3 dir, out float weight) {
     float angle = atan(p.z, p.x);
     float grain = streaks(r, angle, gTime);
     // Density: the rim falls away, the streaks gather the rest into arcs.
-    float density = vertical * smoothstep(DISK_OUT + 0.4, DISK_OUT - 2.2, r)
+    float density = vertical * (1.0 - smoothstep(DISK_OUT - 2.2, DISK_OUT + 0.4, r))
                   * smoothstep(DISK_IN - 0.1, DISK_IN + 0.55, r)
                   * (0.18 + 0.82 * grain) * hotspot(r, angle, gTime);
     weight = clamp(density * 1.35, 0.0, 1.0);
@@ -279,13 +279,16 @@ vec3 fall(vec3 ro, vec3 rd, int steps, out float depth) {
         vec3 k4v = pull(p + k3p * step, h2);
         vec3 pNew = p + (k1p + (k2p + k3p) * 2.0 + k4p) * (step / 6.0);
         vec3 vNew = v + (k1v + (k2v + k3v) * 2.0 + k4v) * (step / 6.0);
+        // Keep a failed integration out of the disk and integer star hashes.
+        float speed2 = dot(vNew, vNew);
+        if (isnan(speed2) || isinf(speed2) || speed2 < 1e-12 || any(isnan(pNew)) || any(isinf(pNew))) break;
 
         // A crossing of the disk's plane between the steps: find it, shade it.
         if (p.y * pNew.y < 0.0) {
             float k = p.y / (p.y - pNew.y);
             vec3 at = mix(p, pNew, k);
             float w;
-            vec3 c = disk(at, normalize(vNew), w);
+            vec3 c = disk(at, vNew * inversesqrt(speed2), w);
             if (w > 0.0) {
                 if (depthSeen > 9e2) depthSeen = travelled + step * k;
                 colour += through * c * w;

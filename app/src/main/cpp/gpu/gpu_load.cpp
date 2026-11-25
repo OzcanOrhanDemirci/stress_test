@@ -367,8 +367,7 @@ struct GpuLoad::Renderer {
         enabledFloat16.shaderFloat16 = float16 ? VK_TRUE : VK_FALSE;
         VkPhysicalDeviceFeatures enabledFeatures{};
         // Particle sprites; without the feature they are drawn a pixel wide.
-        enabledFeatures.largePoints = supported.features.largePoints;
-        if (!supported.features.largePoints) LOGW("large points not supported: particles are drawn a pixel wide");
+        enabledFeatures.largePoints = scene && sceneKind == SceneRenderer::Kind::Pool && supported.features.largePoints;
 
         const float priority = 1.0f;
         VkDeviceQueueCreateInfo queueInfo{};
@@ -397,21 +396,23 @@ struct GpuLoad::Renderer {
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         poolInfo.queueFamilyIndex = queueFamily;
         VK_TRY(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
+        vk.physical = physical;
         vk.device = device;
         vk.memory = memoryProperties;
         vk.queue = queue;
         vk.commandPool = commandPool;
-        vk.largePoints = supported.features.largePoints == VK_TRUE;
+        vk.maxRenderDimension = std::min({properties.limits.maxImageDimension2D, properties.limits.maxFramebufferWidth,
+                                          properties.limits.maxFramebufferHeight, properties.limits.maxViewportDimensions[0],
+                                          properties.limits.maxViewportDimensions[1]});
+        if (enabledFeatures.largePoints) vk.maxPointSize = properties.limits.pointSizeRange[1];
         vk.depthFormat = VK_FORMAT_UNDEFINED;
         for (VkFormat candidate : vk::kDepthFormats) {
-            VkFormatProperties formatProperties;
-            vkGetPhysicalDeviceFormatProperties(physical, candidate, &formatProperties);
-            if (formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+            if (vk.supportsImage({1, 1}, candidate, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
                 vk.depthFormat = candidate;
                 break;
             }
         }
-        if (vk.depthFormat == VK_FORMAT_UNDEFINED) {
+        if (scene && sceneKind == SceneRenderer::Kind::Forest && vk.depthFormat == VK_FORMAT_UNDEFINED) {
             LOGE("no depth format to draw into");
             return false;
         }
@@ -682,11 +683,13 @@ struct GpuLoad::Renderer {
     }
 
     bool createBlendTarget() {
-        if (!vk.createImage(extent, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, blendTarget)) {
-            return false;
-        }
+        constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        constexpr VkFormatFeatureFlags features = VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT;
+        const VkFormat blendFormat = vk.supportsImage(extent, VK_FORMAT_R16G16B16A16_SFLOAT, usage, features)
+                                         ? VK_FORMAT_R16G16B16A16_SFLOAT : VK_FORMAT_R8G8B8A8_UNORM;
+        if (!vk.createImage(extent, blendFormat, usage, blendTarget)) return false;
         VkAttachmentDescription color{};
-        color.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        color.format = blendFormat;
         color.samples = VK_SAMPLE_COUNT_1_BIT;
         color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;

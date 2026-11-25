@@ -88,7 +88,7 @@ public:
         float dt;
         uint32_t count;
         uint32_t frame;
-        float spare0;
+        float maxPointSize;
         float spare1;
     };
 
@@ -166,6 +166,7 @@ private:
 
     const vk::Context* vk_ = nullptr;
     VkExtent2D extent_{};
+    VkFormat distanceFormat_ = VK_FORMAT_R32_SFLOAT;
 
     vk::Image color_;
     vk::Image particles_;
