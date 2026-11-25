@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="device_v2_phone">Telefon</string>
+    <string name="device_v2_maker">Üretici</string>
+    <string name="device_v2_model">Model</string>
+    <string name="device_v2_battery">Pil</string>
+    <string name="device_v2_level">Seviye</string>
+    <string name="device_v2_temperature">Sıcaklık</string>
+    <string name="device_v2_fit">Bu telefon %2$d ölçümün %1$d tanesini veriyor</string>
+    <string name="device_v2_fit_missing">Eksik: %1$s.</string>
+    <string name="device_v2_fit_all">Uygulamanın kullandığı her ölçüm okunabiliyor.</string>
+    <string name="device_v2_temp_of">%1$s sıcaklığı</string>
+    <string name="device_v2_section_summary">Özet</string>
+    <string name="device_v2_readings">Okunan ölçümler</string>
+    <string name="device_v2_missing_count">%1$d eksik</string>
+    <string name="device_v2_refresh">Yenileme</string>
+    <string name="device_v2_refresh_value">%1$d sn\'de bir</string>
+    <string name="device_v2_cluster">CPU kümesi %1$d</string>
+    <string name="device_v2_clock_share">En yüksek frekansa oranı</string>
+    <string name="device_v2_charger">Şarj aleti</string>
+    <string name="device_v2_plugged">takılı</string>
+    <string name="device_v2_unplugged">takılı değil</string>
+    <string name="device_v2_zones_summary">%1$d/%2$d okunuyor</string>
+    <string name="device_v2_section_counters">GPU</string>
+    <string name="device_v2_section_raw">Ham değerler</string>
+    <string name="device_v2_voltage_raw">Gerilim (VOLTAGE_NOW)</string>
+    <string name="device_v2_window">Ortalama aralığı</string>
+    <string name="device_v2_window_value">%1$d örnek, %2$d sn</string>
+
+    <string name="settings_v2_about_detail">Sürüm, uygulamanın yaptıkları, güvenlik sınırları, lisanslar.</string>
+    <string name="settings_v2_advanced_detail">Sahne yakıcısı ve elle yük denemeleri.</string>
+    <string name="settings_v2_device_detail">İşlemci, GPU, canlı ölçümler ve uygulamanın okuyabildiği sensörler.</string>
+    <string name="settings_v2_clear_action">Sil</string>
+    <string name="settings_v2_safety_limits">Güvenlik sınırları</string>
+</resources>
