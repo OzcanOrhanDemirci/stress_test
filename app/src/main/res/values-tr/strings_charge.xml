@@ -43,7 +43,6 @@
     <string name="charge_end_full">Pil doldu</string>
     <string name="charge_end_unplugged">Şarj cihazı çıkarıldı</string>
     <string name="charge_end_reading_lost">Pil okumaları kesildi</string>
-    <string name="charge_result">Şarj testi sonucu</string>
     <string name="charge_peak">Pile giren tepe güç</string>
     <string name="charge_sustained">Sürekli güç</string>
     <string name="charge_sustained_note">Tepeden sonraki en iyi 2 dk</string>

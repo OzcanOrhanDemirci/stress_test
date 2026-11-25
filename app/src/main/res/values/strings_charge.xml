@@ -43,7 +43,6 @@
     <string name="charge_end_full">Battery full</string>
     <string name="charge_end_unplugged">Charger disconnected</string>
     <string name="charge_end_reading_lost">Battery readings lost</string>
-    <string name="charge_result">Charge test result</string>
     <string name="charge_peak">Peak into the battery</string>
     <string name="charge_sustained">Sustained power</string>
     <string name="charge_sustained_note">Best 2 min after peak</string>
