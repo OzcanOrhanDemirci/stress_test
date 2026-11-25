@@ -98,5 +98,12 @@ object Dates {
         java.text.SimpleDateFormat("d MMMM yyyy · HH:mm", Locale.getDefault()).format(java.util.Date(millis))
 }
 
-/** Upper case by the device's language: Turkish "i" becomes "İ", not "I". */
+/** Upper case by the device's language: Turkish "i" becomes "İ", not "I". For the app's own translated texts. */
 fun String.upper(): String = uppercase(Locale.getDefault())
+
+/**
+ * Upper case by [locale]'s rules, for text that is not in the screen's language: a language's own name ("English" stays
+ * "ENGLISH" on a Turkish screen), phone and chip names, recipe codes. Already upper-case text is left as it is by
+ * [upper], so a name cased here can still pass through a part that upper-cases its text.
+ */
+fun String.upper(locale: Locale): String = uppercase(locale)

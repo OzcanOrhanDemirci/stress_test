@@ -31,6 +31,7 @@ import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
+import java.util.Locale
 
 /*
  * The result's engineering page as data: sections of lines built from a record by plain functions, so the simple
@@ -119,7 +120,7 @@ internal fun deviceBlock(context: Context, record: RunRecord): LogBlock? {
     }
     val missing = lines.any { it.value == null }
     return LogBlock(
-        context.getString(R.string.result_device), lines, summary = device.model,
+        context.getString(R.string.result_device), lines, summary = device.model.upper(Locale.ROOT),
         note = context.getString(R.string.result_log_device_missing).takeIf { missing },
     )
 }

@@ -48,6 +48,7 @@ import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
+import java.util.Locale
 
 /*
  * The home screen's engineering page (DESIGN "What each simple page keeps", Home row): everything the Test tab
@@ -388,7 +389,7 @@ private fun workloadSection(context: Context, f: HomeFacts): HomeSection {
             s(R.string.home_key_scene_burner), s(if (f.settings.sceneBurner) R.string.home_val_on else R.string.home_val_off),
         )
     }
-    return HomeSection(title, summary = recipe.takeIf { workload == null }, lines = lines)
+    return HomeSection(title, summary = recipe.takeIf { workload == null }?.upper(Locale.ROOT), lines = lines)
 }
 
 private fun String?.isMissing(): Boolean = this == null || this == Format.MISSING
