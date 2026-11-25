@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="history_compare_pick">Karşılaştırmak için iki koşu seç.</string>
+    <string name="history_compare_more">Karşılaştırmak için iki koşu kaydet.</string>
+    <string name="history_compare_cancel">Seçimi iptal et</string>
+    <string name="history_compare_selected">%1$d / 2 seçildi</string>
+    <string name="history_power_invalid">Güç ölçümü geçersiz</string>
+    <string name="history_power_missing">Güç ölçülemedi</string>
+</resources>
