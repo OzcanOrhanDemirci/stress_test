@@ -159,21 +159,36 @@ DeviceChoice chooseDevice(VkInstance instance, VkSurfaceKHR surface = VK_NULL_HA
 
 std::span<const GpuBurnerSpec> gpuBurnerTable() { return kBurners; }
 
+static void writeSceneDraw(int64_t* out, int qualityField, int scaleField, uint32_t packed) {
+    out[qualityField] = packed == 0 ? -1 : static_cast<int>(packed >> 14);
+    out[scaleField] = packed & 0x3fff;
+}
+
+static void clearSnapshot(int64_t* out) {
+    std::fill(out, out + GpuLoad::kSnapshotStride, 0);
+    out[GpuLoad::kFieldSceneQuality] = -1;
+    out[GpuLoad::kFieldLowestSceneQuality] = -1;
+}
+
 struct GpuLoad::Renderer {
     ANativeWindow* window = nullptr;
     int burner = -1;
     int64_t targetFrameNanos = 0;
     bool scene = true;        // draw a scene; otherwise the cheap preview ring
     SceneRenderer::Kind sceneKind = SceneRenderer::Kind::Pool;
-    SceneRenderer::Quality sceneQuality = SceneRenderer::Quality::Medium;
-    float sceneScale = 0.5f;  // scene resolution relative to the screen
+    SceneDraw sceneSettings;
+    SceneDraw currentDraw;
+    SceneDraw lowestDraw;
+    // Publish both settings together so a snapshot cannot mix two completed frames.
+    std::atomic<uint32_t> sceneDraws{0};
     SceneRenderer::Quality requestedQuality = SceneRenderer::Quality::Medium;
     float requestedScale = 0.45f;
     uint32_t probeFrames = 0;
     int64_t probePeak = 0;
     uint32_t slowFrames = 0;
-    bool probeComplete = false;
-    bool qualityReduced = false;
+    bool sceneSettled = false;
+    const char* settleAfterDraw = nullptr;
+    const char* drawReason = nullptr;
     uint32_t instanceVersion = VK_API_VERSION_1_1;
     bool timed = false;            // GPU timestamps available (else frames are timed on the CPU)
     int64_t lastCollectNanos = 0;  // when the previous frame was read back, for CPU timing
@@ -242,7 +257,6 @@ struct GpuLoad::Renderer {
     std::atomic<bool> stopRequested{false};
     static constexpr int64_t kFrameWaitNanos = 2'000'000'000;
     static constexpr uint32_t kProbeFrames = 4;
-    static constexpr int64_t kSlowSceneNanos = 650'000'000;
 
     // All Vulkan calls including teardown stay on this thread. A wedged driver
     // must not make Android's surface callbacks join it indefinitely.
@@ -445,68 +459,106 @@ struct GpuLoad::Renderer {
     }
 
     void beginSceneProbe() {
-        sceneQuality = SceneRenderer::Quality::Low;
         // Limit the first draw on high-resolution phones too. The timed
         // frames that follow decide whether the requested settings fit.
         const double pixels = static_cast<double>(screen.width) * screen.height;
         const double probePixels = sceneKind == SceneRenderer::Kind::Hole ? 120'000.0 : 280'000.0;
-        sceneScale = std::min({requestedScale, 0.30f, static_cast<float>(std::sqrt(probePixels / pixels))});
+        const auto boundedScale = static_cast<uint16_t>(std::min(3000.0, 10'000 * std::sqrt(probePixels / pixels)));
+        sceneSettings = {SceneRenderer::Quality::Low, std::min(scaleAt(SceneRenderer::Quality::Low), boundedScale)};
+        startSceneStep("initial probe");
+        sceneSettled = false;
+        settleAfterDraw = nullptr;
+    }
+
+    void startSceneStep(const char* reason) {
         probeFrames = kProbeFrames;
         probePeak = 0;
         slowFrames = 0;
-        probeComplete = false;
-        qualityReduced = false;
+        drawReason = reason;
     }
 
-    float scaleAt(SceneRenderer::Quality quality) const {
+    uint16_t scaleAt(SceneRenderer::Quality quality) const {
         using Quality = SceneRenderer::Quality;
-        if (quality == requestedQuality) return requestedScale;
-        return std::min(requestedScale, quality == Quality::Medium ? 0.45f : 0.30f);
+        const float scale = quality == requestedQuality ? requestedScale
+            : std::min(requestedScale, quality == Quality::Medium ? 0.45f : 0.30f);
+        const double limit = static_cast<double>(vk.maxRenderDimension) / std::max(screen.width, screen.height);
+        return static_cast<uint16_t>(std::min(std::lround(scale * 10'000), static_cast<long>(limit * 10'000)));
+    }
+
+    void publishSceneDraws() {
+        sceneDraws.store((lowestDraw.packed() << 16) | currentDraw.packed(), std::memory_order_relaxed);
+    }
+
+    void settleScene(const char* reason) {
+        sceneSettled = true;
+        settleAfterDraw = nullptr;
+        lowestDraw = lowestSceneDraw(lowestDraw, currentDraw);
+        publishSceneDraws();
+        LOGI("scene probe settled: quality %d at %.2f%% scale (%s)", static_cast<int>(currentDraw.quality),
+             currentDraw.scale / 100.0, reason);
+    }
+
+    void collectSceneDraw() {
+        if (currentDraw != sceneSettings) {
+            currentDraw = sceneSettings;
+            LOGI("scene draw: quality %d at %.2f%% scale (%s)", static_cast<int>(currentDraw.quality),
+                 currentDraw.scale / 100.0, drawReason);
+        }
+        if (settleAfterDraw) {
+            settleScene(settleAfterDraw);
+        } else {
+            if (sceneSettled) lowestDraw = lowestSceneDraw(lowestDraw, currentDraw);
+            publishSceneDraws();
+        }
     }
 
     bool adjustScene() {
         using Quality = SceneRenderer::Quality;
-        if (!probeComplete && slowFrames < 2) return true;
-        Quality next = sceneQuality;
-        float scale = sceneScale;
-        if (slowFrames >= 2 || probePeak > kSlowSceneNanos ||
-            (sceneQuality == Quality::Low && probePeak > 180'000'000)) {
-            qualityReduced = true;
-            if (sceneQuality == Quality::High) next = Quality::Medium;
-            else if (sceneQuality == Quality::Medium) next = Quality::Low;
-            scale = next == sceneQuality ? std::min(sceneScale, std::max(0.10f, sceneScale * 0.70f))
-                                        : std::min(sceneScale, scaleAt(next));
-        } else if (!qualityReduced) {
-            if (sceneQuality == Quality::Low && requestedQuality != Quality::Low) next = Quality::Medium;
-            else if (sceneQuality == Quality::Medium && requestedQuality == Quality::High) next = Quality::High;
-            scale = scaleAt(next);
-            if (!sceneFits(sceneKind, next, scale / sceneScale, probePeak)) {
-                next = sceneQuality;
-                scale = sceneScale;
+        const bool slow = sceneTooSlow(sceneSettled, sceneSettings.quality, probePeak, slowFrames);
+        if (!slow && (sceneSettled || probeFrames > 0)) return true;
+        SceneDraw next = sceneSettings;
+        if (slow) {
+            if (next.quality == Quality::High) next.quality = Quality::Medium;
+            else if (next.quality == Quality::Medium) next.quality = Quality::Low;
+            next.scale = next.quality == sceneSettings.quality
+                ? static_cast<uint16_t>(std::min<int>(next.scale, std::max(1000, next.scale * 7 / 10)))
+                : std::min(next.scale, scaleAt(next.quality));
+        } else {
+            // Test the standard Low scale before extrapolating both size and shader cost.
+            if (next.scale == scaleAt(next.quality) && next.quality != requestedQuality) {
+                next.quality = next.quality == Quality::Low ? Quality::Medium : Quality::High;
+            }
+            next.scale = scaleAt(next.quality);
+            if (!sceneFits(sceneKind, sceneSettings.quality, next.quality,
+                           static_cast<float>(next.scale) / sceneSettings.scale, probePeak)) {
+                LOGI("scene step refused: quality %d at %.2f%% scale (frame budget)",
+                     static_cast<int>(next.quality), next.scale / 100.0);
+                settleScene("refused step");
+                return true;
             }
         }
-        probeComplete = false;
-        probePeak = 0;
         slowFrames = 0;
-        if (next == sceneQuality && scale == sceneScale) return true;
-        if (!drainFrames() || stopRequested.load()) return false;
-        const auto previousQuality = sceneQuality;
-        const float previousScale = sceneScale;
-        sceneRenderer.destroy();
-        sceneQuality = next;
-        sceneScale = scale;
-        if (!createVisiblePipeline()) {
-            // High may exceed an allocation budget even if the draw is fast.
-            sceneRenderer.destroy();
-            qualityReduced = true;
-            sceneQuality = previousQuality;
-            sceneScale = previousScale;
-            if (!createVisiblePipeline()) return failed();
+        if (next == sceneSettings) {
+            if (!sceneSettled) settleScene("slowdown at minimum scale");
+            return true;
         }
-        LOGI("scene quality %d at %.0f%% scale", static_cast<int>(sceneQuality), sceneScale * 100.0f);
-        probeFrames = kProbeFrames;
-        probePeak = 0;
-        slowFrames = 0;
+        if (!drainFrames() || stopRequested.load()) return false;
+        const auto previous = sceneSettings;
+        sceneRenderer.destroy();
+        sceneSettings = next;
+        if (!createVisiblePipeline()) {
+            // A higher quality can exceed the allocation budget even if the draw is fast.
+            LOGI("scene step refused: quality %d at %.2f%% scale (pipeline setup)",
+                 static_cast<int>(next.quality), next.scale / 100.0);
+            sceneRenderer.destroy();
+            sceneSettings = previous;
+            if (!createVisiblePipeline()) return failed();
+            startSceneStep("refused step");
+            if (!sceneSettled) settleScene("refused step");
+            return true;
+        }
+        startSceneStep(slow ? "slowdown" : "probe step up");
+        if (slow && !sceneSettled) settleAfterDraw = "slowdown";
         return true;
     }
 
@@ -823,7 +875,8 @@ struct GpuLoad::Renderer {
     }
 
     bool createVisiblePipeline() {
-        if (scene) return sceneRenderer.init(vk, screen, sceneScale, presentPass, sceneKind, sceneQuality);
+        if (scene) return sceneRenderer.init(vk, screen, sceneSettings.scale / 10'000.0f, presentPass, sceneKind,
+                                             sceneSettings.quality);
         return vk.graphicsPipeline(presentPass, 1, graphicsLayout, kFullscreenVertSpirv, kPreviewFragSpirv,
                                    vk::Blend::None, previewPipeline);
     }
@@ -1161,6 +1214,7 @@ struct GpuLoad::Renderer {
 
         const uint32_t count = dispatchesInFlight[slot];
         if (scene) {
+            collectSceneDraw();
             // With one probe frame in flight the CPU can time a single
             // completion too. Skip the first sample (shader warm-up and
             // the forest's one-time shadow), unless it was already very slow.
@@ -1168,9 +1222,14 @@ struct GpuLoad::Renderer {
                 : probeFrames > 0 ? collectedAt - submitNanos[slot] : frameNanos;
             if (probeFrames > 0) {
                 if (probeFrames < kProbeFrames || observed > kSlowSceneNanos) probePeak = std::max(probePeak, observed);
-                probeComplete = --probeFrames == 0;
+                --probeFrames;
             }
             slowFrames = observed > kSlowSceneNanos ? slowFrames + 1 : 0;
+            if (!sceneSettled && sceneProbeReachedTarget(sceneSettings, {requestedQuality, scaleAt(requestedQuality)},
+                                                        probeFrames, probePeak, slowFrames)) {
+                settleScene(sceneSettings.scale == std::lround(requestedScale * 10'000)
+                    ? "requested settings" : "device scale limit");
+            }
         }
         if (count > 0 && kBurners[static_cast<size_t>(burner)].verified) verify(slot, count);
 
@@ -1196,6 +1255,27 @@ struct GpuLoad::Renderer {
         }
         dispatchesPerFrame.store(perFrame, std::memory_order_relaxed);
         return true;
+    }
+
+    void snapshot(int64_t* out) const {
+        const int currentState = state.load();
+        out[kFieldState] = currentState;
+        out[kFieldFrames] = frames.load(std::memory_order_relaxed);
+        out[kFieldDispatches] = dispatches.load(std::memory_order_relaxed);
+        out[kFieldWork] = work.load(std::memory_order_relaxed);
+        out[kFieldGpuNanos] = gpuNanos.load(std::memory_order_relaxed);
+        out[kFieldLastFrameNanos] = lastFrameNanos.load(std::memory_order_relaxed);
+        out[kFieldDispatchesPerFrame] = dispatchesPerFrame.load(std::memory_order_relaxed);
+        out[kFieldErrors] = errors.load(std::memory_order_relaxed);
+        out[kFieldChecks] = checks.load(std::memory_order_relaxed);
+        out[kFieldWidth] = width.load(std::memory_order_relaxed);
+        out[kFieldHeight] = height.load(std::memory_order_relaxed);
+        out[kFieldBurnerNanos] = burnerTotalNanos.load(std::memory_order_relaxed);
+        out[kFieldVisibleNanos] = visibleTotalNanos.load(std::memory_order_relaxed);
+        out[kFieldTimed] = currentState == kStateRunning && timed ? 1 : 0;
+        const uint32_t draws = sceneDraws.load(std::memory_order_relaxed);
+        writeSceneDraw(out, kFieldSceneQuality, kFieldSceneScale, draws & 0xffff);
+        writeSceneDraw(out, kFieldLowestSceneQuality, kFieldLowestSceneScale, draws >> 16);
     }
 
     void verify(uint32_t slot, uint32_t count) {
@@ -1229,6 +1309,12 @@ struct GpuLoad::Renderer {
             // Waiting here keeps pending objects alive without blocking stop().
             const VkResult drained = vkDeviceWaitIdle(device);
             if (drained == VK_ERROR_DEVICE_LOST) state.store(kStateDeviceLost);
+            if (drained == VK_SUCCESS && scene && state.load() == kStateRunning) {
+                // A reduced frame can finish just as the user stops the run.
+                for (uint32_t slot = 0; slot < kFramesInFlight; ++slot) {
+                    if (submitted[slot] && !collect(slot)) break;
+                }
+            }
             sceneRenderer.destroy();
             destroyBlend();
             if (previewPipeline) vkDestroyPipeline(device, previewPipeline, nullptr);
@@ -1331,7 +1417,8 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     return kStarted;
 }
 
-void GpuLoad::stop() {
+void GpuLoad::stop(int64_t* finalSnapshot) {
+    if (finalSnapshot) clearSnapshot(finalSnapshot);
     std::unique_lock lock(control_);
     if (!renderer_) {
         if (retiring_ && retiring_->finished.load()) retiring_.reset();
@@ -1351,13 +1438,14 @@ void GpuLoad::stop() {
                                           [&] { return renderer->finished.load(); })) {
         LOGE("GPU teardown is still waiting for the driver");
     }
+    if (finalSnapshot) renderer->snapshot(finalSnapshot);
 }
 
 void GpuLoad::snapshot(int64_t* out) const {
     // The renderer pointer only changes under control_, which start() may hold
     // for a while; a snapshot taken then reports the previous state.
     std::unique_lock lock(control_, std::try_to_lock);
-    std::fill(out, out + kSnapshotStride, 0);
+    clearSnapshot(out);
     if (!lock.owns_lock() || !renderer_) {
         out[kFieldState] = lastState_.load();
         return;
@@ -1371,20 +1459,7 @@ void GpuLoad::snapshot(int64_t* out) const {
             r.stopRequested.store(true);
         }
     }
-    out[kFieldState] = r.state.load();
-    out[kFieldFrames] = r.frames.load(std::memory_order_relaxed);
-    out[kFieldDispatches] = r.dispatches.load(std::memory_order_relaxed);
-    out[kFieldWork] = r.work.load(std::memory_order_relaxed);
-    out[kFieldGpuNanos] = r.gpuNanos.load(std::memory_order_relaxed);
-    out[kFieldLastFrameNanos] = r.lastFrameNanos.load(std::memory_order_relaxed);
-    out[kFieldDispatchesPerFrame] = r.dispatchesPerFrame.load(std::memory_order_relaxed);
-    out[kFieldErrors] = r.errors.load(std::memory_order_relaxed);
-    out[kFieldChecks] = r.checks.load(std::memory_order_relaxed);
-    out[kFieldWidth] = r.width.load(std::memory_order_relaxed);
-    out[kFieldHeight] = r.height.load(std::memory_order_relaxed);
-    out[kFieldBurnerNanos] = r.burnerTotalNanos.load(std::memory_order_relaxed);
-    out[kFieldVisibleNanos] = r.visibleTotalNanos.load(std::memory_order_relaxed);
-    out[kFieldTimed] = r.state.load() == kStateRunning && r.timed ? 1 : 0;
+    r.snapshot(out);
 }
 
 std::string GpuLoad::describeDevice() {

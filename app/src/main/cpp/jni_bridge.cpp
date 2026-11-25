@@ -210,8 +210,11 @@ Java_dev_ozcan_stress_engine_NativeBridge_gpuDescribe(JNIEnv* env, jclass) {
 }
 
 JNIEXPORT void JNICALL
-Java_dev_ozcan_stress_engine_NativeBridge_gpuStop(JNIEnv*, jclass) {
-    gGpuLoad.stop();
+Java_dev_ozcan_stress_engine_NativeBridge_gpuStop(JNIEnv* env, jclass, jlongArray out) {
+    constexpr int kLength = stress::GpuLoad::kSnapshotStride;
+    std::array<int64_t, kLength> values{};
+    gGpuLoad.stop(values.data());
+    env->SetLongArrayRegion(out, 0, kLength, reinterpret_cast<const jlong*>(values.data()));
 }
 
 JNIEXPORT jint JNICALL
