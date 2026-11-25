@@ -1,9 +1,11 @@
 package dev.ozcan.stress.engine
 
 import dev.ozcan.stress.TestSamples
+import dev.ozcan.stress.run.StressMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WorkloadTest {
@@ -18,6 +20,19 @@ class WorkloadTest {
         val both = parse("0-3:dry,4-7:fp32_gemm+gpu_blend")
         assertEquals(TestSamples.gpuBlend, both.gpu!!.burner)
         assertEquals("0-3:dry,4-7:fp32_gemm", both.cpu!!.describe())
+    }
+
+    @Test
+    fun `full load uses baseline SIMD on every core without optional ISA features`() {
+        val stream = TestSamples.gemm.copy(key = "fp32_l2")
+        val optional = listOf("i8_dot", "i8_mmla", "bf16_mmla").map { stream.copy(key = it, supported = false) }
+        for (cpuCount in listOf(4, 8, 10)) {
+            val load = Workload.parse(StressMode.Full.recipe, optional + stream, TestSamples.burners, cpuCount)
+            val cpu = requireNotNull(load.cpu)
+            assertEquals(List(cpuCount) { stream }, cpu.kernelPerCpu)
+            assertTrue(cpu.kernelPerCpu.all { it?.supported == true })
+            assertEquals(TestSamples.gpuFp32, load.gpu!!.burner)
+        }
     }
 
     @Test
