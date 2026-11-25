@@ -5,6 +5,7 @@ import dev.ozcan.stress.analysis.Point
 import dev.ozcan.stress.analysis.Power
 import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.analysis.WorkRate
+import dev.ozcan.stress.engine.GpuRunStatus
 import dev.ozcan.stress.engine.Workload
 import dev.ozcan.stress.telemetry.CpuCluster
 import dev.ozcan.stress.telemetry.Sample
@@ -29,6 +30,7 @@ object LabAnalysis {
         idle: List<Sample>,
         load: List<Sample>,
         clusters: List<CpuCluster>,
+        gpuStatus: GpuRunStatus = GpuRunStatus(),
     ): LabResult {
         val all = idle + load
         val convention = CurrentConvention.infer(idle.unplugged().mapNotNull { it.battery.currentRaw })
@@ -39,6 +41,10 @@ object LabAnalysis {
         val loadOrigin = load.firstOrNull()?.timeNanos ?: 0L
         val loadWatts = convention?.let { Power.watts(load, it, loadOrigin) }.orEmpty()
         val loadSpan = loadWatts.lastOrNull()?.seconds ?: 0.0
+        val gpu = run.load.gpu
+        val scene = gpu != null && (gpu.scene ?: spec.scene)
+        val drawn = load.fold(gpuStatus) { status, sample -> status.include(sample.gpu) }
+            .lowestSceneDraw.takeIf { scene }
 
         return LabResult(
             workload = run.load.describe(),
@@ -48,8 +54,8 @@ object LabAnalysis {
             cooledInTime = run.cooledInTime,
             nice = spec.nice,
             batchMillis = spec.batchMillis,
-            scene = spec.scene,
-            sceneScalePercent = spec.sceneScalePercent ?: run.load.gpu?.let { spec.quality.scalePercent(it.kind) } ?: 0,
+            scene = scene,
+            sceneScalePercent = if (scene) gpu.sceneScalePercent ?: spec.sceneScalePercent ?: spec.quality.scalePercent(gpu.kind) else 0,
             quality = spec.quality.name,
             idleSeconds = spec.idleSeconds,
             loadSeconds = spec.loadSeconds,
@@ -73,6 +79,8 @@ object LabAnalysis {
                 .mapValues { (_, values) -> values.max() },
             cadence = cadence(all),
             computationErrors = (load.lastOrNull()?.cpu?.errors ?: 0L) + (load.lastOrNull()?.gpu?.errors ?: 0L),
+            drawnQuality = drawn?.quality?.name,
+            drawnScalePercent = drawn?.scalePercent,
         )
     }
 

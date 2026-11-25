@@ -35,6 +35,11 @@ object ReportCsv {
             if (s.gpuRelative.any { it != null }) add("gpu_relative" to { i -> number(s.gpuRelative.getOrNull(i)) })
             if (s.fps.isNotEmpty()) add("fps" to { i -> number(s.fps.getOrNull(i)) })
             add("battery_percent" to { i -> s.batteryPercent.getOrNull(i)?.toString().orEmpty() })
+            if (record.quality != null) {
+                add("requested_quality" to { record.quality })
+                add("drawn_quality" to { record.drawnQuality.orEmpty() })
+                add("drawn_scale_percent" to { number(record.drawnScalePercent) })
+            }
         }
         out.appendLine(columns.joinToString(",") { it.first })
         for (i in s.seconds.indices) {

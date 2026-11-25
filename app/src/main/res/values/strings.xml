@@ -257,6 +257,8 @@
     <string name="report_section_device">Device</string>
     <string name="report_section_results">Results</string>
     <string name="report_mode">Mode</string>
+    <string name="report_requested_quality">Requested quality</string>
+    <string name="report_drawn_quality">Drawn quality</string>
     <string name="report_duration">Duration</string>
     <string name="report_end">Ending</string>
     <string name="report_workload">Workload</string>

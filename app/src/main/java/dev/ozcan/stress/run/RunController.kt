@@ -51,7 +51,7 @@ sealed interface RunState {
         data class StoppedBeforeLoad(val reason: EndReason, val check: SafetyCheck?) : Failed
         /** A part of the load did not start: "cpu=…", "gpu=…". */
         data class LoadFailed(val detail: String) : Failed
-        /** The driver failed before the GPU completed a frame. */
+        /** The driver failed before the run measured its GPU load. */
         data object GpuFailed : Failed
         /** The load finished, but its numbers could not be worked out. */
         data class AnalysisFailed(val detail: String) : Failed
@@ -173,7 +173,10 @@ class RunController(
             gpuStatus = driver.stop()
         }
         if (mode.usesGpu && gpuStatus.failed) reason = EndReason.GpuFailed
-        if (reason == EndReason.GpuFailed && !gpuStatus.drewFrames) {
+        val load = sampler.log.between(loadStart, loadEnd)
+        if (reason == EndReason.GpuFailed &&
+            (!gpuStatus.drewFrames || load.none { it.gpu.isRunning && it.gpu.frames > 0 })
+        ) {
             _state.value = RunState.Failed.GpuFailed
             return@coroutineScope
         }
@@ -187,7 +190,7 @@ class RunController(
             withContext(Dispatchers.Default) {
                 val (summary, series) = RunAnalysis.analyze(
                     baseline = baseline,
-                    load = sampler.log.between(loadStart, loadEnd),
+                    load = load,
                     clusters = layout.clusters,
                     clusterName = { it.label() },
                 )
@@ -209,6 +212,8 @@ class RunController(
                     safetyReason = safetyCheck?.reason?.name,
                     safetyValue = safetyCheck?.value,
                     appVersion = options.appVersion,
+                    drawnQuality = gpuStatus.lowestSceneDraw?.quality?.name.takeIf { mode.scene != null },
+                    drawnScalePercent = gpuStatus.lowestSceneDraw?.scalePercent.takeIf { mode.scene != null },
                 )
             }
         } catch (e: CancellationException) {

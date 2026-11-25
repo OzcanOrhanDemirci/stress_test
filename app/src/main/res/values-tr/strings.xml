@@ -257,6 +257,8 @@
     <string name="report_section_device">Cihaz</string>
     <string name="report_section_results">Sonuçlar</string>
     <string name="report_mode">Mod</string>
+    <string name="report_requested_quality">Seçilen kalite</string>
+    <string name="report_drawn_quality">Çizilen kalite</string>
     <string name="report_duration">Süre</string>
     <string name="report_end">Bitiş</string>
     <string name="report_workload">İş yükü</string>

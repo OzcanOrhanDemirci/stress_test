@@ -59,4 +59,13 @@ class ReportCsvTest {
         assertEquals("cpu_4_6", ReportCsv.slug("CPU 4-6"))
         assertEquals("x", ReportCsv.slug("—"))
     }
+
+    @Test
+    fun `a scene export includes requested and drawn quality and scale`() {
+        val out = StringWriter()
+        ReportCsv.write(out, record.copy(quality = "High", drawnQuality = "Medium", drawnScalePercent = 43.25))
+        val lines = out.toString().lines()
+        assertEquals(listOf("requested_quality", "drawn_quality", "drawn_scale_percent"), lines[0].split(',').takeLast(3))
+        assertEquals(listOf("High", "Medium", "43.250"), lines[1].split(',').takeLast(3))
+    }
 }
