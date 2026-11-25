@@ -53,10 +53,10 @@
     <string name="charge_max_temp">Hottest battery</string>
     <string name="charge_findings">Findings</string>
     <string name="charge_result_missing">A dash means there were too few readings or the condition was not observed.</string>
-    <string name="charge_speed_usb">This setup delivered up to %1$s to the battery, typical of a computer USB port.</string>
-    <string name="charge_speed_standard">This setup delivered up to %1$s to the battery, typical of standard 5–10 W charging.</string>
-    <string name="charge_speed_fast">This setup delivered up to %1$s to the battery. Fast charging was active.</string>
-    <string name="charge_speed_high">This setup delivered up to %1$s to the battery. High-power fast charging was active.</string>
+    <string name="charge_speed_usb">This setup delivered up to %1$s to the battery, the level of a computer USB port (below %2$s W).</string>
+    <string name="charge_speed_standard">This setup delivered up to %1$s to the battery, the level of standard charging (from %2$s W to under %3$s W).</string>
+    <string name="charge_speed_fast">This setup delivered up to %1$s to the battery, the level of fast charging (%2$s to %3$s W).</string>
+    <string name="charge_speed_high">This setup delivered up to %1$s to the battery, the level of high-power fast charging (above %2$s W).</string>
     <string name="charge_heat_finding">Power dropped as the battery passed 40 °C. Heat may have slowed charging.</string>
     <string name="charge_high_start">The test started above 80%, where the phone already slows charging. For a comparison, start between 20% and 50%.</string>
     <string name="charge_sparse">The current reading changed about every %1$s s. Short peaks may be missed.</string>

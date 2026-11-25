@@ -53,10 +53,10 @@
     <string name="charge_max_temp">En yüksek pil sıcaklığı</string>
     <string name="charge_findings">Bulgular</string>
     <string name="charge_result_missing">Çizgi, okumanın yetmediğini veya olayın görülmediğini gösterir.</string>
-    <string name="charge_speed_usb">Bu kurulum pile en çok %1$s verdi. Bilgisayarın USB portu düzeyinde.</string>
-    <string name="charge_speed_standard">Bu kurulum pile en çok %1$s verdi. Standart 5–10 W şarj düzeyinde.</string>
-    <string name="charge_speed_fast">Bu kurulum pile en çok %1$s verdi. Hızlı şarj devredeydi.</string>
-    <string name="charge_speed_high">Bu kurulum pile en çok %1$s verdi. Yüksek güçlü hızlı şarj devredeydi.</string>
+    <string name="charge_speed_usb">Bu kurulum pile en çok %1$s verdi; bu, bilgisayar USB portu düzeyidir (%2$s W altı).</string>
+    <string name="charge_speed_standard">Bu kurulum pile en çok %1$s verdi; bu, standart şarj düzeyidir (%2$s W ve üzeri, %3$s W altı).</string>
+    <string name="charge_speed_fast">Bu kurulum pile en çok %1$s verdi; bu, hızlı şarj düzeyidir (%2$s–%3$s W).</string>
+    <string name="charge_speed_high">Bu kurulum pile en çok %1$s verdi; bu, yüksek güçlü hızlı şarj düzeyidir (%2$s W üzeri).</string>
     <string name="charge_heat_finding">Pil 40 °C’yi geçince güç düştü. Isı şarjı yavaşlatmış olabilir.</string>
     <string name="charge_high_start">Test pil yüzde 80’in üzerindeyken başladı. Telefon bu aralıkta şarjı zaten yavaşlatır. Kıyas için yüzde 20 ile 50 arasında başla.</string>
     <string name="charge_sparse">Akım okuması yaklaşık %1$s saniyede bir değişti. Kısa güç tepeleri gözden kaçmış olabilir.</string>
