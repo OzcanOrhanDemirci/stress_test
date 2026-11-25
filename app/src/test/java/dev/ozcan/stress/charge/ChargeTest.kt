@@ -81,6 +81,17 @@ class ChargeTest {
     }
 
     @Test
+    fun `a gauge with the same sign plugged and unplugged needs a rising level to reverse the baseline sign`() {
+        val session = ChargeSession(null)
+        for (second in 0..20) session.read(tick(second, 250_000, plugged = false))
+        for (second in 21..23) session.read(tick(second, 1_250_000))
+        assertNull(session.update.watts)
+        session.read(tick(24, 1_250_000, percent = 26))
+        assertEquals(5.0, requireNotNull(session.update.watts), 0.001)
+        assertEquals(1.0, requireNotNull(session.update.idleWatts), 0.001)
+    }
+
+    @Test
     fun `18 W PD tapers at 80 percent with a complete two minute window`() {
         val session = ChargeSession(300)
         for (second in 0..300) {
