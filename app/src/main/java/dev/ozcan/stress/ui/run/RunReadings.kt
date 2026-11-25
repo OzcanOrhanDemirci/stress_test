@@ -92,6 +92,7 @@ internal fun RunReadings(
     history: LiveHistory,
     safety: SafetyCheck,
     safetyOn: Boolean,
+    sceneWindowModifier: Modifier,
     onStop: () -> Unit,
 ) {
     val scene = mode.scene != null
@@ -100,7 +101,12 @@ internal fun RunReadings(
         val sceneReadingsHeight = maxHeight * 0.40f
         Column(Modifier.fillMaxSize()) {
             RunTopBar(mode, quality, state, now, live, safety, safetyOn)
-            if (scene) SceneCorners(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp))
+            if (scene) {
+                SceneCorners(
+                    Modifier.weight(1f).fillMaxWidth().then(sceneWindowModifier)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+            }
             val body = if (scene) Modifier.heightIn(max = sceneReadingsHeight) else Modifier.weight(1f)
             Stack(
                 body.fillMaxWidth().background(StressColors.Background)

@@ -1,7 +1,11 @@
 // Push constants of the scene and TAA passes (SceneRenderer::FrameParams).
 layout(push_constant) uniform Frame {
     vec2 resolution;    // scene resolution, pixels
+#ifdef SCENE_WINDOW
+    vec2 projectionY;   // previous and current principal-point displacement, pixels down
+#else
     vec2 jitter;        // this frame's sub-pixel offset, pixels
+#endif
     float time;         // seconds
     float previousTime; // the previous frame's time, for reprojection
     uint frame;         // frames since the history was last valid

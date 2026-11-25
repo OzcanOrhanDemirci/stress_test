@@ -15,23 +15,29 @@
 #include "shaders/forest_light_frag.h"
 #include "shaders/forest_rain_frag.h"
 #include "shaders/forest_rain_vert.h"
+#include "shaders/forest_rain_window_vert.h"
 #include "shaders/forest_shadow_frag.h"
 #include "shaders/forest_sky_frag.h"
 #include "shaders/taa_forest_frag.h"
+#include "shaders/taa_forest_window_frag.h"
 #include "shaders/dof_white_frag.h"
 #include "shaders/final_white_frag.h"
 #include "shaders/taa_white_frag.h"
+#include "shaders/taa_white_window_frag.h"
 #include "shaders/white_scene_frag.h"
 #include "shaders/dof_hole_frag.h"
 #include "shaders/final_hole_frag.h"
 #include "shaders/taa_hole_frag.h"
+#include "shaders/taa_hole_window_frag.h"
 #include "shaders/hole_scene_frag.h"
 #include "shaders/particles_comp.h"
 #include "shaders/particles_frag.h"
 #include "shaders/particles_vert.h"
+#include "shaders/particles_window_vert.h"
 #include "shaders/fullscreen_vert.h"
 #include "shaders/pool_scene_frag.h"
 #include "shaders/taa_frag.h"
+#include "shaders/taa_window_frag.h"
 #include "shaders/water_step_comp.h"
 #include "shaders/water_surface_comp.h"
 
@@ -93,10 +99,11 @@ void jitter(uint32_t frame, float& x, float& y) {
 }  // namespace
 
 bool SceneRenderer::init(const vk::Context& vk, VkExtent2D screen, float scale, VkRenderPass presentPass, Kind kind,
-                         Quality quality) {
+                         Quality quality, bool framed) {
     vk_ = &vk;
     kind_ = kind;
     quality_ = quality;
+    framed_ = framed;
     shadowRes_ = std::min(vk.maxRenderDimension, byQuality<uint32_t>(quality, SHADOW_RES, SHADOW_RES, 2 * SHADOW_RES));
     scale = std::min(scale, static_cast<float>(vk.maxRenderDimension) /
                                 static_cast<float>(std::max(screen.width, screen.height)));
@@ -430,8 +437,10 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     particleInfo.pPushConstantRanges = &particlePush;
     if (kind_ == Kind::Pool) {
         VK_TRY(vkCreatePipelineLayout(vk_->device, &particleInfo, nullptr, &particleLayout_));
+        const auto particles = framed_ ? std::span<const uint32_t>(kParticlesWindowVertSpirv)
+                                       : std::span<const uint32_t>(kParticlesVertSpirv);
         if (!named(vk_->computePipeline(particleLayout_, kParticlesCompSpirv, simulatePipeline_), "particles.comp") ||
-            !named(vk_->graphicsPipeline(particlePass_, 1, particleLayout_, kParticlesVertSpirv, kParticlesFragSpirv,
+            !named(vk_->graphicsPipeline(particlePass_, 1, particleLayout_, particles, kParticlesFragSpirv,
                                          vk::Blend::Additive, particlePipeline_, VK_PRIMITIVE_TOPOLOGY_POINT_LIST),
                    "Particles")) return false;
     }
@@ -441,10 +450,13 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     const bool forest = kind_ == Kind::Forest;
     const bool white = kind_ == Kind::White;
     const bool hole = kind_ == Kind::Hole;
-    const std::span<const uint32_t> taa = forest  ? std::span<const uint32_t>(kTaaForestFragSpirv)
-                                          : white ? std::span<const uint32_t>(kTaaWhiteFragSpirv)
-                                          : hole  ? std::span<const uint32_t>(kTaaHoleFragSpirv)
-                                                  : std::span<const uint32_t>(kTaaFragSpirv);
+    const std::array<std::span<const uint32_t>, 4> centeredTaa{
+        kTaaFragSpirv, kTaaForestFragSpirv, kTaaWhiteFragSpirv, kTaaHoleFragSpirv,
+    };
+    const std::array<std::span<const uint32_t>, 4> framedTaa{
+        kTaaWindowFragSpirv, kTaaForestWindowFragSpirv, kTaaWhiteWindowFragSpirv, kTaaHoleWindowFragSpirv,
+    };
+    const auto taa = (framed_ ? framedTaa : centeredTaa)[static_cast<size_t>(kind_)];
     const std::span<const uint32_t> dof = forest  ? std::span<const uint32_t>(kDofForestFragSpirv)
                                           : white ? std::span<const uint32_t>(kDofWhiteFragSpirv)
                                           : hole  ? std::span<const uint32_t>(kDofHoleFragSpirv)
@@ -501,12 +513,15 @@ void SceneRenderer::readable(VkCommandBuffer cmd) {
                          &barrier, 0, nullptr, 0, nullptr);
 }
 
-void SceneRenderer::record(VkCommandBuffer cmd, float time) {
+void SceneRenderer::record(VkCommandBuffer cmd, float time, float offsetY) {
     const uint32_t w = frame_ % 2;
     FrameParams frame{};
     frame.width = static_cast<float>(extent_.width);
     frame.height = static_cast<float>(extent_.height);
     jitter(frame_, frame.jitterX, frame.jitterY);
+    const float projectionY = offsetY * frame.height;
+    // Rays and forest geometry already share an image-plane offset through the jitter.
+    if (framed_) frame.jitterY += projectionY;
     frame.time = time;
     frame.previousTime = frame_ == 0 ? time : previousTime_;
     frame.frame = frame_;
@@ -514,7 +529,7 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
 
     if (kind_ == Kind::Forest) {
         recordForest(cmd, frame);
-        recordRain(cmd, frame);
+        recordRain(cmd, frame, offsetY);
     } else if (kind_ == Kind::White || kind_ == Kind::Hole) {
         // Nothing simulated: the scene pass alone, and the particle layer
         // cleared for the passes after the scene that still read it.
@@ -534,12 +549,18 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time) {
         vkCmdDraw(cmd, 3, 1, 0, 0);
         vkCmdEndRenderPass(cmd);
         readable(cmd);
-        recordParticles(cmd, time);
+        recordParticles(cmd, time, offsetY);
     }
 
     pass(cmd, writePass_, historyFramebuffers_[w], extent_);
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, taaPipeline_);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, samplingLayout_, 0, 1, &taaSets_[w], 0, nullptr);
+    if (framed_) {
+        // TAA uses the two jitter slots for the previous and current principal points.
+        frame.jitterX = previousProjectionY_;
+        frame.jitterY = projectionY;
+        previousProjectionY_ = projectionY;
+    }
     vkCmdPushConstants(cmd, samplingLayout_, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(frame), &frame);
     vkCmdDraw(cmd, 3, 1, 0, 0);
     vkCmdEndRenderPass(cmd);
@@ -676,6 +697,8 @@ bool SceneRenderer::createForest() {
     // Shadow map taps a surface takes (forest_geometry.frag) and points a sunbeam asks (forest_light.frag).
     const vk::Specialization taps(byQuality(quality_, 4, 8, 16));
     const vk::Specialization stations(byQuality(quality_, 6, 12, 24));
+    const auto rain = framed_ ? std::span<const uint32_t>(kForestRainWindowVertSpirv)
+                              : std::span<const uint32_t>(kForestRainVertSpirv);
     return named(vk_->graphicsPipeline(forestPass_, 2, forestLayout_, kFullscreenVertSpirv, kForestSkyFragSpirv,
                                        vk::Blend::None, forestSkyPipeline_), "ForestSky") &&
            named(vk_->graphicsPipeline(forestPass_, 2, forestLayout_, kForestGeometryVertSpirv, kForestGeometryFragSpirv,
@@ -687,7 +710,7 @@ bool SceneRenderer::createForest() {
            named(vk_->graphicsPipeline(addPass_, 1, forestLayout_, kFullscreenVertSpirv, kForestLightFragSpirv,
                                        vk::Blend::Additive, forestLightPipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                                        vk::Depth::None, &stations.info), "ForestLight") &&
-           named(vk_->graphicsPipeline(particlePass_, 1, forestLayout_, kForestRainVertSpirv, kForestRainFragSpirv,
+           named(vk_->graphicsPipeline(particlePass_, 1, forestLayout_, rain, kForestRainFragSpirv,
                                        vk::Blend::Additive, forestRainPipeline_), "ForestRain");
 }
 
@@ -842,7 +865,7 @@ void SceneRenderer::clearParticles(VkCommandBuffer cmd) {
 
 // The forest's particle layer: rain, drawn as streaks in the pool's particle
 // pass (cleared, added to), hidden behind the forest by its distances.
-void SceneRenderer::recordRain(VkCommandBuffer cmd, const FrameParams& frame) {
+void SceneRenderer::recordRain(VkCommandBuffer cmd, const FrameParams& frame, float offsetY) {
     VkClearValue clear{};
     VkRenderPassBeginInfo begin{};
     begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -858,7 +881,7 @@ void SceneRenderer::recordRain(VkCommandBuffer cmd, const FrameParams& frame) {
     vkCmdSetScissor(cmd, 0, 1, &scissor);
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestRainPipeline_);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, forestLayout_, 0, 1, &forestLightSet_, 0, nullptr);
-    const ForestParams params{frame.width, frame.height, 0.0f, 0.0f, frame.time, frame.frame, 0, 0.0f};
+    const ForestParams params{frame.width, frame.height, 0.0f, 0.0f, frame.time, frame.frame, 0, offsetY};
     vkCmdPushConstants(cmd, forestLayout_, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params),
                        &params);
     vkCmdDraw(cmd, 6, static_cast<uint32_t>(RAIN_DROPS), 0, 0);
@@ -903,7 +926,7 @@ void SceneRenderer::recordWater(VkCommandBuffer cmd, float time) {
                          nullptr, 0, nullptr);
 }
 
-void SceneRenderer::recordParticles(VkCommandBuffer cmd, float time) {
+void SceneRenderer::recordParticles(VkCommandBuffer cmd, float time, float offsetY) {
     ParticleParams params{};
     params.width = static_cast<float>(extent_.width);
     params.height = static_cast<float>(extent_.height);
@@ -912,6 +935,7 @@ void SceneRenderer::recordParticles(VkCommandBuffer cmd, float time) {
     params.count = kParticles;
     params.frame = frame_;
     params.maxPointSize = vk_->maxPointSize;
+    params.projectionY = offsetY;
     const VkShaderStageFlags stages = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     // Last frame's draw read the particles this step overwrites.

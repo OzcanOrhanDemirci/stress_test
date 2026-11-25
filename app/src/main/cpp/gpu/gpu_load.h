@@ -73,7 +73,9 @@ public:
     // `sceneScalePercent` of the screen's resolution and `sceneQuality` (0 low,
     // 1 medium, 2 high), or with `scene` false a cheap preview ring.
     StartResult start(ANativeWindow* window, int burner, int targetFrameMillis, bool scene, int sceneScalePercent,
-                      int sceneKind, int sceneQuality);
+                      int sceneKind, int sceneQuality, bool framedScene);
+
+    void setSceneOffsetY(float offset);
 
     // Stops the render thread and releases every Vulkan object. Safe to call when idle.
     void stop(int64_t* finalSnapshot = nullptr);
@@ -91,6 +93,7 @@ private:
     mutable std::mutex control_;
     std::shared_ptr<Renderer> renderer_;
     std::shared_ptr<Renderer> retiring_;
+    std::shared_ptr<std::atomic<float>> sceneOffsetY_ = std::make_shared<std::atomic<float>>(0.0f);
     std::atomic<int> lastState_{kStateIdle};
 };
 

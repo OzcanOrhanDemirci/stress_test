@@ -53,6 +53,9 @@ void main() {
     // Where was this point last frame?
     float dist = texelFetch(currentDistance, pixel, 0).r;
     vec2 fragCoord = vec2(gl_FragCoord.x, params.resolution.y - gl_FragCoord.y);
+#ifdef SCENE_WINDOW
+    fragCoord.y += params.projectionY.y;
+#endif
     vec2 uv = (fragCoord - 0.5 * params.resolution) / params.resolution.y;
     vec3 ro, fw, rt, up;
     camera(params.time, ro, fw, rt, up);
@@ -61,6 +64,9 @@ void main() {
     vec3 v = world - ro;
     float z = dot(v, fw);
     vec2 previous = vec2(dot(v, rt), dot(v, up)) / max(z, 1e-4) * FOCAL * params.resolution.y + 0.5 * params.resolution;
+#ifdef SCENE_WINDOW
+    previous.y -= params.projectionY.x;
+#endif
     vec2 texcoord = vec2(previous.x, params.resolution.y - previous.y) / params.resolution;
     bool inside = all(greaterThanEqual(texcoord, vec2(0.0))) && all(lessThanEqual(texcoord, vec2(1.0)));
     // A cut to a new shot leaves nothing worth reprojecting.
