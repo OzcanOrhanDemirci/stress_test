@@ -63,4 +63,7 @@
     <string name="charge_compare_a">Kurulum A</string>
     <string name="charge_compare_b">Kurulum B</string>
     <string name="charge_compare_matching_level">Eğrileri aynı pil yüzdesinde karşılaştır.</string>
+    <string name="charge_already_full_short">Pil dolu</string>
+    <string name="charge_already_full">Pil zaten dolu; ölçülecek şarj yok. Test kaydedilmedi.</string>
+    <string name="charge_home_full">Pil zaten dolu; ölçülecek şarj yok. Şarj testini pil yüzde 100’ün altındayken başlat.</string>
 </resources>

@@ -80,6 +80,8 @@
     <string name="home_open_last">Son koşuyu aç</string>
     <string name="home_tag_selected">SEÇİLİ</string>
     <string name="home_tag_plug">KABLO</string>
+    <string name="home_notice_charge_full">Pil dolu: ölçülecek şarj yok</string>
+    <string name="home_tag_battery">PİL</string>
     <string name="home_tag_safety">GÜVENLİK</string>
     <string name="home_tag_gpu">GPU</string>
     <string name="home_tag_data">VERİ</string>
