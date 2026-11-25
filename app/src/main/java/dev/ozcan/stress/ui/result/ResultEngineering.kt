@@ -24,6 +24,8 @@ import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.hoursText
 import dev.ozcan.stress.ui.run.DrawnQualityNotice
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.upper
+import java.util.Locale
 
 /*
  * The load test's engineering page (DESIGN, Result row): every insight, metric and chart the record holds, read top
@@ -272,7 +274,7 @@ private fun workBlock(context: Context, record: RunRecord): LogBlock {
     }
     return LogBlock(
         context.getString(R.string.result_log_work), lines,
-        summary = mode?.recipe ?: record.workload,
+        summary = (mode?.recipe ?: record.workload).upper(Locale.ROOT),
         note = context.getString(R.string.result_unavailable).takeIf { lines.any { it.value == null } },
     )
 }
