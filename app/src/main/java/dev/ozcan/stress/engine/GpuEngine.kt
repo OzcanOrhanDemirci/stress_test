@@ -134,10 +134,13 @@ data class GpuSnapshot(
     val timed: Boolean = true,
     /** The last scene frame that finished, including startup probe frames. */
     val sceneDraw: SceneDraw? = null,
-    /** Null until the probe settles. Lower quality wins, then smaller scale at that quality. */
+    /** Null until the first probe settles. Lower quality wins, then smaller scale at that quality. */
     val lowestSceneDraw: SceneDraw? = null,
+    /** A resized surface re-probes while retaining the earlier settled minimum. */
+    val sceneProbeSettled: Boolean = false,
 ) {
     val isRunning: Boolean get() = state == GpuState.Running
+    val settledSceneDraw: SceneDraw? get() = sceneDraw.takeIf { sceneProbeSettled }
 
     companion object {
         val IDLE = GpuSnapshot(GpuState.Idle, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -160,6 +163,7 @@ data class GpuSnapshot(
             timed = buffer[13] != 0L,
             sceneDraw = SceneDraw.fromNative(buffer[14], buffer[15]),
             lowestSceneDraw = SceneDraw.fromNative(buffer[16], buffer[17]),
+            sceneProbeSettled = buffer[18] != 0L,
         )
     }
 }
@@ -312,6 +316,6 @@ class GpuEngine {
 
     companion object {
         /** Must match `GpuLoad::kSnapshotStride`. */
-        const val SNAPSHOT_STRIDE = 18
+        const val SNAPSHOT_STRIDE = 19
     }
 }

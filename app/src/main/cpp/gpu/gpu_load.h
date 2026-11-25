@@ -48,7 +48,8 @@ public:
         kFieldSceneScale = 15,      // its scale in hundredths of a percent, 0 before the first
         kFieldLowestSceneQuality = 16,  // lowest settled quality drawn so far, -1 while still probing
         kFieldLowestSceneScale = 17,    // smallest scale drawn at that settled quality, 0 while still probing
-        kSnapshotStride = 18,
+        kFieldSceneProbeSettled = 18,   // 1 when the current surface's probe has settled
+        kSnapshotStride = 19,
     };
 
     enum State : int { kStateIdle = 0, kStateRunning = 1, kStateDeviceLost = 2, kStateFailed = 3 };

@@ -12,6 +12,7 @@ class GpuSnapshotTest {
         fields[15] = scale
         fields[16] = if (settled) quality.code.toLong() else -1
         fields[17] = if (settled) scale else 0
+        fields[18] = if (settled) 1 else 0
         return GpuSnapshot.decode(fields, null)
     }
 
@@ -37,5 +38,15 @@ class GpuSnapshotTest {
 
         assertEquals(medium.sceneDraw, status.lowestSceneDraw)
         assertEquals(smaller.sceneDraw, status.include(smaller).include(high).lowestSceneDraw)
+    }
+
+    @Test
+    fun `a new probe keeps the previous minimum but exposes no settled current draw`() {
+        val high = snapshot(SceneQuality.High, 6500, settled = true)
+        val resize = snapshot(SceneQuality.Low, 1862, settled = false).copy(lowestSceneDraw = high.lowestSceneDraw)
+
+        assertEquals(high.sceneDraw, high.settledSceneDraw)
+        assertNull(resize.settledSceneDraw)
+        assertEquals(high.sceneDraw, GpuRunStatus().include(resize).lowestSceneDraw)
     }
 }
