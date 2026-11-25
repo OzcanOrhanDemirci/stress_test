@@ -243,3 +243,17 @@ kısması kalktı** (GPU performansı %85 → %100'e çıktı, hemen ardından A
 sıcaklığı birkaç saniyede **~106 °C'ye** çıktı; güvenlik 0:43'te durdurdu (ölçülen 106,0, en yüksek 107,2 °C). Yani bu
 telefon GPU'yu 95 °C'de her zaman tutmuyor: bu koşuda termal yönetimi 105 °C'nin üstüne izin verdi (sert tetik 110-115).
 1 Ekim'deki 34 dakikalık koşu en çok 101 °C görmüştü. **Özcan'ın kararı (2 Ekim): çip durdurma 110 °C, uyarı 105 °C.**
+
+## Kara delik, telefonda (kablo takılı, güç geçersiz)
+
+2026-11-25, debug derleme. Lab koşusu, yalnız sahne (yakıcısız, CPU boşta), 15 sn, GPU zaman damgaları; kare = GPU süresi.
+Telefon %19-20 pilde, USB'den (500 mA) şarjda; GPU bölgesi en çok 69 °C.
+
+| Sahne | Düşük (%30) | Orta (%45) | Yüksek (%65) |
+|---|---|---|---|
+| Kara delik | 12,1 ms (83 fps) | 23,7 ms (42 fps) | **118,7 ms (8,5 fps)** |
+
+- Hesap hatası 0, `DeviceLost` yok; üç kalitede de çizdi. Yüksek Orta'nın 5,0 katı: plandaki "4-5 kat" tahmini tuttu.
+- Kara delik Orta'da öbür sahnelerin yarısından hafif: aynı oturumda Orta'da havuz 47,6 ms, beyaz 39,2 ms, orman 41,1 ms
+  (havuz 10-02'de 39,6 ms ölçülmüştü; fark bu oturumda telefonun ılık ve şarjda olması olabilir, ayrıca ölçülmedi).
+- Sinematik · Havuz, kısa koşu (Orta, CPU tam yükte): 22,9 fps, en düşük 16,0; kararlılık %82; en sıcak çip 86 °C (54 sn).
