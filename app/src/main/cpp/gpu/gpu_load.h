@@ -54,6 +54,7 @@ public:
         kAlreadyRunning = 1,
         kInvalidBurner = 2,
         kSetupFailed = 3,
+        kUnsupported = 4,
     };
 
     GpuLoad();

@@ -32,7 +32,8 @@ enum class GpuStartResult(val code: Int) {
     Started(0),
     AlreadyRunning(1),
     InvalidBurner(2),
-    SetupFailed(3);
+    SetupFailed(3),
+    Unsupported(4);
 
     companion object {
         fun fromCode(code: Int): GpuStartResult = entries.firstOrNull { it.code == code } ?: SetupFailed
@@ -148,7 +149,7 @@ class GpuEngine {
     @Volatile var lastStart: GpuStartResult? = null
         private set
 
-    val hasSurface: Boolean @Synchronized get() = surface != null
+    val hasSurface: Boolean @Synchronized get() = surface?.isValid == true
 
     /** Serialises the calls made on behalf of the main thread, which must not block on Vulkan setup. */
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "stress-gpu-control") }
