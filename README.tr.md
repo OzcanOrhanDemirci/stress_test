@@ -16,32 +16,25 @@
 [![Son sürüm](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=s%C3%BCr%C3%BCm&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-blue)](LICENSE)
 
-Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede dört sinematik sahne · cihaz güvenliği · PDF rapor
+Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede dört sinematik sahne · şarj testi · cihaz güvenliği · PDF rapor
 
 **[Son paketi indir](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 ve üstü · izin yok, hiçbir şey toplanmaz
 
-[Kurulum](#kurulum) · [Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
+[Kurulum](#kurulum) · [Uyumluluk](#uyumluluk) · [Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Şarj testi](#şarj-testi) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
 
 *[English](README.md)*
 
 <br />
 
-<img src="docs/images/cover.jpg" alt="Telefonda her sinematik sahneden bir kare: reaktör havuzu, yağmur ormanı, beyaz dünya" width="760" />
+<img src="docs/images/cover.jpg" alt="Telefonda üç sinematik sahne: reaktör havuzu, yağmur ormanı ve beyaz dünya" width="760" />
 
 </div>
 
 ---
 
-Stress Test, Android için bir stres testi ve benchmark uygulaması: Android 10 ve
-üstü her 64-bit telefonda çalışır. 30 Eylül 2026'da tek bir **Honor 400** için
-kişisel bir test olarak başladı; 2 Ekim 2026'daki 0.2.0 sürümüyle herkesin kendi
-telefonunda kullanabileceği bir uygulamaya dönüştü. Honor referans cihaz olarak
-kaldı: aşağıdaki her sayı onda ölçüldü; her yük de genel bir telefona göre değil,
-bu ölçümlere göre seçildi. Seçimler taşınıyor: bir çekirdeğin çarp-topla
-birimlerini, yükleme yolunu ve önbelleklerini aynı anda meşgul eden yük, bir
-sonraki çekirdek tasarımında da en çok gücü çeker. Bu yüzden tarifler aynen kaldı;
-uygulama da öbür telefonlarda yolunu bulmayı öğrendi: çekirdek sayıları ve adları,
-sıcaklık sensörleri, GPU sürücüleri.
+Stress Test, Android telefonun yük altında pilden çektiği gücü ve şarj olurken
+pile giren gücü ölçer. Referans cihaz **Honor 400**. Aşağıdaki güç değerleri bu
+telefonda ölçüldü ve stres testi yükleri bu ölçümlere göre seçildi.
 
 > [!WARNING]
 > Stress Test telefonu tam kapasitede çalıştırır ve telefon çok ısınır.
@@ -128,14 +121,15 @@ en yüksek kalıyor.
 | Mod | Yük | Ekranda | Ölçülen |
 | --- | --- | --- | --- |
 | **Tam yük** | `fp32_l2` + GPU FP32 yakıcısı | yük kadranı (GPU yakıcıda) | **10,1 W** |
-| **Sinematik** | `fp32_l2` + bir sahne | ana ekranda seçilen üç sahneden biri | havuzla 8,9 W |
-| **CPU** | sekiz çekirdekte `fp32_l2` | kadran | 7,1 W (soğutmasız 6,4 W) |
+| **Sinematik** | `fp32_l2` + bir sahne | ana ekranda seçilen dört sahneden biri | havuzla 8,9 W |
+| **CPU** | tüm çekirdeklerde `fp32_l2` | kadran | 7,1 W (soğutmasız 6,4 W) |
 | **GPU** | GPU FP32 yakıcısı | yük kadranı | 5,5 W |
 | **Kuru %100** | `dry` | kadran | 2,5 W (soğutmasız) |
+| **[Şarj testi](#şarj-testi)** | telefon şarjda ve boşta | pil yüzdesine göre pile giren güç | telefona, şarj cihazına ve kabloya göre değişir |
 
-<sub>"Soğutmasız" yazmayanlar telefon metal yüzeyde ve vantilatör önündeyken ölçüldü.</sub>
+<sub>"Soğutmasız" yazmayan stres testi değerleri Honor 400 metal yüzeyde ve vantilatör önündeyken ölçüldü.</sub>
 
-Bir koşu 1, 5, 15 ya da 30 dakika sürer, ya da durdurulana kadar. Önce 10 saniye
+Bir stres testi 1, 5, 15 ya da 30 dakika sürer, ya da durdurulana kadar. Önce 10 saniye
 dinlenir ve telefonun hiçbir şey yapmazken çektiği gücü ölçer; ardından ekranı
 her seferinde aynı biçimde, tam parlaklık ve en yüksek yenileme hızında sürer ki
 koşular karşılaştırılabilsin.
@@ -144,6 +138,29 @@ Sahnelerin Tam yükün arka planı değil ayrı bir mod olması ölçümle veril
 karar: sahne ekrandayken yakıcıya kare süresi kalmıyor ve tam yük 8,97 W'a,
 yani en yüksek değerin %88,5'ine iniyor. Ölçümden önce yazılan kural %97 idi; bu
 yüzden sahneler kendi modlarına taşındı ([docs/PLAN.md](docs/PLAN.md), §13/7).
+
+İsteğe bağlı bir ayarla FP32 yakıcısı sinematik testlerde artan kare süresini
+kullanabilir.
+
+### Şarj testi
+
+Şarj testi, pil akımını pil gerilimiyle çarpar ve pile ulaşan net gücü watt
+cinsinden pil yüzdesine göre çizer. Şarj cihazı aynı zamanda telefonu besler ve
+şarj devresindeki kayıpları karşılar. Test, şarj cihazının çıkış gücünü ve bu
+kayıpları ölçemez.
+
+**Şarj testi** modunu seç ve telefonu boşta bırak. 5, 15, 30 dakika ya da
+**Dolana kadar** seçeneklerinden birini seç. **%20 ile %50** arasında başlarsan
+telefon şarjı yavaşlatmadan önce farkı daha iyi görürsün. 20 saniyelik boşta
+ölçümü için şarj cihazı takılı değilken başla ve uygulama isteyince bağla.
+Pile güç girerken uygulama varsa boşta ölçülen gücü de ekler ve sonucu
+**Telefona giren (tahmini)** diye gösterir. Şarj devresindeki kayıplar bu
+tahmine girmez. Şarj cihazı takılıyken de başlayabilirsin. Testin gücü
+gösterebilmesi için pil akımı ve gerilimi okunabilmeli.
+
+Şarj cihazlarını veya kabloları kıyaslarken her seferinde birini değiştir,
+benzer pil yüzdesi ve sıcaklığında başla, eğrilere aynı pil yüzdesinde bak.
+Sonuçlar Geçmiş'e kaydedilir ve CSV olarak dışa aktarılabilir.
 
 ## Sinematik sahneler
 
@@ -168,7 +185,7 @@ kez dalga denklemiyle çözülen 256 × 256'lık bir yükseklik alanı: çekirde
 duvarından yansır, kontrol çubuğu tüplerinin çevresinde saçılır; yüzey ışığı
 kırıp tabana kostik desenler düşürür. 16.384 GPU parçacığı (yükselen kabarcıklar,
 halkanın çevresinde dönen kıvılcımlar), bloom, çekime göre alan derinliği ve bir
-darbe: her döngüde bir kez reaktör bir TRIGA gibi parlar. **Kare ~48 ms, ~20 fps.**
+darbe: her döngüde bir kez reaktör bir TRIGA gibi parlar.
 
 ### Orman
 
@@ -182,7 +199,6 @@ gölgelendiricisi de her kartı bir iğne demetinin ya da yaprak kümesinin tasl
 göre keser. Güneşin gölge haritası bir kez çizilir; bir ışık geçişi her pikselin
 ışınını sisin içinde bu haritaya karşı yürütür ve ışık huzmelerini çizer. 8.192
 yağmur çizgisi huzmelerin içinde parlar, birikintilerde halkalar yayılır.
-**Kare ~31-39 ms, ~25-30 fps.**
 
 ### Beyaz
 
@@ -194,7 +210,6 @@ koridordan, kaburgalı cam bir tünelden ve duvarları üst üste küplerle ör�
 odadan geçer. Cam ince ve soluk yeşil-mavidir, eğik bakıldıkça koyulaşır; böylece
 arkadaki devasa beyaz dünya hep görünür kalır. Alan derinliği, renk saçılması ve
 gren yok, bloom neredeyse yok; büyütmenin üstüne hafif bir keskinleştirme var.
-**Kare ~38 ms, ~27 fps.**
 
 ### Kara delik
 
@@ -207,51 +222,52 @@ dolanır, içine düşer. Bükülme resmin kendisidir: diskin uzak tarafı gölg
 üstünde ve altında yükselir, ince bir yörünge halkası kenara yapışır, yıldızlar
 kenarda ikilenir. Hiçbir şey depolanmaz, hiçbir şey örneklenmez; sahne,
 bütünleştirmenin aritmetiğinden ibarettir (Runge-Kutta, uyarlanabilir adım,
-yıldızlar ve diskin türbülansı için hash'ler). Kalite; düşüşün adım bütçesini,
+yıldızlar ve diskin türbülansı için hash'ler). Kalite, düşüşün adım bütçesini,
 piksel başına örnek sayısını, diskin türbülansını ve gökyüzünün yoğunluğunu
-büyütür: High ışınları iki kattan fazla uzun sarmaştır ve piksel başına iki
-örnek alır — orta seviye telefonda birkaç fps, üst modellerde akıcı. *(Yukarıdaki görsel, telefonun kendi shader'larını çalıştıran
-masaüstü önizlemesidir; bu sahnenin Honor kare süreleri ölçüm oturumunu
-bekliyor.)*
+büyütür. Yüksek kalite adım sayısını iki kattan fazla artırır ve piksel başına
+iki örnek alır. Yukarıdaki görsel, telefonun gölgelendiricilerini çalıştıran
+masaüstü önizlemesinden.
 
 ### Grafik kalitesi
 
-Her telefon, GPU'sunu tamamen yükleyen ve yine de izlemeye değer bir şey çizen bir
-seviye bulur. Orta, sahnelerin orta seviye bir telefon olan Honor 400'de
-ayarlandığı hâli; Yüksek en yeni amiral gemileri için ve orta seviye bir telefonu
-saniyede birkaç kareye düşürür; Düşük giriş seviyesi telefonlar için.
+Düşük kalite ekran çözünürlüğünün %30'unda, Orta %45'inde çizilir. Yüksek kalite
+ayrıntıyı artırır ve sahneyi %65'te, ormanı ise %100'de çizer. Honor 400, 15
+saniyelik ve yalnız sahnenin çalıştığı lab koşularında dört sahneyi de seçilen
+ayarlarda hatasız çizdi. Tablodaki süreler kare başına milisaniye cinsinden.
+[Ölçüm kaydı](docs/OLCUMLER.md)
 
-| Seviye | Çözünürlük | Örnekleme | Honor 400'de karenin GPU süresi |
-| --- | --- | --- | --- |
-| **Düşük** | %30 | gölge dokunuşu ve huzme örneği yarıya | havuz 20,8 ms · beyaz 19,7 ms · orman 25,1 ms |
-| **Orta** | %45 | ayarlandığı gibi | havuz 39,6 ms · beyaz 38,0 ms · orman 39,2 ms |
-| **Yüksek** | %65 (orman: %100) | pikselde iki ışın; orman: 16 gölge dokunuşu, 24 huzme örneği, 4096² gölge haritası | havuz 295 ms · beyaz 200 ms · orman 147 ms |
+| Kalite | Havuz | Orman | Beyaz | Kara delik |
+| --- | ---: | ---: | ---: | ---: |
+| **Düşük** | 25,9 | 26,7 | 20,3 | 12,9 |
+| **Orta** | 48,5 | 41,4 | 38,7 | 25,3 |
+| **Yüksek** | 295–311 | 137,6 | 174,2 | 122,3 |
 
-<sub>Yalnız sahne, CPU boşta, GPU zaman damgaları. Örnek sayıları Vulkan specialization constant'ı; Orta, öncekiyle aynı işe derlenir.</sub>
+Test başlarken uygulama, seçilen ayarların sürücüyü sıfırlatacak kadar uzun bir
+kareye yol açıp açmayacağını yoklar. Kalite veya çözünürlük ölçeği düşerse koşu
+ve sonuç ekranında hangi ayarda çizildiği yazılır. Kayıt iki ayarı da saklar.
+Bu koşu karşılaştırmaya girmez ve sonuçta Honor 400 referans satırı gösterilmez.
 
 ## Uygulama
 
 <img src="docs/images/app.jpg" alt="Mod kartları ve başlat düğmesiyle ana ekran, göstergeleriyle sinematik bir koşu, analiziyle sonuç ekranı, cihaz güvenliğiyle ayarlar" width="100%" />
 
-Test modları, sahne seçici ve kalitesi, pilin, çipin ve gücün canlı değerleriyle
-bir ana ekran; sahneyi ya da kadranı ortada, sayıları kenarlarda tutan bir koşu
-ekranı; bir sonuç ekranı; geçmiş; ayarlar. Bir koşunun sonucu tepe ve sürekli
+Yeni arayüz canlı ölçümleri düz, koyu panellerde öne çıkarır. Dört sekmeden test
+başlatabilir, Geçmiş'i açabilir, Cihaz'daki okumaları inceleyebilir veya Ayarlar'ı
+değiştirebilirsin. Stres testi sırasında sahne ya da kadran canlı okumalarla
+birlikte görünür. Sonuç ekranı tepe ve sürekli
 gücü, ortalamayı, boştaki gücü, harcanan enerjiyi, pilin başını ve sonunu, bu
 yükte tam bir pilin ne kadar dayanacağını, en sıcak çipi, CPU ve GPU iş hızlarını,
 sahnenin kare hızını, kararlılığı ve hesap hatalarını gösterir; ardından düz
 sözcüklerle bir **analiz** (telefon ilk ne zaman kısıldı, ilk dakikayla son dakika
 arasında ne kadar hız verdi, çip ve pil ne kadar ısındı, pil ne hızla tükendi) ve
 parmağın altında değerlerini okuyan güç, sıcaklık, frekans, iş ve kare hızı
-grafikleri gelir. Herhangi iki koşu yan yana **karşılaştırılabilir**; bir koşu
-telefondan iki sayfalık bir **PDF rapor** ya da eğrileri **CSV** olarak çıkabilir.
-Cihaz ekranı telefonun işlemcisini, çekirdeklerini ve GPU'sunu adlandırır ve
-uygulamanın onda neleri okuyabildiğini gösterir. Metinler İngilizce ve Türkçe:
-uygulama, ayarlardan bir dil seçilmedikçe telefonun dilini izler (Android 13'ten
-itibaren telefonun kendi uygulama dili ayarından da seçilebilir).
-
-Yukarıdaki ekran görüntüleri şarj kablosu takılıyken alındı; güç alanlarının
-*şarjda* yazması bu yüzden. Şarj olurken pilin akımı telefonun ne çektiği
-hakkında bir şey söylemez ve uygulama onu göstermeyi reddeder.
+grafikleri gelir. Karşılaştırmaya uygun stres koşuları yan yana açılabilir.
+Stres testi sonuçları iki sayfalık **PDF rapor** ya da **CSV** olarak dışa
+aktarılabilir. Uygulamada o teste ait bir Honor 400 ölçümü varsa sonuçta referans
+olarak gösterilir. Havuzun referans ölçümü Orta kalitede, ek yakıcı kapalıyken
+alındı. Geçmiş son 200 testi saklar. Uygulama telefonun dilini izler.
+Türkçe veya İngilizceyi Ayarlar'dan, Android 13 ve üstünde telefonun uygulama dili
+ayarından da seçebilirsin.
 
 ## Kurulum
 
@@ -261,11 +277,30 @@ hakkında bir şey söylemez ve uygulama onu göstermeyi reddeder.
    (sertifika [SECURITY.md](SECURITY.md#verifying-a-package)'de).
 3. Telefonda aç; Android sorduğunda bu kaynaktan yüklemeye izin ver.
 
-Android 10 ve üstü 64-bit bir telefon gerekir; GPU ve sinematik modlar ayrıca
-Vulkan 1.1 ister, bu telefonların hepsinde vardır. Uygulama hiçbir izin istemez
+Telefon gereksinimleri [Uyumluluk](#uyumluluk) bölümünde. Uygulama hiçbir izin istemez
 ve ağa çıkamaz. Bu kaynaktan yayın anahtarı olmadan derlenen paket debug
 anahtarıyla imzalanır ve ikisi birbirini güncelleyemez: birini kurmadan önce
 öbürünü kaldırmak gerekir, bu da onun koşu geçmişini siler.
+
+## Uyumluluk
+
+Stress Test, **Android 10 ve üstü** 64 bit ARM telefonlar (`arm64-v8a`) için
+tasarlandı. Uyumluluk çalışması Snapdragon/Adreno'yu, Mali kullanan MediaTek ve
+Exynos cihazları, Google Tensor'ı, Xclipse kullanan Exynos cihazları ve PowerVR
+GPU'ları kapsıyor. Tam yük ve Sinematik dahil GPU kullanan testler için çalışan
+bir Vulkan 1.1 veya üstü sürücü gerekiyor. Böyle bir sürücü yoksa CPU ve şarj
+testleri yine kullanılabilir.
+
+Uygulama pil akımının birimini ve yönünü okumalardan çıkarır, üreticiye göre
+değişen sıcaklık bölgelerine ve performans sayaçlarına bakar, CPU komutları ile
+Vulkan sürücülerindeki farklara uyum sağlar. Okunamayan ya da kullanılamayan
+değerler **—** ile gösterilir. **Cihaz** sekmesi bu telefonun hangi değerleri
+verdiğini ve eksik okumanın nedenini söyler. Örneğin sürücü, GPU sayacını
+uygulamaya açmayabilir.
+
+**Gerçek telefonda denenen tek model Honor 400.** Diğer telefonların uyumluluğu
+kod ve üreticiler arasındaki bilinen farklar üzerinden değerlendirildi. Cihaz
+çiftliğinde ya da ücretli bir hizmette test yapılmadı.
 
 ## Cihaz güvenliği
 
@@ -311,7 +346,8 @@ Telefon, bir uygulamaya pilinin sysfs dosyalarını açmıyor; tek kaynak
   yaklaşık 30 saniyede bir değişiyor; voltaj yalnız pil yayınıyla, yaklaşık aynı
   sıklıkta geliyor. Buradaki bir birim varsayımı bir keresinde pil ömrü tahminini
   bin kat yanlış yapmıştı.
-- Kablo takılıyken alınan her örnek geçersiz sayılıyor.
+- Kablo takılıyken alınan örnekler pilden çekilen gücü ölçmek için geçersiz.
+  [Şarj testi](#şarj-testi) gücü ters yönde ölçer.
 
 Bir örnekleyici gücü, bütün termal bölgeleri, her kümenin frekansını ve GPU'nun
 meşguliyet sayacını saniyede on kez okuyor ve sınırlı bir kayıt tutuyor.
@@ -364,9 +400,10 @@ app/src/main
 │   ├── safety/      cihaz güvenliği: sınırlar, bulgular, izleyici
 │   ├── settings/    kullanıcının seçimleri
 │   ├── run/         bir stres koşusu: modlar, denetleyici, analiz, kayıtlar ve depoları
+│   ├── charge/      şarj koşuları, pil gücü ve analiz
 │   ├── report/      PDF rapor ve CSV
 │   ├── lab/         kendi kendine koşan karşılaştırma oturumları: tarif, koşucu, analiz, CSV
-│   └── ui/          Compose: gezinme, bileşenler, ana, koşu, sonuç, karşılaştırma, geçmiş, ayarlar, cihaz
+│   └── ui/          Compose: gezinme, bileşenler, ana, koşu, sonuç, şarj, karşılaştırma, geçmiş, ayarlar, cihaz
 └── cpp
     ├── cpu/         yükler (üretilmiş AArch64 assembly), tabloları, işçi iş parçacıkları
     ├── gpu/         Vulkan yardımcıları, yakıcı motoru, sinematik sahne çizicisi
@@ -399,44 +436,39 @@ bölümünde tam olarak yazılı; ölçümlerin kendisi [docs/OLCUMLER.md](docs/
 | | |
 | --- | --- |
 | **Tek ölçüt: watt** | "%100" değil, puan değil. Bir yük ancak pilden ölçülen daha fazla güç çekerek kazanır. |
-| **Bir telefondan bütün Android telefonlara (0.2.0)** | Tek bir telefon için kişisel bir test olarak başladı; orada ölçülen tarifler kalır, uygulama öbür telefonlarda yolunu bulur. |
+| **Bir referans telefondan 64 bit Android'e (0.2.0)** | Uygulama, Honor 400'de seçilen yükleri koruyup her telefonun çekirdek düzenini ve sensörlerini bulur. |
 | **Cihaz güvenliği, varsayılan açık (0.2.0)** | "Koruma yok"un yerini aldı. Sınırlar telefonun kısma noktasının üstünde; kapatmak onaylanan bir seçim. |
 | **Yanında götürülen rapor (0.2.0)** | "Dışa aktarma yok"un yerini aldı: analiz telefonda kalır, PDF ya da CSV dışarı çıkabilir. |
 | **Sahneler ayrı mod** | Sahne, ölçümden önce yazılan %97 kuralına karşı tam yükün %88,5'ini çekti. |
 | **Hesap ağır, bellek hafif etkiler** | Ölçülen ~1 TFLOPS'a karşı ~16 GB/s: büyük dokular değil; ışın yürütme, prosedürel geometri, bir kez çizilen gölge haritası. |
-| **Yonca değil kadran** | Üç sahneyle uygulama bir reaktör değil bir benchmark gibi okunuyor. |
+| **Stres testlerinde kadran** | Dört sahnesi olan uygulamanın görünümü ilk sahne olan reaktör havuzuyla sınırlı kalmaz. |
 | **Çip dışı yükler kullanıcıya bırakıldı** | Fener, modem ya da kamera koşu sırasında elle açılabilir; tarifler çipin üstünde kalır. |
 
 ## Neler doğrulandı
 
 ```bash
-./gradlew testDebugUnitTest            # 103 JVM testi
+./gradlew testDebugUnitTest            # JVM testleri
 ./gradlew lintDebug                    # Android Lint, hata derlemeyi düşürür
-./gradlew connectedDebugAndroidTest    # telefonda 19 test
+./gradlew connectedDebugAndroidTest    # bağlı telefonda testler
 ```
 
-JVM testleri güç aritmetiğini (birim ve işaret çıkarımı, pencereli istatistik,
-gerilim birimleri, şarj sayacından güç), her CPU sayısında yük dilini, lab
-tarifini, örnek kayıtlarını, çekirdek adlarını ve küme rollerini, öbür
-üreticilerin sıcaklık bölgesi adlarını, cihaz güvenliğinin sınırlarını ve
-süresini, bulguları ve karşılaştırmaları, CSV'yi, 0.1.0'ın kaydettiği koşuların
-hâlâ açıldığını, iki dilin aynı metinleri aynı argümanlarla taşıdığını ve
-biçimlendirmeyi kapsıyor.
-Telefondaki testler yalnız telefonun sınayabileceğini sınıyor: her yükün özetinin
-koşular ve çekirdek türleri arasında birebir tekrarlandığını ve yapılan işle
-değiştiğini, her çekirdeğin sabitlenmiş ve hatasız yandığını, her GPU yakıcısının
-hatasız koşup karesini doldurduğunu, **her sahnenin her kalitede** başlayıp kare ürettiğini,
-sensör düzeninin bulunabildiğini ve her modun tarifinin telefonun gerçek yük ve
-yakıcı tablolarında geçerli bir yük olduğunu.
+JVM testleri pil gücünü, akımın birimini ve yönünü, şarj testinin adımlarını ve
+analizini, üreticilerin sensör adlarını, güvenlik sınırlarını, koşu hatalarını,
+karşılaştırmayı, CSV'yi ve eski kayıtların açılmasını kapsıyor. Okuma düzeltmeleri
+arşivdeki 104 Honor 400 lab koşusunun verileri yeniden işlenerek de sınandı.
+
+Bağlı telefonda çalışan testler CPU hesaplarını, GPU yakıcılarını, sahne
+çizimini, sensörlerin bulunmasını ve yük tariflerini sınar. 0.3.0 lab
+koşularında Honor 400 dört sahneyi de Düşük, Orta ve Yüksek'te seçilen ayarlarda
+hatasız çizdi. Diğer modellerin uyumluluğu kâğıt üzerinde değerlendirildi.
+Şarj testi otomatik testlerle sınandı. Gerçek şarj cihazı ve kablolarla ölçüm
+henüz yapılmadı. [Ölçüm kaydı](docs/OLCUMLER.md)
 
 Uyarılar her yerde hata sayılıyor: Kotlin, C++ (`-Wall -Wextra -Wshadow
 -Wconversion -Werror`) ve gölgelendirici derleyicisi (`glslc -Werror`).
 
-Derleme, JVM testleri ve Lint her push'ta ve her pull request'te, aynı sabit NDK
-ile bir derleme sunucusunda koşar ([iş akışı](.github/workflows/ci.yml)).
-Telefondaki testler koşamaz: derleme sunucusunda Vulkan GPU'lu bir ARM telefon
-yok; bu yüzden yerel kodu, gölgelendiricileri ya da motorları değiştiren her
-değişiklikte bir telefonda koşturulurlar.
+Derleme, JVM testleri ve Lint, CI'da sabit NDK sürümüyle çalışır. Telefon
+testleri için bağlı bir cihazda ayrı bir koşu gerekir. [CI iş akışı](.github/workflows/ci.yml)
 
 ## Derleme
 
@@ -446,11 +478,10 @@ cd stress_test
 ./gradlew :app:installRelease
 ```
 
-Gradle için JDK 17 ya da daha yenisi (Android Studio ile gelen yeterli), Android
-SDK Platform 36, NDK 29.0.14206865 ve CMake 4.1.2 gerekir; gölgelendiriciler
-NDK'nın `glslc`'siyle derlenir. Derleme yalnız `arm64-v8a` içindir ve `minSdk`
-29'dur (Android 10: her 64-bit telefonda Vulkan 1.1 var; yoksa GPU ve sinematik
-modlar kapanır, CPU modları yine çalışır).
+Gradle için CI'da kullanılan JDK 21'i, Android SDK Platform 37.1'i, NDK
+29.0.14206865'i ve CMake 4.1.2'yi kullan. Gölgelendiriciler NDK'nın `glslc`
+aracıyla derlenir. Derleme yalnız `arm64-v8a` içindir ve `minSdk` 29'dur
+(Android 10).
 
 Sürüm derlemesi, hiç commit edilmeyen bir anahtarla imzalanır; anahtar ya git'in
 yok saydığı `keystore.properties`'ten ya da ortam değişkenlerinden okunur. İkisi de
@@ -480,11 +511,11 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 | Konu | Seçim |
 | --- | --- |
-| Uygulama | Kotlin 2.4.20, Material 3 ile Jetpack Compose, coroutines, kotlinx.serialization; Space Grotesk ve JetBrains Mono (SIL OFL 1.1) |
+| Uygulama | Kotlin 2.4.20, Material 3 ile Jetpack Compose, coroutines, kotlinx.serialization, Space Grotesk, Instrument Sans ve Space Mono |
 | Yerel kod | NDK ve CMake üzerinden C++20 ve AArch64 assembly, JNI |
 | Grafik | Vulkan 1.1 (varsa 1.2 özellikleri), derleme sırasında SPIR-V 1.3'e derlenip gömülen GLSL |
 | Derleme | Gradle 9.8.0, Android Gradle Plugin 9.4.1 |
-| SDK | derleme ve hedef 36 (Android 16), en düşük 29 (Android 10) |
+| SDK | derleme 37.1, hedef 36 (Android 16), en düşük 29 (Android 10) |
 | Araçlar | Node.js (lab oturumları), moderngl ile Python (sahne önizlemesi, yük üretici) |
 
 ## Yayın
@@ -492,7 +523,7 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 Bir etiket göndermek derler, test eder, imzalar ve yayınlar:
 
 ```bash
-git tag -a v0.2.0 -m "Stress Test 0.2.0" && git push origin v0.2.0
+git tag -a v0.3.0 -m "Stress Test 0.3.0" && git push origin v0.3.0
 ```
 
 İş akışı, `gradle.properties`'te yazılı sürümle uyuşmayan bir etiketi ya da
@@ -510,6 +541,9 @@ sertifikanın özetini okur ve yayın anahtarınınki değilse durur. Her sürü
 | [SECURITY.md](SECURITY.md) | Uygulamanın nelere erişebildiği ve bir sorunun gizlice nasıl bildirileceği. |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant. |
 | [docs/RELEASE.md](docs/RELEASE.md) | Bir sürümün nasıl çıkarıldığı ve anahtara ne olduğu. |
+| [docs/DESIGN.md](docs/DESIGN.md) | 0.3.0 arayüzünün tasarımı. |
+| [docs/FDROID.md](docs/FDROID.md) | F-Droid yolu ve yeniden üretilebilir derleme. |
+| [docs/NPU.md](docs/NPU.md) | Plandaki 6. fazın NPU yükü taslağı. |
 | [docs/PLAN.md](docs/PLAN.md) | Plan, referans telefonun ölçülmüş gerçekleri ve her karar. |
 | [docs/OLCUMLER.md](docs/OLCUMLER.md) | Koşullarıyla birlikte her ölçüm. |
 
@@ -518,17 +552,15 @@ için bir issue formu var. Katkı belgeleri İngilizcedir.
 
 ## Durum
 
-**Sürüm 0.2.0.** 30 Eylül 2026'da tek bir telefon için kişisel bir test olarak
-başlayan Stress Test, 2 Ekim 2026'daki 0.2.0 ile Android telefonlar için bir stres
-testi ve benchmark uygulaması oldu: Android 10 ve üstü her 64-bit telefonda
-çalışır; cihaz güvenliği, rapor, karşılaştırma, grafik kalitesi ve Türkçe-İngilizce
-arayüz ekledi.
+**Kaynak kodun sürümü 0.3.0.** Bu sürümle yeni arayüz, şarj testi, kara delik
+sahnesi ve telefonlar arasındaki farklara yönelik düzeltmeler geliyor.
+[Değişiklik günlüğü](CHANGELOG.md#030--2026-11-26)
 
 ## Lisans
 
-MIT. Bkz. [LICENSE](LICENSE). Uygulamadaki Space Grotesk ve JetBrains Mono yazı
-tipleri SIL Open Font License 1.1 ile kullanılıyor; koşulları
-[docs/licenses](docs/licenses)'ta.
+MIT. Bkz. [LICENSE](LICENSE). Space Grotesk, Instrument Sans, Space Mono ve
+PDF'teki JetBrains Mono, SIL Open Font License 1.1 ile kullanılıyor. Lisans
+metinleri için [docs/licenses](docs/licenses) klasörüne bak.
 
 ## Yazar
 
