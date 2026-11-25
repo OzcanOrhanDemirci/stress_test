@@ -90,7 +90,7 @@ class DeviceViewModel(private val graph: AppGraph) : ViewModel() {
     val kernels: List<CpuKernel> = graph.cpu.kernels
     val burners: List<GpuBurner> = graph.gpu.burners
     val availability: SensorAvailability = graph.sensors.availability
-    val roles: List<ClusterRole> = ClusterRole.of(graph.layout.clusters)
+    val roles: List<ClusterRole> = ClusterRole.of(graph.layout.clusters, graph.layout.cpuCount)
     val gpuBusyPath: String? = graph.layout.gpuBusyPath
 
     val live: StateFlow<LiveView?> = graph.sampler.latest
@@ -242,7 +242,8 @@ private fun ClockCard(live: LiveView?, roles: List<ClusterRole>) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text("${Format.mhz(c.khz)} / ${c.maxKhz / 1000}", style = NumberStyles.Small, color = StressColors.TextDim)
+                val max = c.maxKhz.takeIf { it > 0 }?.let { (it / 1000).toString() } ?: Format.MISSING
+                Text("${Format.mhz(c.khz)} / $max", style = NumberStyles.Small, color = StressColors.TextDim)
             }
             Spacer(Modifier.height(4.dp))
             MeterBar(c.load ?: 0f, color = Labels.clusterColor(i, clusters.size))

@@ -39,8 +39,12 @@ class NativeSensors(val layout: SysfsLayout) : AutoCloseable {
         val readable = NativeBridge.sensorsOpen(paths.toTypedArray())
         val clusterCount = layout.clusters.size
         val zoneCount = layout.zones.size
+        var fallback = layout.fallbackClockStart
         availability = SensorAvailability(
-            clusters = layout.clusters.mapIndexed { i, c -> c to readable[i] },
+            clusters = layout.clusters.mapIndexed { i, c ->
+                val alternate = c.fallbackFreqPath != null && readable[fallback++]
+                c to (readable[i] || alternate)
+            },
             zones = layout.zones.mapIndexed { i, z -> z to readable[clusterCount + i] },
             gpuBusy = layout.gpuBusyPath != null && readable.getOrElse(clusterCount + zoneCount) { false },
         )
@@ -84,7 +88,11 @@ class NativeSensors(val layout: SysfsLayout) : AutoCloseable {
             fun second(index: Int): Long? = values.getOrNull(index * VALUES_PER_FILE + 1)?.takeIf { it != MISSING }
 
             val clusterCount = layout.clusters.size
-            val freqs = List(clusterCount) { first(it)?.takeIf { khz -> khz > 0 } }
+            var fallback = layout.fallbackClockStart
+            val freqs = layout.clusters.mapIndexed { i, cluster ->
+                val alternate = if (cluster.fallbackFreqPath != null) first(fallback++) else null
+                first(i)?.takeIf { it > 0 } ?: alternate?.takeIf { it > 0 }
+            }
 
             val temperatures = HashMap<ThermalGroup, Double>()
             layout.zones.forEachIndexed { i, zone ->
@@ -99,7 +107,7 @@ class NativeSensors(val layout: SysfsLayout) : AutoCloseable {
                 layout.gpuBusyFormat == GpuBusyFormat.Percent -> GpuBusy(busy, 100)
                 else -> second(gpuIndex)?.let { GpuBusy(busy, it) }
             }
-            return SysfsReading(freqs, temperatures, gpu)
+            return SysfsReading(freqs, temperatures, gpu?.takeIf { it.fraction != null })
         }
     }
 }

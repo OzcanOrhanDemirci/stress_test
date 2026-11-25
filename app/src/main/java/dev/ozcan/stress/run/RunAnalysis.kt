@@ -6,6 +6,7 @@ import dev.ozcan.stress.analysis.Stats
 import dev.ozcan.stress.telemetry.CpuCluster
 import dev.ozcan.stress.telemetry.Sample
 import dev.ozcan.stress.telemetry.ThermalGroup
+import dev.ozcan.stress.telemetry.label
 import kotlin.math.abs
 import kotlin.math.floor
 
@@ -74,6 +75,11 @@ object RunAnalysis {
         val gpuRunning = load.any { it.gpu.isRunning }
         // A burner paces its frames to a fixed time, so only a scene's frame rate means anything.
         val scene = gpuRunning && load.none { it.gpu.burner != null }
+        val names = clusters.map(clusterName)
+        val counts = names.groupingBy { it }.eachCount()
+        val labels = names.mapIndexed { i, name ->
+            if (counts.getValue(name) == 1) name else "$name (${clusters[i].copy(coreName = null).label()})"
+        }
 
         val summary = RunSummary(
             idleWatts = idle,
@@ -86,10 +92,7 @@ object RunAnalysis {
             batteryLifeHours = batteryLife(load, sustained),
             maxTemperatures = temperatures(load) { it.maxOrNull() },
             startTemperatures = temperatures(load.take(1)) { it.firstOrNull() },
-            // Only loaded clusters: an idle cluster slows down because it has nothing to do, not because it is hot.
-            firstThrottleSeconds = clusters.withIndex()
-                .filter { (_, c) -> load.any { s -> c.cpus.any { cpu -> s.cpu.workers.getOrNull(cpu)?.kernel != null } } }
-                .associate { (i, c) -> clusterName(c) to firstThrottle(load, i, c.maxFreqKhz, origin) },
+            firstThrottleSeconds = throttles(load, clusters, labels, origin),
             cpuStability = stability(load) { s -> s.cpu.workers.sumOf { it.work } },
             gpuStability = if (gpuRunning) stability(load) { it.gpu.work.toDouble() } else null,
             computationErrors = (load.lastOrNull()?.cpu?.errors ?: 0L) + (load.lastOrNull()?.gpu?.errors ?: 0L),
@@ -104,7 +107,7 @@ object RunAnalysis {
             maxThermalStatus = load.map { it.thermalStatus }.filter { it >= 0 }.maxOrNull(),
             powerFromCounter = counterWatts != null,
         )
-        val series = series(load, watts, clusters, clusterName, origin)
+        val series = series(load, watts, labels, origin)
         val settledFps = series.fps.drop(FPS_SETTLE_SECONDS).filterNotNull()
         return summary.copy(minFps = settledFps.minOrNull()) to series
     }
@@ -135,22 +138,43 @@ object RunAnalysis {
         return result
     }
 
-    /** First moment the cluster's clock fell below THROTTLE_FRACTION of its top and stayed there THROTTLE_HOLD_SECONDS. */
-    private fun firstThrottle(load: List<Sample>, cluster: Int, maxKhz: Long, origin: Long): Double? {
-        if (maxKhz <= 0) return null
-        val limit = maxKhz * THROTTLE_FRACTION
-        var since: Double? = null
-        for (s in load) {
-            val khz = s.sysfs.clusterFreqKhz.getOrNull(cluster) ?: continue
-            val t = Power.seconds(s.timeNanos, origin)
-            if (khz < limit) {
-                val start = since ?: t.also { since = it }
-                if (t - start >= THROTTLE_HOLD_SECONDS) return start
-            } else {
-                since = null
+    /** A clock drop needs continuous evidence while the cluster actually has pinned work. */
+    private fun throttles(load: List<Sample>, clusters: List<CpuCluster>, labels: List<String>, origin: Long): Map<String, Double?> {
+        val findings = linkedMapOf<String, Double?>()
+        val knownCpus = clusters.flatMap { it.cpus }.toSet()
+        var complete = load.none { s -> s.cpu.workers.any { it.kernel != null && it.cpu !in knownCpus } }
+        for ((i, c) in clusters.withIndex()) {
+            if (load.none { s -> c.cpus.any { s.cpu.workers.getOrNull(it)?.kernel != null } }) continue
+            val limit = c.maxFreqKhz * THROTTLE_FRACTION
+            var since: Double? = null
+            var previous = 0.0
+            var firstThrottle: Double? = null
+            for (s in load) {
+                val khz = s.sysfs.clusterFreqKhz.getOrNull(i)
+                val pinned = c.cpus.any { s.cpu.workers.getOrNull(it)?.let { w -> w.isPinned && w.isRunning } == true }
+                val t = Power.seconds(s.timeNanos, origin)
+                if (t - previous > 1.5) {
+                    complete = false
+                    since = null
+                }
+                previous = t
+                if (c.maxFreqKhz <= 0 || khz == null || !pinned) {
+                    complete = false
+                    since = null
+                } else if (khz < limit) {
+                    val start = since ?: t.also { since = it }
+                    if (t - start >= THROTTLE_HOLD_SECONDS) {
+                        firstThrottle = start
+                        break
+                    }
+                } else {
+                    since = null
+                }
             }
+            findings[labels[i]] = firstThrottle
         }
-        return null
+        // An empty map means there is no basis for saying none of the loaded clusters throttled.
+        return if (complete || findings.values.any { it != null }) findings else emptyMap()
     }
 
     private data class Rates(val mean: Double, val start: Double?, val end: Double?)
@@ -203,8 +227,7 @@ object RunAnalysis {
     private fun series(
         load: List<Sample>,
         watts: List<Point>,
-        clusters: List<CpuCluster>,
-        clusterName: (CpuCluster) -> String,
+        labels: List<String>,
         origin: Long,
     ): RunSeries {
         val buckets = load.groupBy { floor(Power.seconds(it.timeNanos, origin)).toInt() }.toSortedMap()
@@ -235,8 +258,9 @@ object RunAnalysis {
                     group.key to perSecond { samples -> Stats.mean(samples.mapNotNull { it.sysfs.temperatures[group] }) }
                 },
             batteryCelsius = perSecond { samples -> samples.lastOrNull()?.battery?.temperatureCelsius },
-            clocksMhz = clusters.mapIndexed { i, cluster ->
-                clusterName(cluster) to perSecond { samples -> Stats.mean(samples.mapNotNull { it.sysfs.clusterFreqKhz.getOrNull(i)?.div(1000.0) }) }
+            clocksMhz = labels.mapIndexedNotNull { i, name ->
+                val clock = perSecond { samples -> Stats.mean(samples.mapNotNull { it.sysfs.clusterFreqKhz.getOrNull(i)?.div(1000.0) }) }
+                name.takeIf { clock.any { it != null } }?.let { it to clock }
             }.toMap(),
             cpuRelative = relative { s -> s.cpu.workers.sumOf { it.work } },
             gpuRelative = if (gpuRunning && load.any { it.gpu.burner != null }) relative { it.gpu.work.toDouble() } else seconds.map { null },

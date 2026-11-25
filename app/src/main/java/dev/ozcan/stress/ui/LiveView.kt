@@ -25,7 +25,7 @@ data class ClusterLive(
     val rate: Double?,
 ) {
     /** Clock as a share of the top clock, 0..1. */
-    val load: Float? get() = khz?.let { (it.toFloat() / maxKhz.coerceAtLeast(1)).coerceIn(0f, 1f) }
+    val load: Float? get() = khz?.takeIf { maxKhz > 0 }?.let { (it.toFloat() / maxKhz).coerceIn(0f, 1f) }
 }
 
 /** The GPU over the last second: what runs, how fast, and whether it computes right. */
@@ -57,7 +57,7 @@ data class GpuLive(
                 dispatchesPerFrame = last.dispatchesPerFrame,
                 errors = last.errors,
                 checks = last.checks,
-                busyFromFrames = if (continuous && last.isRunning && last.gpuNanos >= first.gpuNanos) {
+                busyFromFrames = if (continuous && last.isRunning && last.frames > first.frames && last.gpuNanos > first.gpuNanos) {
                     ((last.gpuNanos - first.gpuNanos) / 1e9 / seconds).coerceIn(0.0, 1.0)
                 } else {
                     null
@@ -109,7 +109,7 @@ data class LiveView(
             val seconds = (last.timeNanos - first.timeNanos) / 1e9
             val rates = if (seconds > 0) WorkRate.perCpu(first.cpu, last.cpu, seconds) else null
             val running = last.cpu.workers.firstNotNullOfOrNull { it.kernel }
-            val roles = ClusterRole.of(layout.clusters)
+            val roles = ClusterRole.of(layout.clusters, layout.cpuCount)
 
             return LiveView(
                 watts = convention?.let { Stats.meanOf(Power.watts(recent, it, first.timeNanos)) },

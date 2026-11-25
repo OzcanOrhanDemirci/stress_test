@@ -147,6 +147,7 @@ object Labels {
         ClusterRole.Mid -> R.string.role_mid
         ClusterRole.Big -> R.string.role_big
         ClusterRole.Prime -> R.string.role_prime
+        ClusterRole.Unknown -> R.string.device_cpu
     }
 
     fun clusterColor(index: Int, count: Int): Color {
