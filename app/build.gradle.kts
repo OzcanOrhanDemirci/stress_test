@@ -29,7 +29,11 @@ val releaseStore = signingDetail("storeFile", "STRESS_KEYSTORE_FILE")
 
 android {
     namespace = "dev.ozcan.stress"
-    compileSdk = 36
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
     // Pinning the NDK keeps the assembler that builds the kernels the one
     // they were measured with.
     ndkVersion = "29.0.14206865"
