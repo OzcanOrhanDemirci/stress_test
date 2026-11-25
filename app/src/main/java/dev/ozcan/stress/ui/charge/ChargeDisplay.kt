@@ -41,7 +41,7 @@ internal fun ChargePercentChart(points: List<Point>, height: Dp = 160.dp) {
         } else {
             TimeChart(
                 points.map(Point::seconds), listOf(ChartSeries(name, StressColors.Accent, points.map(Point::value))), "W",
-                height = height, yMin = 0.0,
+                height = height, yMin = 0.0, decimals = Format.WATT_DECIMALS,
                 timeLabel = { Format.percentValue(it.toInt()) }, xEnd = 100.0, xStep = 25.0, xReadoutPrefix = "",
             )
         }

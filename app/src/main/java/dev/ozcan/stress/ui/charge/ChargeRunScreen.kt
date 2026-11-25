@@ -112,7 +112,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
             } else when (phase) {
                 ChargePhase.Preparing -> ChargeMessage(R.string.charge_checking_text)
                 ChargePhase.Baseline -> Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.charge_baseline)) {
-                    MetricNumber(Format.number(update.watts, 1), "W", NumberStyles.Hero, StressColors.Accent)
+                    MetricNumber(Format.wattNumber(update.watts), "W", NumberStyles.Hero, StressColors.Accent)
                     Text(stringResource(R.string.charge_baseline_text), style = StressType.BodySmall, color = StressColors.TextDim)
                     MeterBar((update.elapsedSeconds / ChargeSession.BASELINE_SECONDS).toFloat())
                 }
@@ -121,7 +121,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
                     InfoRow(stringResource(R.string.charge_idle), Format.watts(update.idleWatts))
                 }
                 ChargePhase.Measuring -> Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.charge_battery_power)) {
-                    MetricNumber(Format.number(update.watts, 1), "W", NumberStyles.Hero, StressColors.Accent)
+                    MetricNumber(Format.wattNumber(update.watts), "W", NumberStyles.Hero, StressColors.Accent)
                     Text(
                         stringResource(when (update.watts) {
                             null -> R.string.charge_identifying

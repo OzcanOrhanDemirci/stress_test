@@ -248,7 +248,7 @@ private fun RunCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(stringResource(power.label).upper(), style = StressType.Label, color = StressColors.TextDim)
-                    MetricNumber(Format.number(power.number, 2), power.unit, NumberStyles.Small, StressColors.Accent)
+                    MetricNumber(Format.wattNumber(power.number), power.unit, NumberStyles.Small, StressColors.Accent)
                 }
                 if (selected == null) {
                     TopBarAction(Icons.Rounded.DeleteOutline, stringResource(R.string.delete), onDelete)

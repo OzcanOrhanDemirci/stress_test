@@ -64,12 +64,12 @@ fun ChargeResult(record: RunRecord, export: @Composable () -> Unit) {
                 StatusChip(stringResource(Labels.endReasonShort(reason)), Labels.endReasonColor(reason))
             }
             SectionLabel(stringResource(R.string.charge_peak), caption = Format.clock(record.loadSeconds))
-            MetricNumber(Format.number(peak, 1), "W", NumberStyles.Hero, StressColors.Accent)
+            MetricNumber(Format.wattNumber(peak), "W", NumberStyles.Hero, StressColors.Accent)
             Text(stringResource(R.string.charge_net_explained), style = StressType.BodySmall, color = StressColors.TextDim)
         }
         TileRow(Modifier.height(IntrinsicSize.Min)) {
             MetricTile(
-                stringResource(R.string.charge_sustained), Format.number(summary.sustainedWatts, 1), Modifier.weight(1f).fillMaxHeight(),
+                stringResource(R.string.charge_sustained), Format.wattNumber(summary.sustainedWatts), Modifier.weight(1f).fillMaxHeight(),
                 unit = "W", color = StressColors.Accent, caption = stringResource(R.string.charge_sustained_note),
             )
             MetricTile(
@@ -141,7 +141,9 @@ private fun ChargeTimeChart(record: RunRecord) {
     val power = stringResource(R.string.charge_battery_power)
     val battery = stringResource(R.string.temp_battery)
     val lines = buildList {
-        if (series.watts.any { it != null }) add(ChartSeries(power, StressColors.Accent, series.watts, "W"))
+        if (series.watts.any { it != null }) {
+            add(ChartSeries(power, StressColors.Accent, series.watts, "W", decimals = Format.WATT_DECIMALS))
+        }
         val min = series.batteryCelsius.filterNotNull().minOrNull()
         val max = series.batteryCelsius.filterNotNull().maxOrNull()
         if (min != null && max != null) {

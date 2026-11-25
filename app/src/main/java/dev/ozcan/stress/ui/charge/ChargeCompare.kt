@@ -81,7 +81,7 @@ fun ChargeCompare(first: RunRecord, second: RunRecord) {
                     ChartSeries(b, StressColors.Cool, levels.map(right::get)),
                 )
                 TimeChart(
-                    levels, lines, "W", yMin = 0.0,
+                    levels, lines, "W", yMin = 0.0, decimals = Format.WATT_DECIMALS,
                     timeLabel = { Format.percentValue(it.toInt()) }, xEnd = 100.0, xStep = 25.0, xReadoutPrefix = "",
                 )
                 Text(stringResource(R.string.charge_compare_matching_level), style = StressType.BodySmall, color = StressColors.TextDim)
