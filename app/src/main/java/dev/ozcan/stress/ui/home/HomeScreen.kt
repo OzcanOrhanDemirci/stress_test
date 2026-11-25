@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.GppBad
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -218,6 +219,8 @@ fun HomeScreen(
     val quality = settings.quality
     val charge = mode == StressMode.Charge
     val safety = charge || settings.deviceSafety
+    // A charge test begun at full would have nothing to measure; the run screen still catches a full status.
+    val chargeFull = charge && ChargeSession.isFull(live?.levelPercent)
     val log = homeLog(
         context,
         HomeFacts(
@@ -235,7 +238,7 @@ fun HomeScreen(
         PrimaryButton(
             text = stringResource(R.string.home_start),
             icon = Icons.Rounded.PlayArrow,
-            enabled = !mode.usesGpu || gpuOk,
+            enabled = (!mode.usesGpu || gpuOk) && !chargeFull,
             onClick = {
                 val block = model.startBlock(mode)
                 if (block != null) {
@@ -282,6 +285,9 @@ fun HomeScreen(
                 Notice(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_notice_plugged), StressColors.Warn) {
                     model.choose(mode = StressMode.Charge)
                 }
+            }
+            if (chargeFull) {
+                Notice(Icons.Rounded.BatteryFull, stringResource(R.string.home_notice_charge_full), StressColors.Cool)
             }
             if (capabilities?.gpuTests == false) {
                 Notice(Icons.Rounded.Info, stringResource(R.string.home_notice_no_vulkan), StressColors.Cool)

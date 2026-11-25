@@ -162,6 +162,55 @@ class ChargeTest {
     }
 
     @Test
+    fun `a test that starts at full has nothing to measure or keep`() {
+        val plugged = ChargeSession(null)
+        plugged.read(tick(0, -4_500_000, percent = 100))
+        val byStatus = ChargeSession(300)
+        byStatus.read(tick(0, -4_500_000, percent = 98, status = BatteryManager.BATTERY_STATUS_FULL))
+        // Unplugged at full: the idle baseline runs, then the cable meets a full battery.
+        val later = ChargeSession(300)
+        for (second in 0..25) later.read(tick(second, 250_000, plugged = false, percent = 100))
+        assertEquals(ChargePhase.Waiting, later.update.phase)
+        later.read(tick(26, -4_500_000, percent = 100))
+        for (session in listOf(plugged, byStatus, later)) {
+            assertTrue(session.update.alreadyFull)
+            assertEquals(EndReason.BatteryFull, session.update.end)
+            assertFalse(session.measured)
+            assertFalse(session.reachedFull)
+            assertTrue(session.points.isEmpty())
+        }
+        assertTrue(ChargeSession.isFull(100))
+        assertFalse(ChargeSession.isFull(99))
+        assertFalse(ChargeSession.isFull(null))
+    }
+
+    @Test
+    fun `a test that starts below full and fills is kept and says so`() {
+        val session = ChargeSession(null)
+        for (second in 0..9) session.read(tick(second, -4_500_000, percent = 98 + second / 5))
+        assertNull(session.update.end)
+        assertFalse(session.reachedFull)
+        session.read(tick(10, -4_500_000, percent = 100))
+        assertEquals(EndReason.BatteryFull, session.update.end)
+        assertFalse(session.update.alreadyFull)
+        assertTrue(session.measured)
+        assertTrue(session.reachedFull)
+        val record = session.record(1_000L, EndReason.BatteryFull, null, "test", null)
+        assertEquals(EndReason.BatteryFull.name, record.endReason)
+        assertFalse(record.stoppedEarly)
+        assertEquals(10.0, record.loadSeconds, 0.001)
+        assertEquals(18.0, requireNotNull(record.summary.peakWatts), 0.001)
+
+        // Stopped or unplugged before full, there is a record but nothing to announce.
+        val stopped = ChargeSession(null)
+        for (second in 0..5) stopped.read(tick(second, -4_500_000, percent = 60))
+        stopped.read(tick(6, -250_000, plugged = false, percent = 60))
+        assertEquals(EndReason.Unplugged, stopped.update.end)
+        assertTrue(stopped.measured)
+        assertFalse(stopped.reachedFull)
+    }
+
+    @Test
     fun `no gauge means no measurement and a lost gauge preserves observed readings`() {
         for (raw in listOf(null, 0L, Long.MIN_VALUE)) {
             val noGauge = ChargeSession(null)

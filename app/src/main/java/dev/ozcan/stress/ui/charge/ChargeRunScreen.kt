@@ -80,6 +80,9 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
     val state by model.state.collectAsStateWithLifecycle()
     val update = state.update
     val failed = update.cannotMeasure || state.saveFailed
+    // Started at full: the test ends at once with nothing kept, and the screen stays to say so.
+    val full = update.alreadyFull
+    val over = failed || full
     val phase = update.phase
     val battery = update.battery
     val temperature = battery?.temperatureCelsius
@@ -94,10 +97,11 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
     }
     LaunchedEffect(state.recordId) { state.recordId?.let(onFinished) }
     LaunchedEffect(state.discarded) { if (state.discarded) onLeave() }
-    BackHandler { if (failed) onLeave() }
+    BackHandler { if (over) onLeave() }
 
     val status = when {
         failed -> R.string.charge_unavailable_short
+        full -> R.string.charge_already_full_short
         state.saving -> R.string.charge_saving
         phase == ChargePhase.Baseline -> R.string.charge_baseline
         phase == ChargePhase.Waiting -> R.string.charge_waiting
@@ -106,7 +110,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
     }
     val timer = when (phase) {
         ChargePhase.Baseline -> Format.clock(update.elapsedSeconds) + " / " + Format.clock(ChargeSession.BASELINE_SECONDS.toDouble())
-        ChargePhase.Measuring -> Format.clock(update.elapsedSeconds) + " / " + stringResource(Labels.duration(duration, StressMode.Charge))
+        ChargePhase.Measuring -> if (full) null else Format.clock(update.elapsedSeconds) + " / " + stringResource(Labels.duration(duration, StressMode.Charge))
         else -> null
     }
     val log = chargeLog(state, stringResource(status), timer)
@@ -122,8 +126,8 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
                 Arrangement.spacedBy(12.dp),
             ) {
-                if (!failed) ChargeHero(state)
-                if (!failed && phase != ChargePhase.Preparing) {
+                if (!over) ChargeHero(state)
+                if (!over && phase != ChargePhase.Preparing) {
                     TileRow(Modifier.height(IntrinsicSize.Min)) {
                         val tile = Modifier.weight(1f).fillMaxHeight()
                         MetricTile(stringResource(R.string.charge_battery_level), Format.percentValue(battery?.levelPercent), tile)
@@ -148,7 +152,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
             ) {
                 val values = log.valueCount()
                 EngineeringRow(pluralStringResource(R.plurals.parts_values, values, values).upper(), { engineering = true })
-                if (failed) {
+                if (over) {
                     SecondaryButton(stringResource(R.string.back), onLeave, Modifier.fillMaxWidth())
                 } else {
                     StopButton(stringResource(R.string.charge_stop), { model.stop() }, enabled = !state.saving)
@@ -200,13 +204,19 @@ private fun ChargeSentence(state: ChargeRunState, failed: Boolean) {
         update.end == EndReason.Safety || temperature >= ChargeSession.STOP_CELSIUS -> R.string.charge_hot_stop to true
         temperature >= ChargeSession.WARN_CELSIUS -> R.string.charge_hot_warn to true
         failed -> (if (state.saveFailed) R.string.charge_save_failed else R.string.charge_unavailable) to true
+        update.alreadyFull -> R.string.charge_already_full to false
         update.phase == ChargePhase.Preparing -> R.string.charge_checking_text to false
         update.phase == ChargePhase.Baseline -> R.string.charge_baseline_text to false
         update.phase == ChargePhase.Measuring && update.watts == null -> R.string.charge_identifying to false
         update.phase == ChargePhase.Measuring && update.watts == 0.0 -> R.string.charge_no_inflow to false
         else -> R.string.charge_keep_still to false
     }
-    Text(stringResource(text), style = StressType.Body, color = if (warning) StressColors.Warn else StressColors.TextDim)
+    val color = when {
+        warning -> StressColors.Warn
+        update.alreadyFull -> StressColors.Text // the whole outcome, with nothing else on the page
+        else -> StressColors.TextDim
+    }
+    Text(stringResource(text), style = StressType.Body, color = color)
 }
 
 /** Everything the charge test reads, for its engineering sheet. */

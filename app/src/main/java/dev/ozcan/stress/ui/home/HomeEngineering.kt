@@ -113,6 +113,7 @@ internal fun homeLog(context: Context, f: HomeFacts): HomeLog {
     val charge = f.mode == StressMode.Charge
     val gpuOk = f.capabilities?.gpuTests != false
     val safety = charge || f.settings.deviceSafety
+    val chargeFull = charge && ChargeSession.isFull(live?.levelPercent)
     sections += HomeSection(
         s(R.string.home_eng_test),
         summary = Labels.modeName(context, f.mode),
@@ -137,7 +138,7 @@ internal fun homeLog(context: Context, f: HomeFacts): HomeLog {
             when {
                 f.mode.usesGpu && !gpuOk ->
                     HomeLine(s(R.string.home_key_start), s(R.string.home_val_no_gpu), color = StressColors.Bad, tag = LogTag.Stop)
-                f.gate != null ->
+                f.gate != null || chargeFull ->
                     HomeLine(s(R.string.home_key_start), s(R.string.home_val_held), color = StressColors.Warn, tag = LogTag.Warn)
                 else -> HomeLine(s(R.string.home_key_start), s(R.string.home_val_ready), color = StressColors.Good, tag = LogTag.Ok)
             },
@@ -149,6 +150,7 @@ internal fun homeLog(context: Context, f: HomeFacts): HomeLog {
         if (live?.plugged == true && !charge) {
             add(HomeNotice(s(R.string.home_tag_plug), StressColors.Warn, s(R.string.home_plugged)))
         }
+        if (chargeFull) add(HomeNotice(s(R.string.home_tag_battery), StressColors.Cool, s(R.string.charge_home_full)))
         if (f.capabilities?.gpuTests == false) add(HomeNotice(s(R.string.home_tag_gpu), StressColors.Cool, s(R.string.home_no_vulkan)))
         f.gate?.let { add(HomeNotice(s(R.string.home_tag_safety), StressColors.Warn, s(R.string.home_cooling, Labels.safetyFinding(context, it)))) }
         if (live != null && (live.chipCelsius == null || live.batteryCelsius == null || live.levelPercent == null ||

@@ -63,4 +63,7 @@
     <string name="charge_compare_a">Setup A</string>
     <string name="charge_compare_b">Setup B</string>
     <string name="charge_compare_matching_level">Compare the curves at the same battery percentage.</string>
+    <string name="charge_already_full_short">Battery full</string>
+    <string name="charge_already_full">The battery is already full, so there is no charging to measure. Nothing was saved.</string>
+    <string name="charge_home_full">The battery is already full, so there is no charging to measure. Start the charge test below 100%.</string>
 </resources>
