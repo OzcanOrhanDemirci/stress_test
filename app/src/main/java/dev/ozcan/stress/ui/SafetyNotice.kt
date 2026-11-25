@@ -1,15 +1,18 @@
 package dev.ozcan.stress.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.GppBad
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -32,6 +35,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import dev.ozcan.stress.R
+import dev.ozcan.stress.ui.components.Hairline
 import dev.ozcan.stress.ui.components.IconBadge
 import dev.ozcan.stress.ui.components.PanelDialog
 import dev.ozcan.stress.ui.components.PrimaryButton
@@ -57,27 +61,33 @@ fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) 
                 IconBadge(Icons.Rounded.WarningAmber, StressColors.Warn)
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.notice_title), style = StressType.Heading)
-                    Text(stringResource(R.string.notice_subtitle), style = StressType.Label, color = StressColors.Warn)
+                    Text(stringResource(R.string.notice_subtitle), style = StressType.BodySmall, color = StressColors.TextDim)
                 }
             }
+            Hairline()
             // Only the text scrolls, so acceptance and the checkbox stay available on short screens.
             Column(
                 Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Line(Icons.Rounded.LocalFireDepartment, StressColors.Accent, stringResource(R.string.notice_load))
-                Line(Icons.Rounded.AcUnit, StressColors.Cool, stringResource(R.string.notice_care))
-                Line(Icons.Rounded.Shield, StressColors.Good, stringResource(R.string.notice_protection))
+                Line(Icons.Rounded.LocalFireDepartment, StressColors.Warn, stringResource(R.string.notice_load))
+                Line(Icons.Rounded.AcUnit, StressColors.TextDim, stringResource(R.string.notice_care))
+                Line(Icons.Rounded.Shield, StressColors.TextDim, stringResource(R.string.notice_protection))
                 if (!safetyOn) Line(Icons.Rounded.GppBad, StressColors.Bad, stringResource(R.string.notice_safety_off), StressColors.Bad)
                 Line(Icons.Rounded.Gavel, StressColors.TextDim, stringResource(R.string.notice_responsibility), StressColors.Text)
             }
+            Hairline()
             Row(
-                Modifier.fillMaxWidth().clickable(role = Role.Checkbox) { dontShow = !dontShow }.padding(end = 8.dp),
+                Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .toggleable(dontShow, role = Role.Checkbox, onValueChange = { dontShow = it })
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(
                     checked = dontShow,
-                    onCheckedChange = { dontShow = it },
+                    onCheckedChange = null,
+                    modifier = Modifier.size(24.dp),
                     colors = CheckboxDefaults.colors(
                         checkedColor = StressColors.Accent,
                         uncheckedColor = StressColors.TextDim,
@@ -86,7 +96,7 @@ fun SafetyNotice(safetyOn: Boolean, onAccept: (dontShowAgain: Boolean) -> Unit) 
                 )
                 Text(stringResource(R.string.notice_dont_show), style = StressType.Body, color = StressColors.TextDim)
             }
-            PrimaryButton(text = stringResource(R.string.notice_accept), onClick = { onAccept(dontShow) })
+            PrimaryButton(text = stringResource(R.string.notice_accept), onClick = { onAccept(dontShow) }, icon = Icons.Rounded.Check)
         }
     }
 }
