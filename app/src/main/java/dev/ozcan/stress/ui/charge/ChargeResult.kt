@@ -2,8 +2,11 @@ package dev.ozcan.stress.ui.charge
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -64,19 +67,22 @@ fun ChargeResult(record: RunRecord, export: @Composable () -> Unit) {
             MetricNumber(Format.number(peak, 1), "W", NumberStyles.Hero, StressColors.Accent)
             Text(stringResource(R.string.charge_net_explained), style = StressType.BodySmall, color = StressColors.TextDim)
         }
-        TileRow {
+        TileRow(Modifier.height(IntrinsicSize.Min)) {
             MetricTile(
-                stringResource(R.string.charge_sustained), Format.number(summary.sustainedWatts, 1), Modifier.weight(1f),
+                stringResource(R.string.charge_sustained), Format.number(summary.sustainedWatts, 1), Modifier.weight(1f).fillMaxHeight(),
                 unit = "W", color = StressColors.Accent, caption = stringResource(R.string.charge_sustained_note),
             )
             MetricTile(
-                stringResource(R.string.charge_slowdown), Format.percentValue(details?.slowdownPercent), Modifier.weight(1f),
+                stringResource(R.string.charge_slowdown), Format.percentValue(details?.slowdownPercent), Modifier.weight(1f).fillMaxHeight(),
             )
         }
-        TileRow {
-            MetricTile(stringResource(R.string.charge_energy), Format.number(summary.energyWattHours, 2), Modifier.weight(1f), unit = "Wh")
+        TileRow(Modifier.height(IntrinsicSize.Min)) {
             MetricTile(
-                stringResource(R.string.charge_rate), Format.percent(details?.percentPerTenMinutes?.div(100), 1), Modifier.weight(1f),
+                stringResource(R.string.charge_energy), Format.number(summary.energyWattHours, 2), Modifier.weight(1f).fillMaxHeight(), unit = "Wh",
+            )
+            MetricTile(
+                stringResource(R.string.charge_rate), Format.percent(details?.percentPerTenMinutes?.div(100), 1),
+                Modifier.weight(1f).fillMaxHeight(),
             )
         }
         val start = summary.batteryStartPercent
@@ -105,7 +111,7 @@ private fun ChargeFindings(record: RunRecord) {
     val peak = record.summary.peakWatts
     val details = record.charge
     val findings = buildList {
-        if (peak != null) {
+        if (peak != null && peak > 0.0) {
             val speed = when (ChargeAnalysis.speed(peak)) {
                 ChargeSpeed.UsbPort -> R.string.charge_speed_usb
                 ChargeSpeed.Standard -> R.string.charge_speed_standard
