@@ -2,6 +2,7 @@ package dev.ozcan.stress.ui.charge
 
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -40,6 +41,7 @@ import dev.ozcan.stress.ui.components.SectionLabel
 import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TimeChart
+import dev.ozcan.stress.ui.components.simpleChartHeight
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.result.LogBlock
 import dev.ozcan.stress.ui.result.LogEntry
@@ -114,11 +116,13 @@ private fun PercentCurve(points: List<Point>) {
     Panel(Modifier.fillMaxWidth(), padding = 12.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SectionLabel(stringResource(R.string.charge_chart_percent))
-            TimeChart(
-                points.map(Point::seconds), listOf(ChartSeries(name, StressColors.Accent, points.map(Point::value))), "W",
-                height = 100.dp, yMin = 0.0, decimals = Format.WATT_DECIMALS,
-                timeLabel = { Format.percentValue(it.toInt()) }, xEnd = 100.0, xStep = 25.0, xReadoutPrefix = "",
-            )
+            BoxWithConstraints {
+                TimeChart(
+                    points.map(Point::seconds), listOf(ChartSeries(name, StressColors.Accent, points.map(Point::value))), "W",
+                    height = simpleChartHeight(maxWidth), yMin = 0.0, decimals = Format.WATT_DECIMALS,
+                    timeLabel = { Format.percentValue(it.toInt()) }, xEnd = 100.0, xStep = 25.0, xReadoutPrefix = "",
+                )
+            }
         }
     }
 }
