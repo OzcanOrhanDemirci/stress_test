@@ -36,7 +36,8 @@ internal class ChargeSession(private val plannedSeconds: Int?) {
     private var lastUsableAt: Double? = null
     private var firstUsableAt: Double? = null
     private var lastGaugeAt: Double? = null
-    private var sawChargingDirection = false
+    private var sawIncoming = false
+    private var inferredWhilePlugged = false
 
     val points: List<ChargePoint> get() = recorded
     var update = ChargeUpdate()
@@ -79,16 +80,25 @@ internal class ChargeSession(private val plannedSeconds: Int?) {
             }
             ChargePhase.Measuring -> if (battery.plugged && battery.plugStateKnown) {
                 if (responsive) lastGaugeAt = now
-                if (convention == null && ended == null) {
+                // Some gauges keep the same sign on both sides of the cable.
+                // Never flip a measured baseline from Android status alone.
+                val provisional = ChargePower.batteryAmps(battery, convention)
+                val directionInDoubt = !inferredWhilePlugged && !sawIncoming &&
+                    provisional != null && provisional < 0 && battery.status == BatteryManager.BATTERY_STATUS_CHARGING
+                if ((convention == null || directionInDoubt) && ended == null) {
                     probing += tick
                     probing.removeAll { now - it.seconds > CONVENTION_PROBE_SECONDS }
-                    convention = ChargePower.inferCharging(probing)
-                    if (convention != null) {
+                    ChargePower.inferCharging(probing, requireTrend = convention != null)?.let {
+                        convention = it
+                        inferredWhilePlugged = true
                         probing.dropLast(1).forEach(::record)
                         probing.clear()
                     }
+                } else {
+                    probing.clear()
                 }
-                amps = if (ended == EndReason.BatteryFull || ended == EndReason.Safety) null
+                amps = if (ended == EndReason.BatteryFull || ended == EndReason.Safety ||
+                    directionInDoubt && !inferredWhilePlugged) null
                     else ChargePower.batteryAmps(battery, convention)
                 record(tick, amps)
                 amps = recorded.last().amps
@@ -151,10 +161,10 @@ internal class ChargeSession(private val plannedSeconds: Int?) {
     private fun record(tick: ChargeTick, amps: Double?) {
         val (now, battery) = tick
         val watts = watts(battery, amps)
-        if (watts != null && watts != 0.0) sawChargingDirection = true
+        if (watts != null && watts > 0.0) sawIncoming = true
         // Some unsupported gauges report 0. Only use zero once the gauge
         // has actually reported a charging current, or a nonzero reverse flow.
-        val usable = watts?.takeIf { sawChargingDirection }?.coerceAtLeast(0.0)
+        val usable = watts?.takeIf { it != 0.0 || lastUsableAt != null }?.coerceAtLeast(0.0)
         if (usable != null) {
             if (firstUsableAt == null) firstUsableAt = now
             lastUsableAt = now

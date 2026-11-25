@@ -17,7 +17,7 @@ internal object ChargePower {
     fun volts(battery: BatteryReading): Double? =
         battery.voltageMillivolts?.takeIf { it in 2_500..10_000 }?.div(1000.0)
 
-    fun inferCharging(ticks: List<ChargeTick>): CurrentConvention? {
+    fun inferCharging(ticks: List<ChargeTick>, requireTrend: Boolean = false): CurrentConvention? {
         val readings = ticks.mapNotNull { tick -> raw(tick.battery)?.takeIf { it != 0L } }
         if (readings.size < 3) return null
         val sign = if (readings.count { it > 0 } > readings.size / 2) 1 else -1
@@ -34,6 +34,7 @@ internal object ChargePower {
         val levels = ticks.mapNotNull { it.battery.levelPercent }
         val levelDirection = direction(levels.zipWithNext { a, b -> (b - a).toDouble() }, minimum = 1)
         if (counterDirection != null && levelDirection != null && counterDirection != levelDirection) return null
+        if (requireTrend && counterDirection == null && levelDirection == null) return null
         val status = ticks.last().battery.status
         val direction = counterDirection ?: levelDirection ?: when (status) {
             BatteryManager.BATTERY_STATUS_CHARGING -> 1
