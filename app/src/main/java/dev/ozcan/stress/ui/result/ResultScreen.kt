@@ -60,6 +60,7 @@ import dev.ozcan.stress.analysis.Comparison
 import dev.ozcan.stress.analysis.Insight
 import dev.ozcan.stress.analysis.Insights
 import dev.ozcan.stress.charge.isCharge
+import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.report.ReportCsv
 import dev.ozcan.stress.report.ReportPdf
@@ -169,15 +170,19 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
     var others by remember { mutableStateOf<List<RunRecord>?>(null) }
+    // Mode and length always; a scene's quality only when it fits. The phone model is on the engineering page.
+    val scene = record?.let { StressMode.of(it.mode)?.scene }
     val caption = record?.let {
-        val scene = StressMode.of(it.mode)?.scene
         val mode = if (scene != null) stringResource(Labels.scene(scene)) else Labels.recordModeName(context, it)
-        listOfNotNull(mode, Format.clock(it.loadSeconds).padStart(5, '0'), it.device?.model)
-            .joinToString(" // ").upper()
+        "$mode // ${Format.clock(it.loadSeconds).padStart(5, '0')}".upper()
     }
+    val quality = record?.takeIf { scene != null }
+        ?.let { r -> SceneQuality.entries.firstOrNull { it.name == r.quality } }
+        ?.let { stringResource(Labels.quality(it)).upper() }
     TopBar(
         title = stringResource(R.string.result_title),
         caption = caption,
+        captionExtra = quality,
         onBack = onBack,
         modifier = Modifier.background(StressColors.SurfaceLow).statusBarsPadding(),
         actions = {
