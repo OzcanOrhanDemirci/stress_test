@@ -55,6 +55,7 @@ bool calibrate(const KernelSpec& spec, int batchMillis, Calibration& out) {
 }  // namespace
 
 bool pinCurrentThread(int cpu) {
+    if (cpu < 0 || cpu >= CPU_SETSIZE) return false;
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(cpu, &set);
@@ -120,8 +121,8 @@ void CpuLoad::runWorker(Worker& w) {
     const KernelSpec& spec = *w.spec;
     Digest digest;
     while (!stop_.load(std::memory_order_relaxed)) {
-        // A paused CPU refuses the pin; the load itself makes core_ctl resume
-        // it, so keep asking until it is ours.
+        // Offline, paused and cpuset-restricted CPUs can all refuse the pin.
+        // Keep generating demand and retry when the governor lets us on.
         if ((flags & kFlagPinned) == 0 && pinCurrentThread(w.cpu)) {
             flags |= kFlagPinned;
             w.flags.store(flags | kFlagRunning, std::memory_order_release);
@@ -132,7 +133,15 @@ void CpuLoad::runWorker(Worker& w) {
         }
         w.batches.fetch_add(1, std::memory_order_relaxed);
         const int cpu = sched_getcpu();
-        if (cpu != w.cpu) w.misplaced.fetch_add(1, std::memory_order_relaxed);
+        if (cpu != w.cpu) {
+            w.misplaced.fetch_add(1, std::memory_order_relaxed);
+            if (flags & kFlagPinned) {
+                // Hotplug or a cpuset change can also move a thread that
+                // was pinned successfully. Acquire its CPU again if it returns.
+                flags &= ~kFlagPinned;
+                w.flags.store(flags | kFlagRunning, std::memory_order_release);
+            }
+        }
         w.lastCpu.store(cpu, std::memory_order_relaxed);
     }
     w.flags.store(flags, std::memory_order_release);
