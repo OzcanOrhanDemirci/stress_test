@@ -51,6 +51,7 @@ import dev.ozcan.stress.R
 import dev.ozcan.stress.safety.SafetyLevel
 import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.ui.Format
+import dev.ozcan.stress.ui.theme.ContentMaxWidth
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressMotion
@@ -124,7 +125,7 @@ fun EngineeringSheet(
         ) {
             val shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
             Column(
-                Modifier.fillMaxWidth().fillMaxHeight(heightFraction).clip(shape).background(StressColors.Surface)
+                Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth().fillMaxHeight(heightFraction).clip(shape).background(StressColors.Surface)
                     // Swallow taps on the sheet so they do not reach the dismiss area behind it.
                     .clickable(remember { MutableInteractionSource() }, null) {},
             ) {

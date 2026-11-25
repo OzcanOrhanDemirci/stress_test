@@ -85,8 +85,10 @@ fun AppRoot() {
                 holder.SaveableStateProvider(entry.id) {
                     val insets = if (showTabs) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier
                     // On a tablet the screen's content keeps a phone-like width, centred; the ground behind it
-                    // and the bottom bar still fill the window. A run's scene fills it too, so a run is not narrowed.
-                    val width = if (entry.route is Route.Run) Modifier else Modifier.widthIn(max = ContentMaxWidth)
+                    // and the bottom bar still fill the window. A GPU run's surface fills it too, since its size is
+                    // part of the GPU's work; that run caps its own panels. Runs without a surface are narrowed.
+                    val fullWidth = (entry.route as? Route.Run)?.mode?.usesGpu == true
+                    val width = if (fullWidth) Modifier else Modifier.widthIn(max = ContentMaxWidth)
                     Box(Modifier.fillMaxSize().then(insets), contentAlignment = Alignment.TopCenter) {
                         Box(width.fillMaxSize()) {
                             Screen(entry, navigator)
