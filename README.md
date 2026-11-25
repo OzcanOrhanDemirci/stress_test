@@ -16,32 +16,26 @@
 [![Latest release](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=release&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
 [![Licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
 
-**10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · four cinematic scenes at three quality levels · device safety · a PDF report
+**10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · four cinematic scenes at three quality levels · charge test · device safety · a PDF report
 
 **[Download the latest package](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 and above · no permissions, nothing collected
 
-[Install](#install) · [The question](#the-question) · [Results](#results) · [Modes](#modes) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
+[Install](#install) · [Compatibility](#compatibility) · [The question](#the-question) · [Results](#results) · [Modes](#modes) · [Charge test](#charge-test) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
 
 *[Türkçe](README.tr.md)*
 
 <br />
 
-<img src="docs/images/cover.jpg" alt="One frame of each cinematic scene, on the phone: the reactor pool, the rain forest, the white world" width="760" />
+<img src="docs/images/cover.jpg" alt="Three cinematic scenes on the phone: the reactor pool, the rain forest and the white world" width="760" />
 
 </div>
 
 ---
 
-Stress Test is a stress test and benchmark for Android: it runs on any 64-bit
-phone with Android 10 or later. It began on 30 September 2026 as a personal test
-for a single **Honor 400** and grew, with version 0.2.0 on 2 October 2026, into an
-app anyone can use on their own phone. The Honor stayed on as the reference
-device: every number below was measured on it, and every load was chosen against
-those measurements rather than against a generic phone. The choices travel: a
-load that keeps a core's multiply-add units, load path and caches busy at once
-draws the most on the next core design too, so the recipes stayed as they were
-and the app learned to find its way round every other phone: their core count
-and names, their thermal sensors, their GPU drivers.
+Stress Test measures how much power an Android phone draws under load and how
+much reaches its battery while charging. The **Honor 400** is the reference
+device. The power figures below come from that phone, and its measurements
+guided the choice of stress loads.
 
 > [!WARNING]
 > Stress Test runs a phone at full capacity, and the phone gets very hot.
@@ -128,14 +122,15 @@ frequency to the shared budget (A510 / A715 / prime settle near
 | Mode | Load | On the screen | Measured |
 | --- | --- | --- | --- |
 | **Full load** | `fp32_l2` + GPU FP32 burner | a load gauge (the burner keeps the GPU) | **10.1 W** |
-| **Cinematic** | `fp32_l2` + a scene | one of three scenes, chosen on the home screen | 8.9 W with the pool |
-| **CPU** | `fp32_l2` on all eight cores | a gauge | 7.1 W (6.4 W uncooled) |
+| **Cinematic** | `fp32_l2` + a scene | one of four scenes, chosen on the home screen | 8.9 W with the pool |
+| **CPU** | `fp32_l2` on all cores | a gauge | 7.1 W (6.4 W uncooled) |
 | **GPU** | GPU FP32 burner | a load gauge | 5.5 W |
 | **Dry 100 %** | `dry` | a gauge | 2.5 W (uncooled) |
+| **[Charge test](#charge-test)** | phone left idle while charging | power into the battery by charge level | varies with the phone, charger and cable |
 
-<sub>Measured with the phone on a metal plate in front of a fan unless marked uncooled.</sub>
+<sub>Stress-test power was measured on the Honor 400 on a metal plate in front of a fan unless marked uncooled.</sub>
 
-A run lasts 1, 5, 15 or 30 minutes, or until stopped. It starts with 10 seconds at
+A stress run lasts 1, 5, 15 or 30 minutes, or until stopped. It starts with 10 seconds at
 rest to measure what the phone draws doing nothing, then drives the display at
 full brightness and its highest refresh rate, the same way every time, so runs
 compare.
@@ -145,6 +140,28 @@ is a measured decision: with the scene on screen, the burner has no frame time
 left and full load drops to 8.97 W, 88.5 % of the maximum. The rule written
 before the measurement was 97 %, so the scenes became their own mode
 ([docs/PLAN.md](docs/PLAN.md), §13/7).
+
+An optional setting lets the FP32 burner use spare frame time in cinematic tests.
+
+### Charge test
+
+The charge test multiplies battery current by battery voltage and plots the net
+power reaching the battery, in watts, against its charge percentage. The
+charger also powers the phone and covers losses in the charging circuit. The
+test cannot measure either the charger's output or those losses.
+
+Select **Charge test** and leave the phone idle. Choose 5, 15 or 30 minutes, or
+**Until full**. Starting between **20% and 50%** makes differences easier to see
+before the phone slows charging. For a 20-second idle measurement, start
+unplugged and connect the charger when prompted. When power reaches the battery,
+the app adds the measured idle draw, if available, and labels the result **Into
+the phone (estimate)**. The estimate excludes charging-circuit losses. You can
+also start with the charger connected. The test needs usable current and voltage
+readings to show power.
+
+To compare chargers or cables, change one at a time, start at a similar battery
+level and temperature, and compare the curves at the same battery percentage.
+The results are saved in History and can be exported as CSV.
 
 ## The cinematic scenes
 
@@ -169,7 +186,7 @@ over the core start rings that cross, reflect off the pool wall and scatter roun
 the control-rod tubes, and the surface bends the light into caustics on the
 floor. 16,384 GPU particles (rising bubbles, sparks circling the ring), bloom,
 depth of field per shot, and a pulse: once a loop the reactor flashes as a TRIGA
-does. **~48 ms a frame, ~20 fps.**
+does.
 
 ### Forest
 
@@ -183,7 +200,7 @@ instance numbers (vertex pulling), and a fragment shader cuts each card to the
 outline of a spray of needles or a cluster of leaves. The sun's shadow map is
 drawn once; a light pass walks each pixel's ray through the mist against it and
 draws the shafts of light. 8,192 rain streaks catch the light inside the beams,
-and rings spread on the puddles. **~31 to 39 ms a frame, ~25 to 30 fps.**
+and rings spread on the puddles.
 
 ### White
 
@@ -195,7 +212,6 @@ cubes, a glass corridor, a ribbed glass tunnel and a room walled with stacked
 cubes. The glass is thin and pale green-blue, deeper at a slant, so the vast
 white world stays in view through it. No depth of field, no colour fringing, no
 grain, almost no bloom, and a light sharpening on top of the upscale.
-**~38 ms a frame, ~27 fps.**
 
 ### Black hole
 
@@ -210,51 +226,50 @@ starfield doubles around it. Nothing is stored and nothing is sampled; the
 whole scene is the arithmetic of the integration (Runge–Kutta, an adaptive
 step, hashes for the stars and the disk's turbulence). Quality grows the
 fall's step budget, the samples a pixel takes, the disk's turbulence and
-the density of the sky: High winds rays more than twice as long and takes
-two samples a pixel, a few frames a second on a mid-range phone and the
-point. *(The image above is the desktop preview
-running the phone's own shaders; the Honor's frame times for this scene
-await their measurement session.)*
+the density of the sky. High more than doubles the step budget and takes two
+samples a pixel. The image above is the desktop preview running the phone's
+shaders.
 
 ### Graphics quality
 
-Every phone gets a level that loads its GPU fully and still draws something worth
-watching. Medium is the scenes as they were tuned on the Honor 400, a mid-range
-phone; High is for the newest flagships and drops a mid-range phone to a few
-frames a second; Low is for entry-level phones.
+Low renders at 30% of screen resolution and Medium at 45%. High adds detail and
+renders at 65%, or 100% for the forest. The Honor 400 drew all four scenes at
+their requested settings in 15-second lab runs with only the scene active and
+zero errors. Times are in milliseconds per frame. [Measurement log](docs/OLCUMLER.md)
 
-| Level | Resolution | Sampling | Honor 400 GPU time a frame |
-| --- | --- | --- | --- |
-| **Low** | 30 % | half the shadow taps and sunbeam samples | pool 20.8 ms · white 19.7 ms · forest 25.1 ms |
-| **Medium** | 45 % | as tuned | pool 39.6 ms · white 38.0 ms · forest 39.2 ms |
-| **High** | 65 % (forest: 100 %) | two rays a pixel; forest: 16 shadow taps, 24 sunbeam samples, a 4096² shadow map | pool 295 ms · white 200 ms · forest 147 ms |
+| Quality | Pool | Forest | White | Black hole |
+| --- | ---: | ---: | ---: | ---: |
+| **Low** | 25.9 | 26.7 | 20.3 | 12.9 |
+| **Medium** | 48.5 | 41.4 | 38.7 | 25.3 |
+| **High** | 295–311 | 137.6 | 174.2 | 122.3 |
 
-<sub>Scenes alone, CPU idle, GPU timestamps. The sampling counts are Vulkan specialization constants, so Medium compiles to the same work as before.</sub>
+At startup the app checks whether the GPU can draw the requested settings
+without risking a driver reset from a very long frame. If it has to reduce the
+quality or resolution scale, the live test and result show what was drawn. The
+record keeps both settings, and the run is excluded from comparisons and the
+Honor 400 reference line.
 
 ## The app
 
 <img src="docs/images/app.jpg" alt="The home screen with the mode cards and the start button, a cinematic run with its readout, the result screen with its analysis, the settings screen with device safety" width="100%" />
 
-A home screen with the test modes, the scene chooser and its quality, a live
-readout of the battery, the chip and the power; a run screen that keeps the scene
-or the gauge in the middle and the numbers at the edges; a result screen; a
-history; settings. The result of a run shows peak and sustained power, average,
+The interface puts live measurements up front in flat graphite panels. Use the
+four tabs to start a test, open History, inspect the Device readings or change
+Settings. During a stress run, the scene or gauge stays in view with the live
+readings. The result shows peak and sustained power, average,
 idle, energy used, the battery before and after, how long a full battery would
 last at this load, the hottest chip, the CPU and GPU work rates, the scene's frame
 rate, stability and computation errors, then an **analysis** in plain words (when
 the phone first throttled, how much speed it gave up between the first minute and
 the last, how hot the chip and the battery got, how fast the battery drained) and
 charts of power, temperature, clocks, work and frame rate that read out their
-values under a finger. Any two runs can be **compared** side by side, and a run
-leaves the phone as a two-page **PDF report** or its curves as **CSV**. The device
-screen names the phone's processor, cores and GPU and shows what the app may read
-on it. The text is in English and Turkish: the app follows the phone's language
-unless one is picked in the settings (from Android 13 also in the phone's own
-per-app language settings).
-
-The screenshots above were taken with the charger connected, which is why the
-power fields read *charging*: while charging, the battery's current says nothing
-about what the phone draws, and the app refuses to show it.
+values under a finger. Eligible stress runs can be **compared** side by side.
+Stress results can be exported as a two-page **PDF report** or as **CSV**.
+Where a bundled Honor 400 measurement is available, the result includes it for
+reference. The pool reference was measured at Medium with the extra burner off.
+History keeps the newest 200 tests. The app follows the phone's language unless English or
+Turkish is selected in Settings or, on Android 13 and later, in the phone's
+per-app language settings.
 
 ## Install
 
@@ -265,12 +280,29 @@ about what the phone draws, and the app refuses to show it.
 3. Open it on the phone, and allow installing from that source when Android
    asks.
 
-It needs a 64-bit phone with Android 10 or later; the GPU and cinematic modes
-also need Vulkan 1.1, which every such phone has. The app asks for no
+See [Compatibility](#compatibility) for phone requirements. The app asks for no
 permissions and cannot reach the network. A package built from this source
 without the release key is signed with a debug key, and the two cannot update
 each other: uninstall one before installing the other, which also removes its
 run history.
+
+## Compatibility
+
+Stress Test is designed for 64-bit ARM phones (`arm64-v8a`) with **Android 10 or
+later**. The compatibility work covers Snapdragon/Adreno, MediaTek and Exynos
+devices with Mali, Google Tensor, Exynos with Xclipse, and PowerVR GPUs. GPU-based
+tests, including Full load and Cinematic, need a usable Vulkan 1.1 or newer
+driver. Without one, the CPU and charge tests are still available.
+
+The app works out how the battery gauge reports current, checks vendor-specific
+thermal zones and performance counters, and adapts to differences in CPU
+instructions and Vulkan drivers. When a reading is missing or unusable, the app
+shows **—**. The **Device** tab explains what the phone lets the app read and why
+a reading is missing, for example when the driver exposes no GPU counter.
+
+The **Honor 400 is the only phone tested in hand**. Compatibility elsewhere is
+based on code review and known vendor differences. There was no device farm or
+paid testing.
 
 ## Device safety
 
@@ -317,7 +349,8 @@ trusted:
   every 30 seconds or so; the voltage arrives only with the battery broadcast,
   about as often. A unit assumption here once made the battery-life estimate
   wrong by a factor of a thousand.
-- Any sample taken while plugged in is marked invalid.
+- A plugged-in sample is invalid for measuring power drawn from the battery.
+  The [charge test](#charge-test) measures power in the other direction.
 
 A sampler reads power, every thermal zone, the frequency of each cluster and the
 GPU's busy counter ten times a second and keeps a bounded log.
@@ -368,9 +401,10 @@ app/src/main
 │   ├── safety/      device safety: limits, findings, the monitor
 │   ├── settings/    the user's choices
 │   ├── run/         a stress run: modes, the controller, analysis, records and their store
+│   ├── charge/      charge sessions, battery power and analysis
 │   ├── report/      the PDF report and the CSV
 │   ├── lab/         self-running comparison sessions: specs, runner, analysis, CSV
-│   └── ui/          Compose: navigation, components, home, run, result, compare, history, settings, device
+│   └── ui/          Compose: navigation, components, home, run, result, charge, compare, history, settings, device
 └── cpp
     ├── cpu/         the kernels (generated AArch64 assembly), their table, the worker threads
     ├── gpu/         the Vulkan helpers, the burner engine, the cinematic scene renderer
@@ -403,42 +437,39 @@ with the measurement that settled it; the measurements themselves are in
 | | |
 | --- | --- |
 | **One criterion: watts** | Not "100 %", not a score. A load wins only by drawing more measured power from the battery. |
-| **From one phone to every Android phone (0.2.0)** | Began as a personal test for one phone; the recipes measured there stay, and the app finds its way round every other phone. |
+| **From one reference phone to 64-bit Android (0.2.0)** | The app detects each phone's core layout and sensors while keeping the loads chosen on the Honor 400. |
 | **Device safety, on by default (0.2.0)** | Replaced "no protections". Limits above the phone's throttling point; off is a choice, confirmed. |
 | **A report to take away (0.2.0)** | Replaced "no export": the analysis stays on the phone, and a PDF or CSV can leave it. |
 | **Scenes are their own mode** | A scene drew 88.5 % of full load against a 97 % rule written before the measurement. |
 | **Compute-heavy, memory-light effects** | Measured ~1 TFLOPS against ~16 GB/s: ray marching, procedural geometry and a shadow map drawn once, not big textures. |
-| **A gauge, not a trefoil** | With three scenes the app reads as a benchmark, not a reactor. |
+| **A gauge for the stress tests** | With four scenes, the app's identity covers more than the original reactor pool. |
 | **Off-chip loads left to the user** | The torch, the modem or the camera can be switched on by hand during a run; the recipes stay on the chip. |
 
 ## What is verified
 
 ```bash
-./gradlew testDebugUnitTest            # 103 JVM tests
+./gradlew testDebugUnitTest            # JVM tests
 ./gradlew lintDebug                    # Android Lint, errors fail the build
-./gradlew connectedDebugAndroidTest    # 19 tests on the phone
+./gradlew connectedDebugAndroidTest    # tests on a connected phone
 ```
 
-The JVM tests cover the power arithmetic (unit and sign inference, windowed
-statistics, voltage units, power from the charge counter), the workload grammar
-on any CPU count, the lab specification, sample logs, core names and cluster
-roles, other vendors' thermal zone names, device safety's limits and timing, the
-findings and comparisons, the CSV, that runs stored by 0.1.0 still load, that
-both languages have the same strings with the same arguments, and formatting. The tests on the phone check what only the phone can: that every
-kernel's digest repeats exactly across runs and core types and changes with the
-work done, that every core burns pinned and without errors, that every GPU
-burner runs without errors and fills its frame, that **every scene at every
-quality** starts and draws frames, that the sensor layout is discoverable, and that every mode's
-recipe is a valid workload on the phone's real kernel and burner tables.
+JVM tests cover battery power and current conventions, charge-test phases and
+analysis, vendor sensor names, safety limits, run failures, comparisons, CSV
+and loading old records. The telemetry changes were also checked by replaying
+104 archived Honor 400 lab runs. That replay used existing measurements.
+
+The instrumented suite checks CPU work, GPU burners, scene rendering, sensor
+discovery and load recipes on a connected phone. In the 0.3.0 lab checks on the
+Honor 400, all four scenes reached the requested settings at Low, Medium and
+High with zero errors. Compatibility on other models was assessed on paper.
+The charging test has automated coverage. Measurements with real chargers and
+cables are pending. [Measurement log](docs/OLCUMLER.md)
 
 Warnings are errors throughout: Kotlin, C++ (`-Wall -Wextra -Wshadow
 -Wconversion -Werror`) and the shader compiler (`glslc -Werror`).
 
-The build, the JVM tests and Lint run on every push and pull request
-([the pipeline](.github/workflows/ci.yml)), on a build server with the same
-pinned NDK. The tests on the phone cannot: a build server has no ARM phone with
-a Vulkan GPU, so they are run on a phone whenever a change touches the native
-code, the shaders or the engines.
+The build, JVM tests and Lint run in CI with the pinned NDK. The instrumented
+suite needs a separate run on a connected phone. [CI workflow](.github/workflows/ci.yml)
 
 ## Building
 
@@ -448,12 +479,9 @@ cd stress_test
 ./gradlew :app:installRelease
 ```
 
-Requires JDK 17 or newer to run Gradle (the one bundled with Android Studio
-works), Android SDK Platform 36, NDK 29.0.14206865 and CMake 4.1.2; the
-shaders are compiled with the NDK's `glslc`. The build targets `arm64-v8a`
-only, and `minSdk` is 29 (Android 10, where every 64-bit phone has Vulkan 1.1;
-without it the GPU and cinematic modes are switched off and the CPU modes still
-run).
+Use JDK 21 as in CI, Android SDK Platform 37.1, NDK 29.0.14206865 and
+CMake 4.1.2. The shaders are compiled with the NDK's `glslc`. The build targets `arm64-v8a`
+only, and `minSdk` is 29 (Android 10).
 
 A release build is signed with a key that is never committed and is read either
 from an ignored `keystore.properties` or from the environment. When neither is
@@ -483,11 +511,11 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 | Concern | Choice |
 | --- | --- |
-| App | Kotlin 2.4.20, Jetpack Compose with Material 3, coroutines, kotlinx.serialization; Space Grotesk and JetBrains Mono (SIL OFL 1.1) |
+| App | Kotlin 2.4.20, Jetpack Compose with Material 3, coroutines, kotlinx.serialization, Space Grotesk, Instrument Sans and Space Mono |
 | Native | C++20 and AArch64 assembly through the NDK and CMake, JNI |
 | Graphics | Vulkan 1.1 (1.2 features where present), GLSL compiled to SPIR-V 1.3 at build time and embedded |
 | Build | Gradle 9.8.0, Android Gradle Plugin 9.4.1 |
-| SDK | compile and target 36 (Android 16), minimum 29 (Android 10) |
+| SDK | compile 37.1, target 36 (Android 16), minimum 29 (Android 10) |
 | Tools | Node.js (lab sessions), Python with moderngl (scene preview, kernel generator) |
 
 ## Releasing
@@ -495,7 +523,7 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 Pushing a tag builds, tests, signs and publishes:
 
 ```bash
-git tag -a v0.2.0 -m "Stress Test 0.2.0" && git push origin v0.2.0
+git tag -a v0.3.0 -m "Stress Test 0.3.0" && git push origin v0.3.0
 ```
 
 The pipeline refuses to publish a tag that disagrees with the version declared
@@ -514,6 +542,7 @@ full procedure, including what happens to the signing key, is in
 | [SECURITY.md](SECURITY.md) | What this app can reach, and how to report a problem privately. |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | The Contributor Covenant. |
 | [docs/RELEASE.md](docs/RELEASE.md) | How a release is cut, and what happens to the key. |
+| [docs/DESIGN.md](docs/DESIGN.md) | The 0.3.0 interface design. |
 | [docs/FDROID.md](docs/FDROID.md) | The path to F-Droid, and the reproducible build. |
 | [docs/NPU.md](docs/NPU.md) | The sketch for the NPU load the plan's phase 6 asks for. |
 | [docs/PLAN.md](docs/PLAN.md) | The plan, the reference phone's measured facts and every decision, in Turkish. |
@@ -524,16 +553,14 @@ there is an issue form for them.
 
 ## Status
 
-**Version 0.2.0.** Begun on 30 September 2026 as a personal test for one phone,
-Stress Test became a stress test and benchmark for Android phones with 0.2.0 on
-2 October 2026: it runs on every 64-bit phone with Android 10 or later and adds
-device safety, a report, comparisons, graphics quality levels and an English and
-Turkish interface.
+**Source version 0.3.0.** This version brings the redesigned interface, the
+charge test, the black hole scene and better handling of differences between
+phones. [Changelog](CHANGELOG.md#030--2026-11-26)
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE). The bundled Space Grotesk and JetBrains Mono
-typefaces are used under the SIL Open Font License 1.1; their terms are in
+MIT. See [LICENSE](LICENSE). Space Grotesk, Instrument Sans, Space Mono and the
+PDF's JetBrains Mono are bundled under the SIL Open Font License 1.1. See
 [docs/licenses](docs/licenses).
 
 ## Author
