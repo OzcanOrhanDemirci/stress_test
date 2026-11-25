@@ -24,6 +24,8 @@ data class ClusterLive(
     val maxKhz: Long,
     /** Work per second of the cluster's burner threads, in [LiveView.unit]. */
     val rate: Double?,
+    /** Running burner threads assigned to this cluster. */
+    val threads: Int,
 ) {
     /** Clock as a share of the top clock, 0..1. */
     val load: Float? get() = khz?.takeIf { maxKhz > 0 }?.let { (it.toFloat() / maxKhz).coerceIn(0f, 1f) }
@@ -117,6 +119,7 @@ data class LiveView(
             val seconds = (last.timeNanos - first.timeNanos) / 1e9
             val rates = if (seconds > 0) WorkRate.perCpu(first.cpu, last.cpu, seconds) else null
             val running = last.cpu.workers.firstNotNullOfOrNull { it.kernel }
+            val activeCpus = last.cpu.workers.filter { it.isRunning }.map { it.cpu }.toSet()
             val roles = ClusterRole.of(layout.clusters, layout.cpuCount)
 
             return LiveView(
@@ -139,6 +142,7 @@ data class LiveView(
                         rate = rates?.let { r ->
                             cluster.cpus.mapNotNull { r.getOrNull(it) }.takeIf { it.isNotEmpty() }?.sum()
                         },
+                        threads = cluster.cpus.count { it in activeCpus },
                     )
                 },
                 temperatures = last.sysfs.temperatures,

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="run_recording">Recording</string>
+    <string name="run_remaining">%1$s left</string>
+    <string name="run_unavailable">The phone did not provide the readings marked —.</string>
+    <string name="run_unavailable_charging">Battery power is unavailable while charging, and the phone may leave some sensor readings blank.</string>
+    <plurals name="run_threads">
+        <item quantity="one">%1$d thread</item>
+        <item quantity="other">%1$d threads</item>
+    </plurals>
+    <string name="run_workload">Workload</string>
+    <string name="run_cpu_kernel">CPU kernel</string>
+    <string name="run_gpu_burner">GPU burner</string>
+    <string name="run_gpu_idle">Idle</string>
+    <string name="run_gpu_running">Running</string>
+    <string name="run_gpu_failed">Failed</string>
+    <string name="run_gpu_unknown">—</string>
+    <string name="run_chart_chip">Chip temperature</string>
+    <string name="run_live_chart">Live readings</string>
+    <string name="run_peak">Peak %1$s</string>
+</resources>
