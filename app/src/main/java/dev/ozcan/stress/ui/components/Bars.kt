@@ -37,7 +37,10 @@ import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressMotion
 import dev.ozcan.stress.ui.theme.StressType
 
-/** A title and optional Code [caption]. Supply [brand] for the home wordmark and [actions] for end controls. */
+/**
+ * A title and optional Code [caption]. Supply [brand] for the home wordmark and [actions] for end controls.
+ * [supporting] adds a line below the caption block when a screen has a live status or notice.
+ */
 @Composable
 fun TopBar(
     title: String = "",
@@ -45,6 +48,7 @@ fun TopBar(
     caption: String? = null,
     onBack: (() -> Unit)? = null,
     brand: (@Composable () -> Unit)? = null,
+    supporting: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Column(modifier.fillMaxWidth()) {
@@ -67,6 +71,7 @@ fun TopBar(
         if (brand != null && caption != null) {
             BarCaption(caption, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
         }
+        if (supporting != null) Box(Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)) { supporting() }
         Hairline()
     }
 }

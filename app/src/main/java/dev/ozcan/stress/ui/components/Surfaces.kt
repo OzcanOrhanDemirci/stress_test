@@ -196,19 +196,23 @@ fun MeterBar(fraction: Float, modifier: Modifier = Modifier, color: Color = Stre
     }
 }
 
-/** A sentence with a right-aligned verdict [value] and an optional divider below. */
+/** A sentence, with optional [detail] below it and a right-aligned verdict [value] when one is measured. */
 @Composable
 fun InsightRow(
     text: String,
-    value: String,
+    value: String?,
     modifier: Modifier = Modifier,
     valueColor: Color = StressColors.Text,
     divider: Boolean = true,
+    detail: String? = null,
 ) {
     Column(modifier.fillMaxWidth()) {
         Row(Modifier.padding(vertical = 8.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
-            Text(text, Modifier.weight(1f), style = StressType.Body)
-            Text(value, style = NumberStyles.Small, color = valueColor)
+            Column(Modifier.weight(1f), Arrangement.spacedBy(4.dp)) {
+                Text(text, style = StressType.Body, color = if (value == null) valueColor else StressColors.Text)
+                if (detail != null) Text(detail, style = StressType.BodySmall, color = StressColors.TextDim)
+            }
+            if (value != null) Text(value, style = NumberStyles.Small, color = valueColor)
         }
         if (divider) Hairline()
     }
