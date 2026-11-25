@@ -25,8 +25,8 @@
     <string name="compare_verdict_peak_more">B reached %1$s higher peak power than A.</string>
     <string name="compare_verdict_peak_less">B reached %1$s lower peak power than A.</string>
     <string name="compare_verdict_same">A and B drew the same power.</string>
-    <string name="compare_verdict_hotter">Its hottest chip ran %1$s hotter.</string>
-    <string name="compare_verdict_cooler">Its hottest chip ran %1$s cooler.</string>
+    <string name="compare_verdict_hotter">B\'s hottest chip ran %1$s hotter.</string>
+    <string name="compare_verdict_cooler">B\'s hottest chip ran %1$s cooler.</string>
 
     <string name="charge_compare_verdict_more">Setup B delivered %1$s more sustained power to the battery than A.</string>
     <string name="charge_compare_verdict_less">Setup B delivered %1$s less sustained power to the battery than A.</string>
