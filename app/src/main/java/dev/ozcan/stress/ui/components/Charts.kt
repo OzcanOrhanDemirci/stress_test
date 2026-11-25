@@ -98,6 +98,12 @@ private val AxisEnd = 12.dp
 private val UnitAxisWidth = 60.dp
 
 /**
+ * The height of a simple page's one chart in a panel [width] wide: 100 dp on a 360 dp phone, growing with the width
+ * so a tablet's curve is not a thin ribbon, and at most 220 dp.
+ */
+fun simpleChartHeight(width: Dp): Dp = (width * 0.33f).coerceIn(100.dp, 220.dp)
+
+/**
  * A time plot over [seconds], with the axis for the primary series and null readings drawn as gaps.
  * Touch or drag to inspect a sample in the strip above the plot. Use [SegmentedControl] to
  * switch series above the chart, and a [ChartSeries.range] for an independent secondary scale.

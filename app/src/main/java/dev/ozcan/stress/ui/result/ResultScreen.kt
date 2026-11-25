@@ -89,7 +89,8 @@ import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.Temperatures
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TimeChart
-import dev.ozcan.stress.ui.components.TopBar as DesignTopBar
+import dev.ozcan.stress.ui.components.simpleChartHeight
+import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
@@ -351,13 +352,16 @@ private fun PowerCurve(record: RunRecord) {
     Panel(Modifier.fillMaxWidth(), padding = 12.dp) {
         Stack(spacing = 8) {
             SectionLabel(title, caption = Format.clock(record.loadSeconds))
-            if (power) {
-                TimeChart(
-                    series.seconds, listOf(ChartSeries(title, StressColors.Accent, series.watts, "W")), "W",
-                    height = 100.dp, yMin = 0.0, decimals = Format.WATT_DECIMALS,
-                )
-            } else {
-                TimeChart(series.seconds, listOf(ChartSeries(title, StressColors.Cool, chip, "°C")), "°C", height = 100.dp)
+            BoxWithConstraints {
+                val height = simpleChartHeight(maxWidth)
+                if (power) {
+                    TimeChart(
+                        series.seconds, listOf(ChartSeries(title, StressColors.Accent, series.watts, "W")), "W",
+                        height = height, yMin = 0.0, decimals = Format.WATT_DECIMALS,
+                    )
+                } else {
+                    TimeChart(series.seconds, listOf(ChartSeries(title, StressColors.Cool, chip, "°C")), "°C", height = height)
+                }
             }
         }
     }
