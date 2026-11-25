@@ -312,7 +312,8 @@ private fun compareValues(context: Context, a: RunRecord, b: RunRecord): List<Co
         CompareValue(
             if (symbol != null) "$name ($prefix$symbol)" else name,
             format(row.metric, row.a, scale), format(row.metric, row.b, scale),
-            delta(context, row), changeColor(row.change, row.metric.higherIsBetter),
+            // A difference that shows as zero ("0 sn") reads as no change, not as better or worse.
+            delta(context, row), changeColor(row.change.takeUnless { row.shownDifference == 0.0 }, row.metric.higherIsBetter),
         )
     }
     val drainA = batteryDrain(a)
