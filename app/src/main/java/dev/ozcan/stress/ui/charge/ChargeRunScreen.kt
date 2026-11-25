@@ -51,6 +51,7 @@ import dev.ozcan.stress.ui.components.StopButton
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.minutesText
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
@@ -154,7 +155,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
                         battery?.plugType?.let { stringResource(plugLabel(it)) } ?: Format.MISSING,
                     )
                     state.remainingMillis?.let {
-                        InfoRow(stringResource(R.string.charge_full_estimate), Format.clock(it / 1000.0))
+                        InfoRow(stringResource(R.string.charge_full_estimate), minutesText(context(), it / 60_000))
                     }
                 }
             }

@@ -91,6 +91,7 @@ import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
 import dev.ozcan.stress.ui.context
+import dev.ozcan.stress.ui.hoursText
 import dev.ozcan.stress.ui.run.DrawnQualityNotice
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
@@ -628,11 +629,4 @@ private fun ReportActions(record: RunRecord, insights: List<Insight>) {
             )
         }
     }
-}
-
-/** 2.52 h -> "2 h 31 min" in the screen's language. */
-fun hoursText(context: android.content.Context, hours: Double): String {
-    val minutes = (hours * 60).toLong()
-    return if (minutes >= 60) context.getString(R.string.hours_minutes, minutes / 60, minutes % 60)
-    else context.getString(R.string.minutes_only, minutes)
 }

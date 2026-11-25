@@ -1,5 +1,7 @@
 package dev.ozcan.stress.ui
 
+import android.content.Context
+import dev.ozcan.stress.R
 import java.util.Locale
 
 /**
@@ -76,6 +78,14 @@ object Format {
     /** An axis label: "0:00", "2:30", "1:05:00". */
     fun elapsedShort(seconds: Double): String = clock(seconds)
 }
+
+/** A whole number of minutes, written as hours and minutes when needed. */
+fun minutesText(context: Context, minutes: Long): String =
+    if (minutes >= 60) context.getString(R.string.hours_minutes, minutes / 60, minutes % 60)
+    else context.getString(R.string.minutes_only, minutes)
+
+/** 2.52 h -> "2 h 31 min" in the screen's language. */
+fun hoursText(context: Context, hours: Double): String = minutesText(context, (hours * 60).toLong())
 
 /** Dates in the device's language. */
 object Dates {
