@@ -401,9 +401,11 @@ private fun LazyListScope.compareLog(context: Context, a: RunRecord, b: RunRecor
     }
     val missing = values.any { it.a == Format.MISSING || it.b == Format.MISSING }
 
+    val verdict = verdict(context, a, b)
     logSection(context.getString(R.string.compare_summary)) {
-        item(key = "verdict") { Text(verdict(context, a, b), Modifier.padding(vertical = 6.dp), style = StressType.Body) }
-        item(key = "peak") { LogNote(peakLine) }
+        item(key = "verdict") { Text(verdict, Modifier.padding(vertical = 6.dp), style = StressType.Body) }
+        // Without power in both runs the verdict already says peak power needs both; it is said once.
+        if (peakLine != verdict) item(key = "peak") { LogNote(peakLine) }
     }
     logSection(
         context.getString(R.string.compare_metrics),
