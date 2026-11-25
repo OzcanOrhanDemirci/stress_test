@@ -180,7 +180,7 @@ struct GpuLoad::Renderer {
     SceneDraw currentDraw;
     SceneDraw lowestDraw;
     // Publish both settings together so a snapshot cannot mix two completed frames.
-    std::atomic<uint32_t> sceneDraws{0};
+    std::atomic<uint64_t> sceneDraws{0};
     SceneRenderer::Quality requestedQuality = SceneRenderer::Quality::Medium;
     float requestedScale = 0.45f;
     uint32_t probeFrames = 0;
@@ -468,6 +468,7 @@ struct GpuLoad::Renderer {
         startSceneStep("initial probe");
         sceneSettled = false;
         settleAfterDraw = nullptr;
+        publishSceneDraws();
     }
 
     void startSceneStep(const char* reason) {
@@ -486,7 +487,8 @@ struct GpuLoad::Renderer {
     }
 
     void publishSceneDraws() {
-        sceneDraws.store((lowestDraw.packed() << 16) | currentDraw.packed(), std::memory_order_relaxed);
+        sceneDraws.store((uint64_t{sceneSettled} << 32) | (lowestDraw.packed() << 16) | currentDraw.packed(),
+                         std::memory_order_relaxed);
     }
 
     void settleScene(const char* reason) {
@@ -499,6 +501,7 @@ struct GpuLoad::Renderer {
     }
 
     void collectSceneDraw() {
+        if (currentDraw == sceneSettings && !settleAfterDraw) return;
         if (currentDraw != sceneSettings) {
             currentDraw = sceneSettings;
             LOGI("scene draw: quality %d at %.2f%% scale (%s)", static_cast<int>(currentDraw.quality),
@@ -1273,9 +1276,10 @@ struct GpuLoad::Renderer {
         out[kFieldBurnerNanos] = burnerTotalNanos.load(std::memory_order_relaxed);
         out[kFieldVisibleNanos] = visibleTotalNanos.load(std::memory_order_relaxed);
         out[kFieldTimed] = currentState == kStateRunning && timed ? 1 : 0;
-        const uint32_t draws = sceneDraws.load(std::memory_order_relaxed);
-        writeSceneDraw(out, kFieldSceneQuality, kFieldSceneScale, draws & 0xffff);
-        writeSceneDraw(out, kFieldLowestSceneQuality, kFieldLowestSceneScale, draws >> 16);
+        const uint64_t draws = sceneDraws.load(std::memory_order_relaxed);
+        writeSceneDraw(out, kFieldSceneQuality, kFieldSceneScale, static_cast<uint32_t>(draws & 0xffff));
+        writeSceneDraw(out, kFieldLowestSceneQuality, kFieldLowestSceneScale, static_cast<uint32_t>((draws >> 16) & 0xffff));
+        out[kFieldSceneProbeSettled] = static_cast<int64_t>(draws >> 32);
     }
 
     void verify(uint32_t slot, uint32_t count) {
