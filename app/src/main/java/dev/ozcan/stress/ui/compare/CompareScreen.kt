@@ -49,6 +49,7 @@ import dev.ozcan.stress.ui.components.LogTag
 import dev.ozcan.stress.ui.components.Panel
 import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.components.TopBar
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.StressColors
@@ -105,22 +106,21 @@ fun CompareScreen(first: String, second: String, onBack: () -> Unit) {
     val title = stringResource(R.string.compare_title)
     val ctx = context()
 
-    if (engineering && (outcome is Outcome.Load || outcome is Outcome.Charge)) {
+    TwoPages(engineering && (outcome is Outcome.Load || outcome is Outcome.Charge), engineeringPage = {
         EngineeringPage(title, onBack = { engineering = false }) {
             if (outcome is Outcome.Load) compareLog(ctx, outcome.a, outcome.b)
             if (outcome is Outcome.Charge) chargeCompareLog(ctx, outcome.a, outcome.b)
         }
-        return
-    }
-
-    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TopBar(title = title, modifier = Modifier.statusBarsPadding(), onBack = onBack)
-        when (outcome) {
-            is Outcome.Refused -> Refusal(outcome.reason)
-            Outcome.Loading -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
-            Outcome.Mixed -> ChargeLoadComparisonMessage()
-            is Outcome.Charge -> ChargeCompare(outcome.a, outcome.b, onEngineering = { engineering = true })
-            is Outcome.Load -> SimplePage(outcome.a, outcome.b, onEngineering = { engineering = true })
+    }) {
+        Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+            TopBar(title = title, modifier = Modifier.statusBarsPadding(), onBack = onBack)
+            when (outcome) {
+                is Outcome.Refused -> Refusal(outcome.reason)
+                Outcome.Loading -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
+                Outcome.Mixed -> ChargeLoadComparisonMessage()
+                is Outcome.Charge -> ChargeCompare(outcome.a, outcome.b, onEngineering = { engineering = true })
+                is Outcome.Load -> SimplePage(outcome.a, outcome.b, onEngineering = { engineering = true })
+            }
         }
     }
 }

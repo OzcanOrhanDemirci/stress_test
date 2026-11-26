@@ -48,6 +48,7 @@ import dev.ozcan.stress.ui.components.Stack
 import dev.ozcan.stress.ui.components.Temperatures
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TopBar
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
@@ -114,7 +115,7 @@ fun DeviceScreen() {
     var engineering by rememberSaveable { mutableStateOf(false) }
 
     val blocks = deviceLog(device, live, model)
-    if (engineering) {
+    TwoPages(engineering, engineeringPage = {
         EngineeringPage(stringResource(R.string.device_title), onBack = { engineering = false }) {
             // Indexed keys: two clusters can share a role and so a title.
             blocks.forEachIndexed { index, block ->
@@ -125,7 +126,7 @@ fun DeviceScreen() {
                 }
             }
         }
-    } else {
+    }) {
         SimplePage(device, live, model) { engineering = true }
     }
 }
