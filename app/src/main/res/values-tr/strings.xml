@@ -252,8 +252,8 @@
     <string name="export_csv">Veri (CSV)</string>
     <string name="export_share_title">Paylaş</string>
     <string name="export_failed">Rapor yazılamadı</string>
-    <string name="report_title">Koşu raporu</string>
-    <string name="report_run_id">Koşu %1$s</string>
+    <string name="report_title">Test raporu</string>
+    <string name="report_run_id">Test %1$s</string>
     <string name="report_section_test">Test</string>
     <string name="report_section_device">Cihaz</string>
     <string name="report_section_results">Sonuçlar</string>
