@@ -2,6 +2,7 @@ package dev.ozcan.stress.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.slideInVertically
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +56,7 @@ import dev.ozcan.stress.R
 import dev.ozcan.stress.safety.SafetyLevel
 import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.ui.Format
+import dev.ozcan.stress.ui.nav.pageTransition
 import dev.ozcan.stress.ui.theme.ContentMaxWidth
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
@@ -66,19 +69,40 @@ import kotlin.math.min
 /*
  * The engineering page and its log (DESIGN "Two pages per screen", "The log's grammar").
  *
- * A screen keeps the page as in-screen state, no navigation route:
+ * A screen keeps the page as in-screen state, no navigation route, and moves between its two pages with [TwoPages]:
  *
  *     var engineering by rememberSaveable { mutableStateOf(false) }
- *     if (engineering) EngineeringPage(title, onBack = { engineering = false }) {
- *         logSection("Thermal", summary = "14 ZONES", note = reasonForMissing) {
- *             item { LogLine("CPU", Format.number(cpu, 1), "°C", Temperatures.chip(cpu)) }
+ *     TwoPages(engineering, engineeringPage = {
+ *         EngineeringPage(title, onBack = { engineering = false }) {
+ *             logSection("Thermal", summary = "14 ZONES", note = reasonForMissing) {
+ *                 item { LogLine("CPU", Format.number(cpu, 1), "°C", Temperatures.chip(cpu)) }
+ *             }
+ *             logSection("Power") { item { TimeChart(...) } }   // a chart is an item of its own
  *         }
- *         logSection("Power") { item { TimeChart(...) } }   // a chart is an item of its own
- *     } else SimplePage(..., onEngineering = { engineering = true })
+ *     }) { SimplePage(..., onEngineering = { engineering = true }) }
  *
  * The run screen uses [EngineeringSheet] instead, so the scene keeps running behind it.
  * Lines carry no horizontal padding: the page and the sheet give the 16 dp margin.
  */
+
+/**
+ * A screen's simple page, or its engineering page while [engineering]; the change between them is the app's page
+ * transition ([pageTransition]). Each page keeps its saved state (its scroll) while the other is shown.
+ */
+@Composable
+fun TwoPages(engineering: Boolean, engineeringPage: @Composable () -> Unit, simplePage: @Composable () -> Unit) {
+    val holder = rememberSaveableStateHolder()
+    AnimatedContent(
+        engineering,
+        Modifier.fillMaxSize(),
+        transitionSpec = { pageTransition(forward = targetState) },
+        label = "two pages",
+    ) { shown ->
+        holder.SaveableStateProvider(shown) {
+            if (shown) engineeringPage() else simplePage()
+        }
+    }
+}
 
 /**
  * A full page for a screen's engineering view: top bar with [title], the `ENGINEERING` caption and a back arrow,

@@ -92,6 +92,7 @@ import dev.ozcan.stress.ui.components.windowBand
 import dev.ozcan.stress.ui.components.simpleChartHeight
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
@@ -140,23 +141,22 @@ fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit)
     val log = remember(loaded, context) {
         record?.let { if (it.isCharge) chargeLog(context, it) else resultLog(context, it, insights) }.orEmpty()
     }
-    if (engineering && record != null) {
+    TwoPages(engineering && record != null, engineeringPage = {
         EngineeringPage(stringResource(R.string.result_title), onBack = { engineering = false }) { logBlocks(log) }
-        return
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        ResultTopBar(record, onBack, model, onCompare)
-        when {
-            loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
-            record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
-            record.isCharge -> {
-                ChargeResult(record, { engineering = true }, Modifier.weight(1f))
-                ReportActions(record, emptyList())
-            }
-            else -> {
-                ResultBody(record, insights, { engineering = true }, Modifier.weight(1f))
-                ReportActions(record, insights)
+    }) {
+        Column(Modifier.fillMaxSize()) {
+            ResultTopBar(record, onBack, model, onCompare)
+            when {
+                loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
+                record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
+                record.isCharge -> {
+                    ChargeResult(record, { engineering = true }, Modifier.weight(1f))
+                    ReportActions(record, emptyList())
+                }
+                else -> {
+                    ResultBody(record, insights, { engineering = true }, Modifier.weight(1f))
+                    ReportActions(record, insights)
+                }
             }
         }
     }
