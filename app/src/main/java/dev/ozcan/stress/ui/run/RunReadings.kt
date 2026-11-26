@@ -56,7 +56,6 @@ import dev.ozcan.stress.run.RunState
 import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.safety.SafetyCheck
 import dev.ozcan.stress.safety.SafetyLevel
-import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
@@ -70,14 +69,13 @@ import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StopButton
 import dev.ozcan.stress.ui.components.Temperatures
 import dev.ozcan.stress.ui.components.TimeChart
+import dev.ozcan.stress.ui.components.withInfinity
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.ContentMaxWidth
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
 import dev.ozcan.stress.ui.upper
-
-private val Limits = SafetyLimits()
 
 /** The chart's own width from which the run's live chart fills the middle of the page (tablets). */
 private val WIDE_CHART = 560.dp
@@ -156,7 +154,7 @@ private fun RunStatusLine(scene: Boolean, elapsed: Double, total: Double?, safet
         ) {
             RecordingDot()
             Text(
-                "${Format.clock(elapsed)} / ${total?.let(Format::clock) ?: stringResource(R.string.duration_endless)}",
+                withInfinity("${Format.clock(elapsed)} / ${total?.let(Format::clock) ?: stringResource(R.string.duration_endless)}"),
                 style = NumberStyles.Small, color = StressColors.Text, maxLines = 1,
             )
             Spacer(Modifier.weight(1f))
@@ -184,7 +182,7 @@ private fun RunProtection(check: SafetyCheck, enabled: Boolean) {
         // The finding itself is the notice line's; the chip only turns to its colour.
         val ok = check.level == SafetyLevel.Ok
         StatusChip(
-            stringResource(R.string.home_protection_limit, Limits.chipStop.toInt()),
+            stringResource(R.string.protection_chip),
             safetyColor(check.level), icon = if (ok) Icons.Rounded.Shield else Icons.Rounded.Warning,
         )
     }
