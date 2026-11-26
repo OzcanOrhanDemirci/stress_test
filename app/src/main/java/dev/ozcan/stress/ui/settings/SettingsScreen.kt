@@ -1,10 +1,5 @@
 package dev.ozcan.stress.ui.settings
 
-import android.app.Activity
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.ContextWrapper
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -271,7 +266,7 @@ private fun QualityRow(quality: SceneQuality, onSelect: (SceneQuality) -> Unit) 
     )
 }
 
-/** Picking a language recreates the activity and keeps the open tab. */
+/** Picking a language redraws the app in it in place, on the same screen. */
 @Composable
 private fun LanguageRow() {
     val context = context()
@@ -290,10 +285,10 @@ private fun LanguageRow() {
                     if (picked != language) {
                         language = picked
                         pending?.cancel()
-                        // Allow the selected state to appear before recreating the activity.
+                        // Allow the selected state to appear before the texts change.
                         pending = scope.launch {
                             delay(150)
-                            context.findActivity()?.let { AppLanguages.set(it, picked) }
+                            AppLanguages.set(context, picked)
                         }
                     }
                 },
@@ -315,12 +310,6 @@ private fun languageDetail(language: AppLanguage): String {
     } else {
         stringResource(R.string.settings_language_unsupported, name)
     }
-}
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
 
 private const val DEVELOPER = "Özcan Orhan Demirci"
