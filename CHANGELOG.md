@@ -10,6 +10,16 @@ signed package through the release pipeline described in
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-26
+
+The first stable version. Stress Test is an engineering tool for examining an
+Android phone's power, heat and performance under load, not a game or an app
+for entertainment, and with this version it has everything it was planned to
+have: six modes including the charge test, five cinematic scenes at three
+quality levels, device safety, and the analysis with its PDF and CSV report.
+The Honor 400 remains the reference device and the only phone used for
+real-device checks.
+
 ### Added
 
 - **A fifth cinematic scene, the northern lights.** A polar night in a fjord:
@@ -19,7 +29,25 @@ signed package through the release pipeline described in
   a ray gathers through it is computed exactly rather than sampled, so folds
   seen edge-on glow brighter and nothing flickers between frames. Higher
   quality uses more steps, more mountain detail and, at High, two samples a
-  pixel. The desktop preview supports `--scene aurora` and `--quality`.
+  pixel. On the Honor 400 a frame takes 19.2 ms at Low, 46.9 ms at Medium and
+  336.6 ms at High. The desktop preview supports `--scene aurora` and
+  `--quality`.
+- **Lab sessions for any scene setting.** `tools/lab.mjs` passes `--quality`
+  and `--scale` to scene tests, and `STRESS_PACKAGE` points it at another
+  package, such as the debug build.
+
+### Changed
+
+- **The README says what this is.** Both READMEs now open by stating that this
+  is an engineering test tool, not a game and not an app for entertainment, and
+  that it runs the phone at full load on purpose. The cover shows all five
+  scenes.
+
+### Fixed
+
+- **The documents name the one permission the app asks for.** Since 0.3.0 the
+  app asks for permission to post notifications, only to say that a charge test
+  filled the battery. The README and SECURITY.md still said it asked for none.
 
 ## [0.3.0] - 2026-11-26
 
@@ -170,7 +198,8 @@ much power can it really draw?
   app.
 - Lab sessions, started over adb, that compare loads on battery by themselves.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.3.0...v1.0.0
 [0.3.0]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/OzcanOrhanDemirci/stress_test/releases/tag/v0.1.0
