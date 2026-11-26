@@ -16,7 +16,7 @@
 [![Latest release](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=release&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
 [![Licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
 
-**10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · four cinematic scenes at three quality levels · charge test · device safety · a PDF report
+**10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · five cinematic scenes at three quality levels · charge test · device safety · a PDF report
 
 **[Download the latest package](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 and above · no permissions, nothing collected
 
@@ -122,7 +122,7 @@ frequency to the shared budget (A510 / A715 / prime settle near
 | Mode | Load | On the screen | Measured |
 | --- | --- | --- | --- |
 | **Full load** | `fp32_l2` + GPU FP32 burner | a load gauge (the burner keeps the GPU) | **10.1 W** |
-| **Cinematic** | `fp32_l2` + a scene | one of four scenes, chosen on the home screen | 8.9 W with the pool |
+| **Cinematic** | `fp32_l2` + a scene | one of five scenes, chosen on the home screen | 8.9 W with the pool |
 | **CPU** | `fp32_l2` on all cores | a gauge | 7.1 W (6.4 W uncooled) |
 | **GPU** | GPU FP32 burner | a load gauge | 5.5 W |
 | **Dry 100 %** | `dry` | a gauge | 2.5 W (uncooled) |
@@ -230,18 +230,36 @@ the density of the sky. High more than doubles the step budget and takes two
 samples a pixel. The image above is the desktop preview running the phone's
 shaders.
 
+### Northern lights
+
+<img src="docs/images/scene-aurora.jpg" alt="The northern lights scene: green and violet curtains over the fjord's snowy walls and their reflection, the curtains overhead, the ice by the shore" width="100%" />
+
+A polar night in a fjord, and the first scene whose hero is the sky. Green and
+violet curtains of aurora ripple over snowy mountains and the stars, and the
+still water and black ice give them back. The curtains are thin sheets, and
+each ray's path through them is integrated in closed form: a Gaussian sheet
+seen along a straight line is a difference of two error functions. A fold seen
+edge-on therefore glows brighter, as a real one does, and no curtain can fall
+between two steps. The mountains are a ridged heightfield marched per pixel
+and lit by a low moon with its soft shadow; the water mirrors the whole scene.
+Fine detail fades with each pixel's footprint, so the far ridges and the
+curtains' rays do not shimmer while the camera drifts. Quality grows the
+curtains' steps, the mountains' octaves and the march budget, and High takes
+two samples a pixel. The images are the desktop preview running the phone's
+shaders.
+
 ### Graphics quality
 
 Low renders at 30% of screen resolution and Medium at 45%. High adds detail and
-renders at 65%, or 100% for the forest. The Honor 400 drew all four scenes at
+renders at 65%, or 100% for the forest. The Honor 400 drew all five scenes at
 their requested settings in 15-second lab tests with only the scene active and
 zero errors. Times are in milliseconds per frame. [Measurement log](docs/OLCUMLER.md)
 
-| Quality | Pool | Forest | White | Black hole |
-| --- | ---: | ---: | ---: | ---: |
-| **Low** | 25.9 | 26.7 | 20.3 | 12.9 |
-| **Medium** | 48.5 | 41.4 | 38.7 | 25.3 |
-| **High** | 295-311 | 137.6 | 174.2 | 122.3 |
+| Quality | Pool | Forest | White | Black hole | Northern lights |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Low** | 25.9 | 26.7 | 20.3 | 12.9 | 19.2 |
+| **Medium** | 48.5 | 41.4 | 38.7 | 25.3 | 46.9 |
+| **High** | 295-311 | 137.6 | 174.2 | 122.3 | 336.6 |
 
 At startup the app checks whether the GPU can draw the requested settings
 without risking a driver reset from a very long frame. If it has to reduce the
@@ -408,7 +426,7 @@ app/src/main
 └── cpp
     ├── cpu/         the kernels (generated AArch64 assembly), their table, the worker threads
     ├── gpu/         the Vulkan helpers, the burner engine, the cinematic scene renderer
-    │   └── shaders/ GLSL: burners, the four scenes, TAA, bloom, depth of field, the finish
+    │   └── shaders/ GLSL: burners, the five scenes, TAA, bloom, depth of field, the finish
     ├── sense/       a native reader for thermal zones, frequencies and the GPU's busy counter
     └── jni_bridge.cpp
 tools/

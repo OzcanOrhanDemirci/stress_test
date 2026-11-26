@@ -76,9 +76,10 @@ void main() {
 #else
     // Colour fringing towards the edges, like a real lens. The black hole's
     // starfield shows it more than the pool's busy picture does: a third of
-    // the shift, or every star at the frame's edge becomes three.
+    // the shift, or every star at the frame's edge becomes three; the
+    // northern lights' stars are the same.
     vec2 shift = (uv - 0.5) * (0.004
-#ifdef SCENE_HOLE
+#if defined(SCENE_HOLE) || defined(SCENE_AURORA)
         * 0.35
 #endif
     );
@@ -99,9 +100,10 @@ void main() {
     c *= 0.35 + 0.65 * pow(16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y), 0.22);
     // The grain dithers the 8-bit picture against banding, and moves so no
     // pattern sticks. Deep space's smooth dark gradients show it far more
-    // than the pool's busy picture does: the hole carries a quarter of it.
+    // than the pool's busy picture does: the hole carries a quarter of it,
+    // and so does the polar night.
     float grain = 0.015;
-#ifdef SCENE_HOLE
+#if defined(SCENE_HOLE) || defined(SCENE_AURORA)
     grain = 0.004;
 #endif
     c += (hash(frag + fract(params.time) * 97.0) - 0.5) * grain;

@@ -9,8 +9,9 @@ inline constexpr double kSceneStepBudgetNanos = 500'000'000.0;
 
 // Use the work at the preceding quality to bound the next draw. The pool
 // and white world trace a second ray at High, including its extra shading;
-// the hole doubles both the samples and roughly the step count. The
-// forest adds taps and light samples while most of its geometry is fixed.
+// the hole doubles both the samples and roughly the step count, and so do
+// the northern lights (with longer marches). The forest adds taps and light
+// samples while most of its geometry is fixed.
 constexpr bool sceneFits(SceneRenderer::Kind kind, SceneRenderer::Quality current,
                          SceneRenderer::Quality next, float scaleRatio,
                          int64_t frameNanos) {
@@ -19,10 +20,12 @@ constexpr bool sceneFits(SceneRenderer::Kind kind, SceneRenderer::Quality curren
     double shading = 1.0;
     if (current != next && kind == Kind::Forest) shading = 1.25;
     if (current != next && kind == Kind::Hole && next == Quality::Medium) shading = 104.0 / 64.0;
+    if (current != next && kind == Kind::Aurora && next == Quality::Medium) shading = 1.1;
     if (current != next && next == Quality::High) {
         if (kind == Kind::Pool) shading = 3.6;
         if (kind == Kind::White) shading = 2.6;
         if (kind == Kind::Hole) shading = 4.6;
+        if (kind == Kind::Aurora) shading = 3.5;
     }
     // One budget for every step: the probe guards against a frame long enough
     // to reset the driver, it does not choose a frame rate. Probe frames can run
@@ -67,11 +70,15 @@ static_assert(sceneFits(Kind::Pool, Quality::Medium, Quality::High, 65.0f / 45, 
 static_assert(sceneFits(Kind::Forest, Quality::Medium, Quality::High, 100.0f / 45, 41'100'000));
 static_assert(sceneFits(Kind::White, Quality::Medium, Quality::High, 65.0f / 45, 39'200'000));
 static_assert(sceneFits(Kind::Hole, Quality::Medium, Quality::High, 65.0f / 45, 23'700'000));
+static_assert(sceneFits(Kind::Aurora, Quality::Low, Quality::Medium, 45.0f / 30, 19'200'000));
+static_assert(sceneFits(Kind::Aurora, Quality::Medium, Quality::High, 65.0f / 45, 46'900'000));
+static_assert(sceneFits(Kind::Aurora, Quality::Low, Quality::Medium, 45.0f / 30, 3 * 19'200'000));
 // The bounded Low starts at about 18.6% (hole) and 28.5% (other scenes) on the Honor.
 static_assert(sceneFits(Kind::Hole, Quality::Low, Quality::Low, 30.0f / 18.6f, 12'100'000));
 static_assert(sceneFits(Kind::Forest, Quality::Low, Quality::Low, 30.0f / 28.4f, 25'100'000));
 static_assert(!sceneTooSlow(false, Quality::High, 295'000'000, 0)); // Pool, the slowest measured High
 static_assert(!sceneTooSlow(false, Quality::High, 118'700'000, 0));
+static_assert(!sceneTooSlow(false, Quality::High, 336'600'000, 0));  // the northern lights' High
 static_assert(!sceneTooSlow(true, Quality::Low, kSlowSceneNanos + 1, 1));
 static_assert(sceneTooSlow(true, Quality::High, kSlowSceneNanos + 1, 2));
 static_assert(!sceneFits(Kind::Pool, Quality::Low, Quality::Medium, 45.0f / 30, 250'000'000));

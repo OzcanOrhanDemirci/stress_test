@@ -66,6 +66,13 @@ class WorkloadTest {
     }
 
     @Test
+    fun `the northern lights are a scene of their own`() {
+        assertEquals(GpuPart(null, scene = true, kind = SceneKind.Aurora), parse("aurora").gpu)
+        assertEquals("aurora", parse("aurora").describe())
+        assertEquals("dry+aurora", parse("dry+aurora").describe())
+    }
+
+    @Test
     fun `a scene and a burner join into one gpu part`() {
         val merged = parse("scene+gpu_fp32").gpu!!
         assertEquals(TestSamples.gpuFp32, merged.burner)

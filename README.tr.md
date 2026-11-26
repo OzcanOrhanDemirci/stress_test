@@ -16,7 +16,7 @@
 [![Son sürüm](https://img.shields.io/github/v/release/OzcanOrhanDemirci/stress_test?label=s%C3%BCr%C3%BCm&color=success)](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-blue)](LICENSE)
 
-Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede dört sinematik sahne · şarj testi · cihaz güvenliği · PDF rapor
+Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede beş sinematik sahne · şarj testi · cihaz güvenliği · PDF rapor
 
 **[Son paketi indir](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 ve üstü · izin yok, hiçbir şey toplanmaz
 
@@ -121,7 +121,7 @@ en yüksek kalıyor.
 | Mod | Yük | Ekranda | Ölçülen |
 | --- | --- | --- | --- |
 | **Tam yük** | `fp32_l2` + GPU FP32 yakıcısı | yük kadranı (GPU yakıcıda) | **10,1 W** |
-| **Sinematik** | `fp32_l2` + bir sahne | ana ekranda seçilen dört sahneden biri | havuzla 8,9 W |
+| **Sinematik** | `fp32_l2` + bir sahne | ana ekranda seçilen beş sahneden biri | havuzla 8,9 W |
 | **CPU** | tüm çekirdeklerde `fp32_l2` | kadran | 7,1 W (soğutmasız 6,4 W) |
 | **GPU** | GPU FP32 yakıcısı | yük kadranı | 5,5 W |
 | **Kuru %100** | `dry` | kadran | 2,5 W (soğutmasız) |
@@ -228,19 +228,37 @@ büyütür. Yüksek kalite adım sayısını iki kattan fazla artırır ve pikse
 iki örnek alır. Yukarıdaki görsel, telefonun gölgelendiricilerini çalıştıran
 masaüstü önizlemesinden.
 
+### Kuzey ışıkları
+
+<img src="docs/images/scene-aurora.jpg" alt="Kuzey ışıkları sahnesi: fiyordun karlı duvarları üstünde yeşil ve mor perdeler ve yansımaları, tepede perdeler, kıyıdaki buz" width="100%" />
+
+Bir fiyortta kutup gecesi; kahramanı gökyüzü olan ilk sahne. Yeşil ve mor aurora
+perdeleri karlı dağların ve yıldızların üstünde dalgalanır, durgun su ve kara
+buz onları geri verir. Perdeler ince tabakalardır ve her ışının onların
+içinden geçen yolu kapalı biçimde bütünleştirilir: düz bir çizgi boyunca
+bakılan Gauss tabakası, iki hata fonksiyonunun farkıdır. Bu yüzden yandan
+görülen bir kıvrım gerçeğindeki gibi daha parlak yanar ve hiçbir perde iki
+adımın arasına düşüp kaybolamaz. Dağlar piksel başına yürütülen sırtlı bir
+yükseklik alanıdır; alçak bir ay onları yumuşak gölgesiyle aydınlatır; su bütün
+sahneyi yansıtır. İnce ayrıntı her pikselin kapladığı alana göre söner, böylece
+kamera kayarken uzak sırtlar ve perdelerin ışınları titremez. Kalite perdelerin
+adımlarını, dağların oktavlarını ve yürüme bütçesini büyütür; Yüksek piksel
+başına iki örnek alır. Görseller telefonun gölgelendiricilerini çalıştıran
+masaüstü önizlemesinden.
+
 ### Grafik kalitesi
 
 Düşük kalite ekran çözünürlüğünün %30'unda, Orta %45'inde çizilir. Yüksek kalite
 ayrıntıyı artırır ve sahneyi %65'te, ormanı ise %100'de çizer. Honor 400, 15
-saniyelik ve yalnız sahnenin çalıştığı lab testlerinde dört sahneyi de seçilen
+saniyelik ve yalnız sahnenin çalıştığı lab testlerinde beş sahneyi de seçilen
 ayarlarda hatasız çizdi. Tablodaki süreler kare başına milisaniye cinsinden.
 [Ölçüm kaydı](docs/OLCUMLER.md)
 
-| Kalite | Havuz | Orman | Beyaz | Kara delik |
-| --- | ---: | ---: | ---: | ---: |
-| **Düşük** | 25,9 | 26,7 | 20,3 | 12,9 |
-| **Orta** | 48,5 | 41,4 | 38,7 | 25,3 |
-| **Yüksek** | 295-311 | 137,6 | 174,2 | 122,3 |
+| Kalite | Havuz | Orman | Beyaz | Kara delik | Kuzey ışıkları |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Düşük** | 25,9 | 26,7 | 20,3 | 12,9 | 19,2 |
+| **Orta** | 48,5 | 41,4 | 38,7 | 25,3 | 46,9 |
+| **Yüksek** | 295-311 | 137,6 | 174,2 | 122,3 | 336,6 |
 
 Test başlarken uygulama, seçilen ayarların sürücüyü sıfırlatacak kadar uzun bir
 kareye yol açıp açmayacağını yoklar. Kalite veya çözünürlük ölçeği düşerse canlı test
@@ -407,7 +425,7 @@ app/src/main
 └── cpp
     ├── cpu/         yükler (üretilmiş AArch64 assembly), tabloları, işçi iş parçacıkları
     ├── gpu/         Vulkan yardımcıları, yakıcı motoru, sinematik sahne çizicisi
-    │   └── shaders/ GLSL: yakıcılar, dört sahne, TAA, bloom, alan derinliği, son işlem
+    │   └── shaders/ GLSL: yakıcılar, beş sahne, TAA, bloom, alan derinliği, son işlem
     ├── sense/       termal bölgeler, frekanslar ve GPU meşguliyet sayacı için yerel okuyucu
     └── jni_bridge.cpp
 tools/

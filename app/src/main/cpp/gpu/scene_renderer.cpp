@@ -30,6 +30,11 @@
 #include "shaders/taa_hole_frag.h"
 #include "shaders/taa_hole_window_frag.h"
 #include "shaders/hole_scene_frag.h"
+#include "shaders/dof_aurora_frag.h"
+#include "shaders/final_aurora_frag.h"
+#include "shaders/taa_aurora_frag.h"
+#include "shaders/taa_aurora_window_frag.h"
+#include "shaders/aurora_scene_frag.h"
 #include "shaders/particles_comp.h"
 #include "shaders/particles_frag.h"
 #include "shaders/particles_vert.h"
@@ -450,23 +455,28 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
     const bool forest = kind_ == Kind::Forest;
     const bool white = kind_ == Kind::White;
     const bool hole = kind_ == Kind::Hole;
-    const std::array<std::span<const uint32_t>, 4> centeredTaa{
-        kTaaFragSpirv, kTaaForestFragSpirv, kTaaWhiteFragSpirv, kTaaHoleFragSpirv,
+    const bool aurora = kind_ == Kind::Aurora;
+    const std::array<std::span<const uint32_t>, 5> centeredTaa{
+        kTaaFragSpirv, kTaaForestFragSpirv, kTaaWhiteFragSpirv, kTaaHoleFragSpirv, kTaaAuroraFragSpirv,
     };
-    const std::array<std::span<const uint32_t>, 4> framedTaa{
+    const std::array<std::span<const uint32_t>, 5> framedTaa{
         kTaaWindowFragSpirv, kTaaForestWindowFragSpirv, kTaaWhiteWindowFragSpirv, kTaaHoleWindowFragSpirv,
+        kTaaAuroraWindowFragSpirv,
     };
     const auto taa = (framed_ ? framedTaa : centeredTaa)[static_cast<size_t>(kind_)];
     const std::span<const uint32_t> dof = forest  ? std::span<const uint32_t>(kDofForestFragSpirv)
                                           : white ? std::span<const uint32_t>(kDofWhiteFragSpirv)
                                           : hole  ? std::span<const uint32_t>(kDofHoleFragSpirv)
+                                          : aurora ? std::span<const uint32_t>(kDofAuroraFragSpirv)
                                                   : std::span<const uint32_t>(kDofFragSpirv);
     const std::span<const uint32_t> final = forest  ? std::span<const uint32_t>(kFinalForestFragSpirv)
                                             : white ? std::span<const uint32_t>(kFinalWhiteFragSpirv)
                                             : hole  ? std::span<const uint32_t>(kFinalHoleFragSpirv)
+                                            : aurora ? std::span<const uint32_t>(kFinalAuroraFragSpirv)
                                                     : std::span<const uint32_t>(kFinalFragSpirv);
     const std::span<const uint32_t> scene = white ? std::span<const uint32_t>(kWhiteSceneFragSpirv)
                                             : hole  ? std::span<const uint32_t>(kHoleSceneFragSpirv)
+                                            : aurora ? std::span<const uint32_t>(kAuroraSceneFragSpirv)
                                                     : std::span<const uint32_t>(kPoolSceneFragSpirv);
     // Rays a pixel traces (pool_scene.frag, white_scene.frag: SAMPLES), or
     // integrates (hole_scene.frag: HOLE_STEPS, plus its samples, the disk's
@@ -476,7 +486,15 @@ bool SceneRenderer::createPipelines(VkRenderPass presentPass) {
                                           byQuality<int32_t>(quality_, 64, 104, 224),
                                           byQuality<int32_t>(quality_, 3, 3, 5),
                                           byQuality<int32_t>(quality_, 2, 2, 3));
-    const VkSpecializationInfo* sceneConstants = hole ? &holeConstants.info : &samples.info;
+    // The northern lights: samples, the curtains' steps, the mountains'
+    // shading octaves and the terrain march's budget (aurora.glsl).
+    const vk::SpecConstants auroraConstants(byQuality<int32_t>(quality_, 1, 1, 2),
+                                            byQuality<int32_t>(quality_, 10, 16, 32),
+                                            byQuality<int32_t>(quality_, 6, 6, 9),
+                                            byQuality<int32_t>(quality_, 72, 96, 176));
+    const VkSpecializationInfo* sceneConstants = hole     ? &holeConstants.info
+                                                 : aurora ? &auroraConstants.info
+                                                          : &samples.info;
     return (forest || named(vk_->graphicsPipeline(scenePass_, 2, sceneLayout_, vertex, scene, vk::Blend::None,
                                  scenePipeline_, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vk::Depth::None,
                                  sceneConstants), "Scene")) &&
@@ -530,7 +548,7 @@ void SceneRenderer::record(VkCommandBuffer cmd, float time, float offsetY) {
     if (kind_ == Kind::Forest) {
         recordForest(cmd, frame);
         recordRain(cmd, frame, offsetY);
-    } else if (kind_ == Kind::White || kind_ == Kind::Hole) {
+    } else if (kind_ == Kind::White || kind_ == Kind::Hole || kind_ == Kind::Aurora) {
         // Nothing simulated: the scene pass alone, and the particle layer
         // cleared for the passes after the scene that still read it.
         pass(cmd, scenePass_, sceneFramebuffer_, extent_);

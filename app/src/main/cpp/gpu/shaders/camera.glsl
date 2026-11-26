@@ -5,7 +5,14 @@
 // the particles) go through here. Image coordinates: height 1, centred;
 // FOCAL is the distance to the image plane.
 
+// A scene may define CAMERA_FOCAL before including this file for a lens of
+// its own (the northern lights' landscape wants a wide one); the passes that
+// follow the camera include the scene, so they see the same lens.
+#ifdef CAMERA_FOCAL
+const float FOCAL = CAMERA_FOCAL;
+#else
 const float FOCAL = 1.3;
+#endif
 
 // The scene's shot at a moment: camera position, the point it looks at, and
 // its lens, (focus distance, aperture). The aperture is how far a point at

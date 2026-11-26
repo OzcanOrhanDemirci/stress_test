@@ -4,7 +4,7 @@ The scenes (app/src/main/cpp/gpu/shaders/*.glsl) are plain GLSL shared with
 the phone's renderer; this runs them on desktop OpenGL so they can be looked
 at, frame by frame, without a phone:
 
-    python tools/scene_preview.py [--scene pool|forest] [--times 0,4,8]
+    python tools/scene_preview.py [--scene pool|forest|white|hole|aurora] [--times 0,4,8]
                                   [--width 632] [--height 1368] [--frames 16]
 
 The scenes are written for temporal accumulation, so each image averages
@@ -57,6 +57,8 @@ POOL_TAIL = ("void main() { float d; fragColor = vec4(renderPool(gl_FragCoord.xy
              " fragDistance = d; }")
 WHITE_TAIL = ("void main() { float d; fragColor = vec4(renderWhite(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
               " fragDistance = d; }")
+AURORA_TAIL = ("void main() { float d; fragColor = vec4(renderAurora(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
+               " fragDistance = d; }")
 HOLE_TAIL = ("void main() { float d; fragColor = vec4(renderHole(gl_FragCoord.xy, resolution, time, frame, jitter, d), 1.0);"
              " fragDistance = d; }")
 
@@ -393,6 +395,34 @@ class HoleScene:
         return None
 
 
+AURORA_QUALITIES = {
+    # AURORA_SAMPLES, AURORA_STEPS, AURORA_DETAIL, AURORA_MARCH (scene_renderer.cpp: byQuality)
+    "low": (1, 10, 6, 72),
+    "medium": (1, 16, 6, 96),
+    "high": (2, 32, 9, 176),
+}
+
+
+class AuroraScene(HoleScene):
+    """The northern lights: one full-screen shader (aurora.glsl), nothing simulated."""
+
+    defines = ("SCENE_AURORA",)
+
+    def __init__(self, ctx, quad, size, quality=None):
+        self.size = size
+        forced = ""
+        if quality:
+            s, st, d, m = AURORA_QUALITIES[quality]
+            forced = (f"#define AURORA_SAMPLES_FORCED {s}\n#define AURORA_STEPS_FORCED {st}\n"
+                      f"#define AURORA_DETAIL_FORCED {d}\n#define AURORA_MARCH_FORCED {m}\n")
+        self.program = ctx.program(vertex_shader=VERTEX,
+                                   fragment_shader=HEAD + forced + gl_source("aurora.glsl") + AURORA_TAIL)
+        self.vao = ctx.vertex_array(self.program, [(quad, "2f", "position")])
+        self.distance = ctx.texture(size, 1, dtype="f4")
+        self.fbo = ctx.framebuffer(color_attachments=[ctx.texture(size, 4, dtype="f4"), self.distance])
+        self.program["resolution"].value = size
+
+
 class ForestScene:
     """The forest: the sun's shadow map (drawn once: nothing moves), the sky, then
     the ground, trunks and leaf cards as triangles with a depth buffer, every
@@ -515,9 +545,10 @@ class ForestScene:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scene", default="pool", choices=["pool", "forest", "white", "hole"])
+    parser.add_argument("--scene", default="pool", choices=["pool", "forest", "white", "hole", "aurora"])
     parser.add_argument("--steps", type=int, help="the black hole's integration budget, in place of its quality's")
-    parser.add_argument("--quality", choices=list(HOLE_QUALITIES), help="force a whole black hole quality level")
+    parser.add_argument("--quality", choices=list(HOLE_QUALITIES),
+                        help="force a whole quality level (the black hole and the northern lights)")
     parser.add_argument("--times", default="0,6,12,18")
     parser.add_argument("--width", type=int, default=632)
     parser.add_argument("--height", type=int, default=1368)
@@ -532,6 +563,8 @@ def main():
         scene = ForestScene(ctx, quad, size)
     elif args.scene == "white":
         scene = WhiteScene(ctx, quad, size)
+    elif args.scene == "aurora":
+        scene = AuroraScene(ctx, quad, size, quality=args.quality)
     elif args.scene == "hole":
         scene = HoleScene(ctx, quad, size, quality=args.quality, steps=args.steps)
     else:

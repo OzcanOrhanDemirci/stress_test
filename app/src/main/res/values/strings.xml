@@ -38,6 +38,8 @@
     <string name="scene_white_detail">A white world of glass and mirror corridors and tunnels: crisp, clean, full of reflections.</string>
     <string name="scene_hole">Black hole</string>
     <string name="scene_hole_detail">A supermassive black hole burning an accretion disk: every pixel\'s light bent round the shadow, a ring of orbits, the stars doubled.</string>
+    <string name="scene_aurora">Northern lights</string>
+    <string name="scene_aurora_detail">A polar night in a fjord: green and violet curtains of aurora over snowy mountains, mirrored in still water and black ice.</string>
 
     <!-- Durations and quality -->
     <string name="duration_1">1 min</string>
@@ -309,7 +311,7 @@
     <string name="settings_about_tagline">The stress test that finds your phone\'s real limits.</string>
     <string name="settings_about_text" formatted="false">Stress Test does not settle for the 100% on the screen. It truly works the processor\'s arithmetic units, its memory path and the graphics chip all at once, and measures the most power your phone can draw, how hot it gets and how it slows down as it heats up.</string>
     <string name="settings_about_cpu">CPU loads written in ARM assembly; each one checks its own results, so a calculation error is caught at once.</string>
-    <string name="settings_about_gpu">Vulkan GPU loads and four real-time 3D scenes: Pool, Forest, White World and Black Hole.</string>
+    <string name="settings_about_gpu">Vulkan GPU loads and five real-time 3D scenes: Pool, Forest, White World, Black Hole and Northern Lights.</string>
     <string name="settings_about_analysis">Power, temperatures, clocks and throttling followed second by second, then a clear analysis and a PDF report.</string>
     <string name="settings_about_quality">Graphics quality for every phone, from entry level to the latest flagships.</string>
     <string name="settings_developer">Developed by</string>

@@ -414,3 +414,52 @@ düşük parlaklıkta, yük yoktur; telefonu kullanmak ölçümü bozar, ekran b
 **Güvenlik.** Şarj testi yük vermez. Başlatma kapısının pil yüzdesi ve çip sıcaklığı koşulları ona uygulanmaz; pil
 sıcaklığı izlenir: 45 °C'de uyarı, 47 °C'de test durur ve "pil çok ısındı, şarjı kesmek için kabloyu çıkar" der
 (uygulama şarjı kendisi kesemez).
+
+## 19 · Beşinci sahne: kuzey ışıkları (2026-11-26)
+
+**Karar (Özcan, 2026-11-26).** 0.3.0'dan sonra proje ona "gerçek bir şey" oldu; 1.0.0'dan önce bir sahne daha istedi:
+sanatla iyi yapabildiğimizin buluştuğu bir şey. Soğuk bir fraktal ve ışık huzmesi fikrini reddetti ("İşin içinde sanat
+ve estetik olmayınca pek güzel olmuyor"), fener ya da deniz feneri olan her şeyi de (pc_graphics'te Fener var). Seçtiği:
+karlı dağlar arasında kutup gecesi, donmuş, ayna gibi durgun bir fiyort; gökyüzünde dalgalanan yeşil ve mor aurora
+perdeleri, buzda ve suda yansımaları; arkada yıldızlar. Kahraman gökyüzü; öbür dört sahnenin hiçbiri böyle değil.
+Çıtası: "Estetik ve watt yakan bir sahne olsun. Aşırı takıntı yapmana ve uğraşmana gerek yok." Kare hızı hedefleri
+Honor 400'de: Yüksek ~2-5 fps, Orta 20-25 fps, Düşük ~50 fps.
+
+**Neden böyle kuruldu.** İyi gittiğini bildiğimiz şeylere yaslanır: matematiksel yapı, ışık, yansıma, atmosfer. Organik
+biçim (bitki, canlı) ve düzensiz canlı şey (ateş, rüzgârda bitki) yok. Aurora prosedürel ışıyan perdeler, dağlar siluet
+ve kar, buz ve durgun su yansıma. Güzelliği teknik değil kompozisyon verir: katmanlı derinlik (yakın duvarlar, fiyordun
+kapanan uzak sırası, sis), renk ve karşıtlık, sakin bir kamera; gökyüzü kendisi hareket eder.
+
+**Teknik.** Tek tam ekran gölgelendirici (`aurora.glsl`), kara delik gibi su ve parçacık yok; TAA, bloom ve final
+paylaşılır. Geniş bir lens (`CAMERA_FOCAL` 0,62, öbür sahneler 1,3): dikey ekranda gökyüzüne yükseklik gerekir; TAA
+aynı lensi sahneyi içererek görür.
+- *Perdeler.* Dört perde, her biri `z = eğri(x)` biçiminde ince bir tabaka (yavaş sinüslerin toplamı; son iki terim
+  perdeden hızlı büküldüğü için sıkı kıvrımlar verir). Hacim noktalarla örneklenmez: bir adımda ışının tabakaya uzaklığı
+  doğrusaldır ve Gauss tabakanın düz çizgi boyunca ışığı iki erf'in farkıdır. Yüzden geçen ışın kalınlığı kadar, yandan
+  bakan ışın içinde kaldığı uzunluk kadar ışık toplar: gerçek auroranın parlak kıvrımları bundan çıkar, hiçbir ince perde
+  iki adımın arasına düşüp bantlanmaz. Adımlar yalnız eğrinin bükülmesini ve perdenin yüksekliğini izler ve yalnız
+  perdelerin durduğu gökyüzü bandına dağıtılır. Işınlar (çizgilenme), yay boyunca giden parlaklık dalgası ve her perdenin
+  sessiz kalan bölümleri ışının tabakayı kestiği noktada hesaplanır. Renk: altta yeşil, yukarıda mor, en altta ince
+  pembe kenar.
+- *Dağlar.* Sırtlı çok fraktallı bir yükseklik alanı, piksel başına yürütülür; fiyordun kanalında ışın en yakın kıyıya
+  ya da kapanan sıraya tek adımda atlar (suya sürtünen ışınlar yoksa birkaç metrelik adımlarla bütçeyi bitiriyordu).
+  Kar eğimin izin verdiği yerde; ay alçakta, kameranın arkasında, yumuşak gölgesiyle; auroranın yeşili yukarıdan.
+- *Su ve buz.* Su tek sekmeyle bütün sahneyi yansıtır (düzlem aynada görüntü ışın boyunca toplam uzunluktadır, TAA
+  bununla yeniden izdüşürür). Kıyılarda ve kameranın önünde kara buz: biraz daha pürüzlü yansıma (sabit bir eğim,
+  titreşim değil), hava kabarcığı çatlakları, kar birikintileri. Yansıma daha hafif kollarla çizilir (yarı perde adımı,
+  bir oktav az yürüme, iki oktav az gölgeleme, tek yıldız kabuğu).
+- *Titremeye karşı.* Kara deliğin dersleri: gren dörtte bir, renk saçılması 0,35 (`final.frag`'da `SCENE_AURORA`),
+  yıldızlar tamsayı hash'li ve yumuşak noktalı. İnce ayrıntının her oktavı (dağ, perde ışınları, buz kenarı, çatlak)
+  pikselin kapladığı alana göre söner, kamera kayarken uzak sırtlar parıldamaz. Arazi kafesleri ise kayan noktalı hash
+  ile (Hoskins): Adreno 32 bit tamsayı çarpmasını kayan noktanın çok altında bir hızda yapıyor ve dağlar karede milyonlarca
+  kafes değeri istiyor; tamsayı hash'ten buna geçmek Orta'yı 60'tan 54 ms'ye indirdi.
+
+**Kalite** (specialization constant; örnek / perde adımı / dağ oktavı / yürüme bütçesi): Düşük 1 / 10 / 6 / 72, Orta
+1 / 16 / 6 / 96, Yüksek 2 / 32 / 9 / 176. Ölçek öbür ışın sahneleri gibi %30 / %45 / %65. Masaüstü önizlemesinde
+yakalanan iki hata: Orta'da 14 perde adımı perdelerin yanında hayalet biçimler bırakıyordu (bant kırpma ve 16 adımla
+gitti); arazinin "tavanı" üzerinden atlamak, tavan duvarda metre başına ~4 m tırmandığı için sırtların içinden geçip
+gökyüzünde yüzen ince arazi şeritleri çiziyordu (kaldırıldı).
+
+**Telefonda** (OLCUMLER, "Kuzey ışıkları"): yalnız sahne, Düşük 19,2 ms (~50 fps), Orta 46,9 ms (~21 fps), Yüksek
+336,6 ms (~3 fps); üçü de hedefin içinde. Sinematik modda (CPU tam yükte) Orta canlı ekranda 21 fps. Ekran kaydında
+sahnede gren ya da titreme görülmedi (ardışık karelerin yüksek frekanslı farkı bir gri seviyesinin altında).

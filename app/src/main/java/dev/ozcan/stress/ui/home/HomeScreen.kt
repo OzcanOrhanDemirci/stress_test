@@ -599,4 +599,5 @@ private fun SceneKind.still(): Int = when (this) {
     SceneKind.Forest -> R.drawable.scene_forest
     SceneKind.White -> R.drawable.scene_white
     SceneKind.Hole -> R.drawable.scene_hole
+    SceneKind.Aurora -> R.drawable.scene_aurora
 }

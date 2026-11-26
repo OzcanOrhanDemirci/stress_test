@@ -1393,6 +1393,7 @@ GpuLoad::StartResult GpuLoad::start(ANativeWindow* window, int burner, int targe
     renderer->sceneKind = sceneKind == 1   ? SceneRenderer::Kind::Forest
                           : sceneKind == 2 ? SceneRenderer::Kind::White
                           : sceneKind == 3 ? SceneRenderer::Kind::Hole
+                          : sceneKind == 4 ? SceneRenderer::Kind::Aurora
                                            : SceneRenderer::Kind::Pool;
     renderer->requestedQuality = sceneQuality <= 0   ? SceneRenderer::Quality::Low
                                  : sceneQuality >= 2 ? SceneRenderer::Quality::High

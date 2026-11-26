@@ -8,6 +8,19 @@ Each version corresponds to a `v`-prefixed tag. From 0.2.0 each tag produces a
 signed package through the release pipeline described in
 [docs/RELEASE.md](docs/RELEASE.md).
 
+## [Unreleased]
+
+### Added
+
+- **A fifth cinematic scene, the northern lights.** A polar night in a fjord:
+  green and violet curtains of aurora ripple over snowy mountains and the
+  stars, and the still water and black ice reflect them. It is the first scene
+  whose subject is the sky. Each curtain is a thin glowing sheet, and the light
+  a ray gathers through it is computed exactly rather than sampled, so folds
+  seen edge-on glow brighter and nothing flickers between frames. Higher
+  quality uses more steps, more mountain detail and, at High, two samples a
+  pixel. The desktop preview supports `--scene aurora` and `--quality`.
+
 ## [0.3.0] - 2026-11-26
 
 Stress Test gets an instrument-style interface and measures how much power
@@ -157,6 +170,7 @@ much power can it really draw?
   app.
 - Lab sessions, started over adb, that compare loads on battery by themselves.
 
+[Unreleased]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.3.0...HEAD
 [0.3.0]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/OzcanOrhanDemirci/stress_test/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/OzcanOrhanDemirci/stress_test/releases/tag/v0.1.0
