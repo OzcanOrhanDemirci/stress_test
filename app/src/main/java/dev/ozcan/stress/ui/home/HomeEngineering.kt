@@ -52,7 +52,7 @@ import java.util.Locale
 
 /*
  * The home screen's engineering page (DESIGN "What each simple page keeps", Home row): everything the Test tab
- * knows, as the log. The log is built as plain data first so the simple page's engineering row can count its values.
+ * knows, as the log, built as plain data first.
  */
 
 internal data class HomeLine(
@@ -77,9 +77,7 @@ internal data class HomeSection(
     val openRun: String? = null,
 )
 
-internal class HomeLog(val sections: List<HomeSection>) {
-    val count: Int = sections.sumOf { it.lines.size + it.notices.size }
-}
+internal class HomeLog(val sections: List<HomeSection>)
 
 /** What the home screen knows at one moment; [homeLog] turns it into the log. */
 internal data class HomeFacts(

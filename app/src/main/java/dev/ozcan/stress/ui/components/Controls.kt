@@ -325,11 +325,10 @@ internal fun ControlSurface(
 }
 
 /**
- * The last item of every simple page: a full-width control to its engineering page. [caption] says what the page
- * holds, in Code style ("42 VALUES"; `pluralStringResource(R.plurals.parts_values, n, n).upper()`).
+ * The last item of every simple page: a full-width control to its engineering page.
  */
 @Composable
-fun EngineeringRow(caption: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun EngineeringRow(onClick: () -> Unit, modifier: Modifier = Modifier) {
     ControlSurface(onClick, modifier) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -341,7 +340,6 @@ fun EngineeringRow(caption: String, onClick: () -> Unit, modifier: Modifier = Mo
                 stringResource(R.string.parts_engineering_view).upper(), Modifier.weight(1f),
                 style = StressType.Label, color = StressColors.Text, maxLines = 2,
             )
-            Text(caption, style = StressType.Code, color = StressColors.TextDim, maxLines = 1)
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = StressColors.TextDim)
         }
     }
