@@ -20,7 +20,7 @@
 
 **[Download the latest package](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 and above · no network access, nothing collected
 
-[Install](#install) · [Compatibility](#compatibility) · [The question](#the-question) · [Results](#results) · [Modes](#modes) · [Charge test](#charge-test) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
+[Install](#install) · [Antivirus warnings](#antivirus-warnings) · [Compatibility](#compatibility) · [The question](#the-question) · [Results](#results) · [Modes](#modes) · [Charge test](#charge-test) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
 
 *[Türkçe](README.tr.md)*
 
@@ -312,6 +312,39 @@ filled the battery; declining it changes nothing else. A package built from this
 without the release key is signed with a debug key, and the two cannot update
 each other: uninstall one before installing the other, which also removes its
 test history.
+
+## Antivirus warnings
+
+Some antivirus apps may warn about Stress Test. On the reference phone,
+Bitdefender Mobile Security showed a notice when 1.0.0 was installed: "Stress
+Test is a potentially unwanted application". A potentially unwanted
+application (PUA) is not malware; it is a category for software that does
+something a user may not expect. The notice does not say what it reacted to.
+The likeliest reason is what the app is built to do: run every CPU core and the
+GPU at full load, heat the phone and drain the battery. That is a guess;
+Bitdefender has not said so.
+
+The published package was checked on VirusTotal, which runs many antivirus
+engines on the same file:
+
+| | |
+| --- | --- |
+| File | `stress-test-1.0.0.apk`, 5,976,908 bytes |
+| SHA-256 | `8c94617adc7d571e0aaf8672e3782519aeae40d01fb807bc5682000f3e795447` |
+| Report | [VirusTotal](https://www.virustotal.com/gui/file/8c94617adc7d571e0aaf8672e3782519aeae40d01fb807bc5682000f3e795447) |
+| Result on 26 November 2026 | No engine flagged it. 67 engines found nothing, Bitdefender's among them; 7 do not process this file type (AliCloud, Arctic Wolf, DeepInstinct, Palo Alto Networks, SecureAge, TEHTRIS, Trapmine). |
+
+So Bitdefender's engine on VirusTotal and its app on the phone disagree. The
+app on the phone may judge an installed app by criteria of its own, and its
+notice does not say which.
+
+To confirm that a downloaded file is this one, compare its SHA-256 with the
+table: `sha256sum stress-test-1.0.0.apk` on Linux, `shasum -a 256` on macOS,
+`certutil -hashfile stress-test-1.0.0.apk SHA256` on Windows.
+[SECURITY.md](SECURITY.md#verifying-a-package) shows how to check the signing
+certificate. The report link shows VirusTotal's latest analysis, which can
+differ from the one recorded here. The app has no network access, so it cannot
+send anything off the phone.
 
 ## Compatibility
 

@@ -10,6 +10,12 @@ signed package through the release pipeline described in
 
 ## [Unreleased]
 
+### Changed
+
+- **Antivirus warnings, explained.** Both READMEs say why an antivirus app
+  may warn about Stress Test, and give the 1.0.0 package's SHA-256 and its
+  VirusTotal result: no engine flagged it.
+
 ## [1.0.0] - 2026-11-26
 
 The first stable version. Stress Test is an engineering tool for examining an

@@ -20,7 +20,7 @@ Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün 
 
 **[Son paketi indir](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 ve üstü · ağa çıkmaz, hiçbir şey toplanmaz
 
-[Kurulum](#kurulum) · [Uyumluluk](#uyumluluk) · [Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Şarj testi](#şarj-testi) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
+[Kurulum](#kurulum) · [Antivirüs uyarıları](#antivirüs-uyarıları) · [Uyumluluk](#uyumluluk) · [Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Şarj testi](#şarj-testi) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
 
 *[English](README.md)*
 
@@ -307,6 +307,39 @@ yalnız testin pili doldurduğunu söylemek için kullanılır; reddetmek başka
 şeyi değiştirmez. Bu kaynaktan yayın anahtarı olmadan derlenen paket debug
 anahtarıyla imzalanır ve ikisi birbirini güncelleyemez: birini kurmadan önce
 öbürünü kaldırmak gerekir, bu da onun test geçmişini siler.
+
+## Antivirüs uyarıları
+
+Bazı antivirüs uygulamaları Stress Test için uyarı verebilir. Referans telefonda
+1.0.0 kurulurken Bitdefender Mobile Security şu bildirimi gösterdi: "Stress Test
+potansiyel olarak istenmeyen bir uygulamadır". Potansiyel olarak istenmeyen
+uygulama (PUA) zararlı yazılım demek değildir; kullanıcının beklemeyebileceği
+bir şey yapan yazılımlar için kullanılan bir kategoridir. Bildirim neye tepki
+verdiğini söylemiyor. En olası neden, uygulamanın zaten yapmak için yapıldığı
+şey: bütün CPU çekirdeklerini ve GPU'yu tam yükte çalıştırmak, telefonu ısıtmak
+ve pili tüketmek. Bu bir tahmindir; Bitdefender böyle bir açıklama yapmadı.
+
+Yayımlanan paket, aynı dosyayı birçok antivirüs motoruyla tarayan VirusTotal'da
+denetlendi:
+
+| | |
+| --- | --- |
+| Dosya | `stress-test-1.0.0.apk`, 5.976.908 bayt |
+| SHA-256 | `8c94617adc7d571e0aaf8672e3782519aeae40d01fb807bc5682000f3e795447` |
+| Rapor | [VirusTotal](https://www.virustotal.com/gui/file/8c94617adc7d571e0aaf8672e3782519aeae40d01fb807bc5682000f3e795447) |
+| 26 Kasım 2026 sonucu | Hiçbir motor işaretlemedi. 67 motor bir şey bulmadı, Bitdefender'ınki de; 7 motor bu dosya türünü işleyemiyor (AliCloud, Arctic Wolf, DeepInstinct, Palo Alto Networks, SecureAge, TEHTRIS, Trapmine). |
+
+Yani Bitdefender'ın VirusTotal'daki motoru ile telefondaki uygulaması aynı
+sonucu vermiyor. Telefondaki uygulama kurulu bir uygulamayı kendi ölçütleriyle
+değerlendiriyor olabilir; bildirimi hangisine baktığını söylemiyor.
+
+İndirdiğin dosyanın bu dosya olduğunu doğrulamak için SHA-256 değerini tablodakiyle
+karşılaştır: Linux'ta `sha256sum stress-test-1.0.0.apk`, macOS'ta
+`shasum -a 256`, Windows'ta `certutil -hashfile stress-test-1.0.0.apk SHA256`.
+İmza sertifikasının nasıl kontrol edileceği [SECURITY.md](SECURITY.md#verifying-a-package)'de.
+Rapor bağlantısı VirusTotal'ın en son analizini gösterir; burada kaydedilenden
+farklı olabilir. Uygulamanın ağ erişimi yoktur, telefondan dışarı hiçbir şey
+gönderemez.
 
 ## Uyumluluk
 
