@@ -253,8 +253,8 @@
     <string name="export_csv">Data (CSV)</string>
     <string name="export_share_title">Share</string>
     <string name="export_failed">The report could not be written</string>
-    <string name="report_title">Run report</string>
-    <string name="report_run_id">Run %1$s</string>
+    <string name="report_title">Test report</string>
+    <string name="report_run_id">Test %1$s</string>
     <string name="report_section_test">Test</string>
     <string name="report_section_device">Device</string>
     <string name="report_section_results">Results</string>
