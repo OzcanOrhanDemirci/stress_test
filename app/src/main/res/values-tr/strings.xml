@@ -313,7 +313,6 @@
     <string name="settings_about_analysis" tools:ignore="Typos">Güç, sıcaklık, frekans ve kısılma saniye saniye izlenir; sonunda anlaşılır bir analiz ve PDF rapor.</string>
     <string name="settings_about_quality">Giriş seviyesinden en yeni amiral gemilerine, her telefona göre grafik kalitesi.</string>
     <string name="settings_developer">Geliştiren</string>
-    <string name="settings_licenses">Arayüzde Instrument Sans, Space Mono ve Space Grotesk, PDF raporunda JetBrains Mono kullanılır. Yazı tipleri SIL Open Font License 1.1 lisanslıdır.</string>
 
     <!-- Açılış uyarısı -->
     <string name="notice_title">Cihaz güvenliği</string>

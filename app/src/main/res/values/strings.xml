@@ -313,7 +313,6 @@
     <string name="settings_about_analysis">Power, temperatures, clocks and throttling followed second by second, then a clear analysis and a PDF report.</string>
     <string name="settings_about_quality">Graphics quality for every phone, from entry level to the latest flagships.</string>
     <string name="settings_developer">Developed by</string>
-    <string name="settings_licenses">The interface uses Instrument Sans, Space Mono and Space Grotesk. The PDF report uses JetBrains Mono. The fonts are under the SIL Open Font License 1.1.</string>
 
     <!-- Safety notice at launch -->
     <string name="notice_title">Device safety</string>
