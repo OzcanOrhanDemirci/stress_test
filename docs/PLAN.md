@@ -463,3 +463,5 @@ gökyüzünde yüzen ince arazi şeritleri çiziyordu (kaldırıldı).
 **Telefonda** (OLCUMLER, "Kuzey ışıkları"): yalnız sahne, Düşük 19,2 ms (~50 fps), Orta 46,9 ms (~21 fps), Yüksek
 336,6 ms (~3 fps); üçü de hedefin içinde. Sinematik modda (CPU tam yükte) Orta canlı ekranda 21 fps. Ekran kaydında
 sahnede gren ya da titreme görülmedi (ardışık karelerin yüksek frekanslı farkı bir gri seviyesinin altında).
+Watt (aynı oturumda beş sinematik mod, kabloda): kuzey ışıkları havuz ve beyazın üstünde, ormanla aynı, kara deliğin %4
+altında; pilde ~8,9 W kestirildi. Çıta "öbür sahnelerin düzeyinde ya da üstünde" idi; tuttu, daha fazlası için uğraşılmadı.

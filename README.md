@@ -479,7 +479,8 @@ and loading old records. The telemetry changes were also checked by replaying
 The instrumented suite checks CPU work, GPU burners, scene rendering, sensor
 discovery and load recipes on a connected phone. In the 0.3.0 lab checks on the
 Honor 400, all four scenes reached the requested settings at Low, Medium and
-High with zero errors. Compatibility on other models was assessed on paper.
+High with zero errors, and so did the northern lights, added after 0.3.0.
+Compatibility on other models was assessed on paper.
 The charging test has automated coverage. Measurements with real chargers and
 cables are pending. [Measurement log](docs/OLCUMLER.md)
 

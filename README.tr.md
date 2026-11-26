@@ -478,7 +478,8 @@ arşivdeki 104 Honor 400 lab testinin verileri yeniden işlenerek de sınandı.
 Bağlı telefonda çalışan testler CPU hesaplarını, GPU yakıcılarını, sahne
 çizimini, sensörlerin bulunmasını ve yük tariflerini sınar. 0.3.0 lab
 testlerinde Honor 400 dört sahneyi de Düşük, Orta ve Yüksek'te seçilen ayarlarda
-hatasız çizdi. Diğer modellerin uyumluluğu kâğıt üzerinde değerlendirildi.
+hatasız çizdi; 0.3.0'dan sonra eklenen kuzey ışıkları da öyle. Diğer modellerin
+uyumluluğu kâğıt üzerinde değerlendirildi.
 Şarj testi otomatik testlerle sınandı. Gerçek şarj cihazı ve kablolarla ölçüm
 henüz yapılmadı. [Ölçüm kaydı](docs/OLCUMLER.md)
 

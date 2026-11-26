@@ -275,3 +275,43 @@ Dört sahne de üç kalitede istenen kalite ve ölçeğe ulaştı, hata 0. Süre
 - Orta için önceki 125 ms bütçe, GPU'nun frekansı henüz yükselmeden kara deliği Düşük'te bırakabiliyordu. Ortak bütçeyle
   yukarıdaki koşularda bu olmadı. Ayar düşerse canlı ekran ve sonuç bunu gösterir. Kayıt istenen ve çizilen ayarları
   saklar, koşu karşılaştırmaya ve Honor 400 referans satırına girmez.
+
+## Kuzey ışıkları, telefonda (2026-11-26, kablo takılı)
+
+Debug derleme, Honor 400, USB'den (500 mA) şarjda, pil %78-81. Lab koşuları, yalnız sahne (yakıcısız, CPU boşta), 15 sn,
+GPU zaman damgaları; kare = GPU süresi. Hata 0, `DeviceLost` yok, üç kalite de istenen ayarda çizdi.
+
+| Kalite (ölçek) | Kare | Hedef (Özcan) |
+|---|---|---|
+| Düşük (%30) | 19,2 ms (~50 fps) | ~50 fps |
+| Orta (%45) | 46,9 ms (~21 fps) | 20-25 fps |
+| Yüksek (%65, 2 örnek/piksel) | 336,6 ms (~3 fps) | 2-5 fps |
+
+- Ayar yolu, Orta: ilk hâl 110 ms; yansımaya hafif kollar ve 8 hücreli yıldız araması 61 ms; arazi kafesinde kayan
+  noktalı hash (tamsayı pcg yerine) 54 ms; 16 perde adımı ve 6 dağ oktavı 46,9 ms. Masaüstü önizlemesi oranları
+  Adreno'dan iyimser gösterdi (60 ms'lik yapı için ~50 ms kestirdi): Adreno'da tamsayı çarpması pahalı.
+- Uygulamanın Çalıştır ekranından Sinematik · Kuzey ışıkları, Orta, CPU tam yükte: canlı 21 fps, çip 85 °C (0:15).
+  Ekran kaydında (20 kare/sn, 10 sn) sahnenin ardışık kareleri arasındaki yüksek frekanslı fark ortalama 0,37 gri
+  seviyesi (255 üzerinden): gren ya da titreme yok, değişen kameranın yavaş hareketi.
+- Cihaz testleri: `GpuEngineDeviceTest` ve `StressModeDeviceTest` 7/7 (her sahne her kalitede dahil). Gradle'ın
+  `connectedDebugAndroidTest`'i bitince uygulamayı kaldırdığı için `am instrument` ile elle koşuldu: debug uygulama
+  Özcan'ın kayıtlarını tutuyor.
+
+**Sinematik modların gücü, aynı oturumda** (`20261126-115336`, kablo takılı): beş sinematik mod (`fp32_l2` + sahne,
+Orta) × 2, karışık sıra, 10 sn boşta + 60 sn yük. Pil akımı ve geriliminden net çekiş (pilden çıkan). USB portu yükte
+hep tavanında verdiği için sahneler arasındaki fark geçerli, mutlak değer pildekinden düşük. Hata 0, hepsi Orta %45'te.
+
+| Mod | Net çekiş, 60 sn (kabloda) | Tekrar farkı | Kare hızı | En sıcak GPU |
+|---|---|---|---|---|
+| Kara delik | 6,44 W | ±0,10 | 38,6 fps | 90,4 °C |
+| Orman | 6,25 W | ±0,04 | 24,3 fps | 90,8 °C |
+| **Kuzey ışıkları** | **6,19 W** | ±0,18 | 23,4 fps | 86,8 °C |
+| Beyaz | 5,87 W | ±0,01 | 24,7 fps | 84,4 °C |
+| Havuz | 5,72 W | ±0,12 | 22,1 fps | 83,2 °C |
+
+- Pile çevirme: Özcan'ın 11-26 gecesi fişsiz iki kaydı (aynı uygulama, Orta, 1 dk) ortalama Havuz 8,61 W, Beyaz 8,51 W
+  (tepeleri 9,75 ve 9,38 W). Kablodaki karşılıkları 5,72 ve 5,87 W: fark 2,9 ve 2,6 W, yani kablo ~2,75 W saklıyor.
+  Buna göre kuzey ışıkları pilde **~8,9 W** (orman ~9,0, kara delik ~9,2). Bu bir kestirim; fişsiz ölçüm yapılmadı.
+- Kuzey ışıkları havuz ve beyazın üstünde, ormanla tekrar farkının içinde aynı, kara deliğin 0,25 W (%4) altında.
+  Kara deliğin önde olması beklenen: neredeyse saf aritmetik ve iki kat kare hızı.
+- Boşta net değer -1,0 ile -1,5 W (pil şarjda); yük her koşuda şarjı tüketimin altında bıraktı.
