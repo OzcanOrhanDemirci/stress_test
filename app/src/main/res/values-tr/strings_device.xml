@@ -26,7 +26,25 @@
 
     <string name="settings_v2_about_detail">Sürüm, uygulamanın yaptıkları, güvenlik sınırları, lisanslar.</string>
     <string name="settings_v2_advanced_detail">Sahne yakıcısı ve elle yük denemeleri.</string>
-    <string name="settings_v2_device_detail">İşlemci, GPU, canlı ölçümler ve uygulamanın okuyabildiği sensörler.</string>
     <string name="settings_v2_clear_action">Sil</string>
     <string name="settings_v2_safety_limits">Güvenlik sınırları</string>
+    <!-- Licences page behind About -->
+    <string name="licenses_title">Lisanslar</string>
+    <string name="licenses_detail">Uygulamanın kullandığı yazı tipleri ve açık kaynak kütüphaneler.</string>
+    <string name="licenses_section_app">Bu uygulama</string>
+    <string name="licenses_section_fonts">Yazı tipleri</string>
+    <string name="licenses_section_libraries">Kütüphaneler</string>
+    <string name="licenses_full_text">Lisansın tam metni: %1$s</string>
+    <string name="licenses_use_app">Uygulamanın kendisi, açık kaynak.</string>
+    <string name="licenses_use_instrument">Arayüzdeki metinler.</string>
+    <string name="licenses_use_grotesk">Başlıklar.</string>
+    <string name="licenses_use_mono">Sayılar ve teknik satırlar.</string>
+    <string name="licenses_use_jetbrains">PDF raporunun yazıları.</string>
+    <string name="licenses_use_compose">Arayüzün tamamını çizer.</string>
+    <string name="licenses_use_material">Metin, anahtar, onay kutusu gibi arayüz parçaları.</string>
+    <string name="licenses_use_icons">Simgeler.</string>
+    <string name="licenses_use_androidx">Uygulamayı Android üzerinde çalıştırır: pencere, geri hareketi ve uygulamanın yaşam döngüsü.</string>
+    <string name="licenses_use_kotlin">Uygulamanın yazıldığı dil ve onun temel kütüphanesi.</string>
+    <string name="licenses_use_coroutines">Ölçüm ve kayıt arka planda yürür, ekran akıcı kalır.</string>
+    <string name="licenses_use_serialization">Testleri telefonda saklar.</string>
 </resources>

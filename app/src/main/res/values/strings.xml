@@ -299,9 +299,7 @@
     <string name="language_system">System</string>
     <string name="language_turkish">Türkçe</string>
     <string name="language_english">English</string>
-    <string name="settings_section_device">Device and storage</string>
-    <string name="settings_device">Device info and sensors</string>
-    <string name="settings_device_detail">Processor, GPU, live readings, which sensors the app can read, manual load tests.</string>
+    <string name="settings_section_device">Storage</string>
     <string name="settings_clear">Clear history</string>
     <string name="settings_clear_detail">Deletes every stored run.</string>
     <string name="settings_clear_title">Clear the history?</string>
@@ -315,7 +313,6 @@
     <string name="settings_about_analysis">Power, temperatures, clocks and throttling followed second by second, then a clear analysis and a PDF report.</string>
     <string name="settings_about_quality">Graphics quality for every phone, from entry level to the latest flagships.</string>
     <string name="settings_developer">Developed by</string>
-    <string name="settings_licenses">The interface uses Instrument Sans, Space Mono and Space Grotesk. The PDF report uses JetBrains Mono. The fonts are under the SIL Open Font License 1.1.</string>
 
     <!-- Safety notice at launch -->
     <string name="notice_title">Device safety</string>

@@ -28,7 +28,25 @@
     <!-- Settings: rows and the two pages behind them. -->
     <string name="settings_v2_about_detail">Version, what the app does, safety limits, licences.</string>
     <string name="settings_v2_advanced_detail">Scene burner and manual load tests.</string>
-    <string name="settings_v2_device_detail">Processor, GPU, live readings and which sensors the app can read.</string>
     <string name="settings_v2_clear_action">Clear</string>
     <string name="settings_v2_safety_limits">Safety limits</string>
+    <!-- Licences page behind About -->
+    <string name="licenses_title">Licences</string>
+    <string name="licenses_detail">Fonts and open-source libraries the app uses.</string>
+    <string name="licenses_section_app">This app</string>
+    <string name="licenses_section_fonts">Fonts</string>
+    <string name="licenses_section_libraries">Libraries</string>
+    <string name="licenses_full_text">Full licence text: %1$s</string>
+    <string name="licenses_use_app">The app itself, open source.</string>
+    <string name="licenses_use_instrument">Body text of the interface.</string>
+    <string name="licenses_use_grotesk">Titles and headings.</string>
+    <string name="licenses_use_mono">Numbers and technical lines.</string>
+    <string name="licenses_use_jetbrains">Text of the PDF report.</string>
+    <string name="licenses_use_compose">Draws the whole interface.</string>
+    <string name="licenses_use_material">Text, switches, check boxes and other interface parts.</string>
+    <string name="licenses_use_icons">Icons.</string>
+    <string name="licenses_use_androidx">Runs the app on Android: the window, back gesture and app lifecycle.</string>
+    <string name="licenses_use_kotlin">The language the app is written in, and its standard library.</string>
+    <string name="licenses_use_coroutines">Measuring and saving in the background while the screen stays smooth.</string>
+    <string name="licenses_use_serialization">Stores the tests on the phone.</string>
 </resources>

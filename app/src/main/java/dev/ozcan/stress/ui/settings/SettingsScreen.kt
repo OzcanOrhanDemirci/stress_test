@@ -1,8 +1,10 @@
 package dev.ozcan.stress.ui.settings
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Insights
@@ -45,6 +48,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.ozcan.stress.BuildConfig
 import dev.ozcan.stress.R
@@ -81,11 +85,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-/** Settings is one page of setting rows; About and the advanced items are pages behind two of them. */
-private enum class SettingsPage { Main, About, Advanced }
+/** Settings is one page of setting rows; About (with Licences behind it) and the advanced items are pages behind two of them. */
+private enum class SettingsPage { Main, About, Licenses, Advanced }
 
 @Composable
-fun SettingsScreen(onOpenDevice: () -> Unit) {
+fun SettingsScreen() {
     val graph = context().graph
     val settings by graph.settings.settings.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -96,8 +100,9 @@ fun SettingsScreen(onOpenDevice: () -> Unit) {
 
     when (page) {
         SettingsPage.About -> SubPage(stringResource(R.string.settings_section_about), { page = SettingsPage.Main }) {
-            About(settings.deviceSafety)
+            About(settings.deviceSafety, onLicenses = { page = SettingsPage.Licenses })
         }
+        SettingsPage.Licenses -> LicensesPage(onBack = { page = SettingsPage.About })
         SettingsPage.Advanced -> SubPage(stringResource(R.string.device_section_advanced), { page = SettingsPage.Main }) {
             SwitchSetting(
                 R.string.settings_scene_burner, R.string.settings_scene_burner_detail, settings.sceneBurner,
@@ -132,11 +137,6 @@ fun SettingsScreen(onOpenDevice: () -> Unit) {
                 LanguageRow()
 
                 Group(R.string.settings_section_device)
-                NavRow(
-                    stringResource(R.string.settings_device),
-                    stringResource(R.string.settings_v2_device_detail),
-                    onClick = onOpenDevice,
-                )
                 SettingRow(
                     stringResource(R.string.settings_clear),
                     stringResource(R.string.settings_clear_detail),
@@ -328,10 +328,12 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 }
 
 private const val DEVELOPER = "Özcan Orhan Demirci"
+private const val DEVELOPER_URL = "https://github.com/OzcanOrhanDemirci"
 
-/** About is information, so it is drawn as readout panels: no rules, nothing to press. */
+/** About is information, drawn as readout panels; only the developer link and Licences below them can be pressed. */
 @Composable
-private fun About(safetyOn: Boolean) {
+private fun About(safetyOn: Boolean, onLicenses: () -> Unit) {
+    val context = context()
     Panel(Modifier.fillMaxWidth()) {
         Stack(spacing = 12) {
             Wordmark(version = stringResource(R.string.settings_version, BuildConfig.VERSION_NAME))
@@ -344,14 +346,26 @@ private fun About(safetyOn: Boolean) {
         }
     }
     SafetyLimitsPanel(safetyOn)
-    Panel(Modifier.fillMaxWidth()) {
-        Stack(spacing = 12) {
-            Stack(spacing = 4) {
-                SectionLabel(stringResource(R.string.settings_developer))
-                Text(DEVELOPER, style = StressType.Heading)
-            }
-            Text(stringResource(R.string.settings_licenses), style = StressType.BodySmall, color = StressColors.TextDim)
-        }
+    SectionLabel(stringResource(R.string.settings_developer), Modifier.padding(top = 12.dp))
+    SettingRow(
+        DEVELOPER,
+        DEVELOPER_URL.removePrefix("https://"),
+        control = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, Modifier.size(20.dp), tint = StressColors.TextDim) },
+        onClick = { openInBrowser(context, DEVELOPER_URL) },
+    )
+    NavRow(
+        stringResource(R.string.licenses_title),
+        stringResource(R.string.licenses_detail),
+        onClick = onLicenses,
+    )
+}
+
+/** Opens [url] in the browser; a phone without one keeps the user on the page. */
+private fun openInBrowser(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+    } catch (_: ActivityNotFoundException) {
+        // Nothing can show a web page: the address is on screen to type elsewhere.
     }
 }
 
