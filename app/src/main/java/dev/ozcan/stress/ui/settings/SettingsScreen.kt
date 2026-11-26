@@ -85,7 +85,7 @@ import java.util.Locale
 private enum class SettingsPage { Main, About, Advanced }
 
 @Composable
-fun SettingsScreen(onOpenDevice: () -> Unit) {
+fun SettingsScreen() {
     val graph = context().graph
     val settings by graph.settings.settings.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -132,11 +132,6 @@ fun SettingsScreen(onOpenDevice: () -> Unit) {
                 LanguageRow()
 
                 Group(R.string.settings_section_device)
-                NavRow(
-                    stringResource(R.string.settings_device),
-                    stringResource(R.string.settings_v2_device_detail),
-                    onClick = onOpenDevice,
-                )
                 SettingRow(
                     stringResource(R.string.settings_clear),
                     stringResource(R.string.settings_clear_detail),

@@ -155,7 +155,7 @@ private fun Screen(entry: NavEntry, navigator: Navigator) {
             onOpen = { navigator.push(Route.Result(it)) },
             onCompare = { first, second -> navigator.push(Route.Compare(first, second)) },
         )
-        Route.Tab.Settings -> SettingsScreen(onOpenDevice = { navigator.select(Route.Tab.Device) })
+        Route.Tab.Settings -> SettingsScreen()
         Route.Tab.Device -> DeviceScreen()
         is Route.Run -> if (route.mode == StressMode.Charge) ChargeRunScreen(
             duration = route.duration,
