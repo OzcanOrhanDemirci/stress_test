@@ -79,10 +79,10 @@ Please include what you found, the version or commit you found it in, the phone
 and Android version, and the steps to reach it. A report that can be reproduced
 is worth far more than one that has to be guessed at.
 
-You can expect an acknowledgement within **three days** and an assessment within
-**seven**. If the report is valid you will be told what the fix is and when it
-ships, and you will be credited in the [changelog](CHANGELOG.md) unless you
-would rather not be.
+This project is kept by one person, who reads reports as time allows; there is
+no guaranteed response time. If a report is valid, the fix and the version it
+ships in are recorded in the [changelog](CHANGELOG.md), with credit to you
+unless you would rather not have it.
 
 ## Verifying a package
 
