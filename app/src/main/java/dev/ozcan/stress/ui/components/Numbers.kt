@@ -67,11 +67,11 @@ fun CountUpNumber(
     }
     FitText(
         value?.let { format(if (animating.value) reading.value.toDouble() else it) } ?: Format.MISSING,
-        style, modifier, color = color, minScale = 0.6f,
+        style, modifier, color = if (value == null) StressColors.TextDim else color, minScale = 0.6f,
     )
 }
 
-/** A reading with a baseline-aligned, dimmed [unit] at 60% of the value size. */
+/** A reading with a baseline-aligned, dimmed [unit] at 60% of the value size; a missing one is dimmed whole. */
 @Composable
 fun MetricNumber(
     value: String,
@@ -87,7 +87,7 @@ fun MetricNumber(
     }
     BasicText(
         text,
-        style = style.copy(color = color),
+        style = style.copy(color = if (value == Format.MISSING) StressColors.TextDim else color),
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize, stepSize = 1.sp),

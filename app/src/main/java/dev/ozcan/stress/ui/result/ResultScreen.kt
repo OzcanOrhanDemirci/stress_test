@@ -296,7 +296,7 @@ private fun PowerPanel(record: RunRecord) {
                     SectionLabel(stringResource(R.string.result_peak), Modifier.weight(1.15f))
                     SectionLabel(stringResource(R.string.result_sustained), Modifier.weight(1f))
                 }
-                // Without power (cable plugged in) both places are dashes: one size, so they sit level and the card
+                // Without power (cable plugged in) both places say it is missing: one size, so they sit level and the card
                 // keeps no hero height for nothing.
                 val measured = peak != null || sustained != null
                 Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(16.dp)) {

@@ -7,10 +7,11 @@ import java.util.Locale
 /**
  * Number formatting for the screens and the report: the device's language
  * decides the decimal separator and where the percent sign goes; fixed
- * decimals; a dash for missing values.
+ * decimals; a short word for missing values.
  */
 object Format {
-    const val MISSING = "—"
+    /** What a place shows when its value is missing or invalid: "Yok" in Turkish, "N/A" elsewhere. */
+    val MISSING: String get() = if (locale.language == "tr") "Yok" else "N/A"
     const val WATT_DECIMALS = 2
 
     private val locale: Locale get() = Locale.getDefault()
