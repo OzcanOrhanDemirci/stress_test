@@ -98,6 +98,7 @@ import dev.ozcan.stress.ui.components.SceneCard
 import dev.ozcan.stress.ui.components.SecondaryButton
 import dev.ozcan.stress.ui.components.SectionLabel
 import dev.ozcan.stress.ui.components.StatusChip
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.Wordmark
@@ -241,11 +242,6 @@ fun HomeScreen(
         ),
     )
 
-    if (engineering) {
-        HomeEngineeringPage(log, onOpenRun) { engineering = false }
-        return
-    }
-
     val start: @Composable () -> Unit = {
         PrimaryButton(
             text = stringResource(R.string.home_start),
@@ -268,107 +264,102 @@ fun HomeScreen(
     // it starts, so there it follows the content.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
 
-    // Only notices that hold or redirect a start; their full text is on the engineering page. They sit with the start
-    // button, below everything a mode changes, so a notice that comes or goes with the mode (charger connected,
-    // battery full) never moves the hero, the modes or the durations.
-    val notices = listOfNotNull(
-        if (live?.plugged == true && !charge) {
-            HomeNoticeLine(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_notice_plugged), StressColors.Warn) {
-                model.choose(mode = StressMode.Charge)
-            }
-        } else {
-            null
-        },
-        if (chargeFull) HomeNoticeLine(Icons.Rounded.BatteryFull, stringResource(R.string.home_notice_charge_full), StressColors.Cool) else null,
-        if (capabilities?.gpuTests == false) {
-            HomeNoticeLine(Icons.Rounded.Info, stringResource(R.string.home_notice_no_vulkan), StressColors.Cool)
-        } else {
-            null
-        },
-        gate?.let { check ->
-            HomeNoticeLine(Icons.Rounded.Shield, stringResource(R.string.home_notice_hot, Labels.safetyFinding(context, check)), StressColors.Warn)
-        },
-    )
-
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        // The phone and its chip are the Device tab's; the version is in Settings, About.
-        TopBar(
-            brand = { Wordmark() },
-            actions = {
-                StatusChip(
-                    text = stringResource(if (safety) R.string.protection_chip else R.string.safety_off_short),
-                    color = if (safety) StressColors.Good else StressColors.Bad,
-                    // The charge test's chip does not open Settings, but keeps the bar's height.
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
-                    onClick = onOpenSettings.takeUnless { charge },
-                )
-            },
-        )
-        Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            SelectedTest(mode, duration, quality)
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ModeLabel { guide = true }
-                ModeGrid(mode.homeGroup, gpuOk, runs.bestWatts) {
-                    model.choose(mode = if (it == StressMode.Cinematic) cinematic else it)
-                }
-            }
-
-            AnimatedVisibility(
-                visible = mode.scene != null,
-                enter = expandVertically(StressMotion.enter()) + fadeIn(StressMotion.enter()),
-                exit = shrinkVertically(StressMotion.exit()) + fadeOut(StressMotion.exit()),
+    TwoPages(engineering, engineeringPage = { HomeEngineeringPage(log, onOpenRun) { engineering = false } }) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            TopBar(
+                caption = device?.let(::deviceCaption) ?: stringResource(R.string.home_tagline),
+                brand = { Wordmark(version = "v${graph.appVersion}") },
+                actions = {
+                    StatusChip(
+                        text = if (safety) {
+                            val limit = if (charge) ChargeSession.STOP_CELSIUS else Limits.chipStop
+                            stringResource(R.string.home_protection_limit, limit.toInt())
+                        } else {
+                            stringResource(R.string.safety_off_short)
+                        },
+                        color = if (safety) StressColors.Good else StressColors.Bad,
+                        icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
+                        onClick = onOpenSettings.takeUnless { charge },
+                    )
+                },
+            )
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                val scene = mode.scene ?: cinematic.scene ?: SceneKind.Pool
+                SelectedTest(mode, duration, quality)
+
+                // Only notices that hold or redirect a start; their full text is on the engineering page.
+                if (live?.plugged == true && !charge) {
+                    Notice(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_notice_plugged), StressColors.Warn) {
+                        model.choose(mode = StressMode.Charge)
+                    }
+                }
+                if (chargeFull) {
+                    Notice(Icons.Rounded.BatteryFull, stringResource(R.string.home_notice_charge_full), StressColors.Cool)
+                }
+                if (capabilities?.gpuTests == false) {
+                    Notice(Icons.Rounded.Info, stringResource(R.string.home_notice_no_vulkan), StressColors.Cool)
+                }
+                gate?.let { check ->
+                    Notice(Icons.Rounded.Shield, stringResource(R.string.home_notice_hot, Labels.safetyFinding(context, check)), StressColors.Warn)
+                }
+
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionLabel(stringResource(R.string.home_scenes))
-                    Row(Modifier.fillMaxWidth().selectableGroup(), Arrangement.spacedBy(8.dp)) {
-                        StressMode.cinematic.forEach { choice ->
-                            val kind = requireNotNull(choice.scene)
-                            SceneCard(
-                                image = kind.still(),
-                                name = stringResource(Labels.scene(kind)),
-                                selected = scene == kind,
-                                modifier = Modifier.weight(1f).heightIn(min = 72.dp),
-                                onClick = {
-                                    cinematic = choice
-                                    model.choose(mode = choice)
-                                },
-                            )
+                    SectionLabel(stringResource(R.string.home_section_mode))
+                    ModeGrid(mode.homeGroup, gpuOk, runs.bestWatts) {
+                        model.choose(mode = if (it == StressMode.Cinematic) cinematic else it)
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = mode.scene != null,
+                    enter = expandVertically(StressMotion.enter()) + fadeIn(StressMotion.enter()),
+                    exit = shrinkVertically(StressMotion.exit()) + fadeOut(StressMotion.exit()),
+                ) {
+                    val scene = mode.scene ?: cinematic.scene ?: SceneKind.Pool
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel(stringResource(R.string.home_scenes))
+                        Row(Modifier.fillMaxWidth().selectableGroup(), Arrangement.spacedBy(8.dp)) {
+                            StressMode.cinematic.forEach { choice ->
+                                val kind = requireNotNull(choice.scene)
+                                SceneCard(
+                                    image = kind.still(),
+                                    name = stringResource(Labels.scene(kind)),
+                                    selected = scene == kind,
+                                    modifier = Modifier.weight(1f).heightIn(min = 72.dp),
+                                    onClick = {
+                                        cinematic = choice
+                                        model.choose(mode = choice)
+                                    },
+                                )
+                            }
                         }
                     }
                 }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(stringResource(R.string.home_section_duration))
+                    ChoiceChips(
+                        options = durations,
+                        selected = duration,
+                        onSelect = { model.choose(duration = it) },
+                        label = { it.seconds?.let { seconds -> stringResource(R.string.home_duration_short, seconds / 60) }
+                            ?: stringResource(Labels.duration(it, mode)) },
+                        accessibleLabel = { stringResource(Labels.duration(it, mode)) },
+                    )
+                }
+
+                EngineeringRow({ engineering = true })
+                if (wide) start()
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionLabel(stringResource(R.string.home_section_duration))
-                ChoiceChips(
-                    options = durations,
-                    selected = duration,
-                    onSelect = { model.choose(duration = it) },
-                    label = { it.seconds?.let { seconds -> stringResource(R.string.home_duration_short, seconds / 60) }
-                        ?: stringResource(Labels.duration(it, mode)) },
-                    accessibleLabel = { stringResource(Labels.duration(it, mode)) },
-                )
-            }
-
-            EngineeringRow({ engineering = true })
-            if (wide) start()
-        }
-
-        if (!wide) {
-            Hairline()
-            Column(
-                Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                notices.forEach { Notice(it) }
-                start()
+            if (!wide) {
+                Hairline()
+                Box(Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    start()
+                }
             }
         }
     }
