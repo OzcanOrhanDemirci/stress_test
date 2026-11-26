@@ -30,7 +30,9 @@ import dev.ozcan.stress.ui.components.niceTicks
 import dev.ozcan.stress.ui.components.tickLabel
 import dev.ozcan.stress.ui.components.timeStep
 import dev.ozcan.stress.ui.hoursText
+import dev.ozcan.stress.settings.AppLanguages
 import java.io.File
+import java.util.Locale
 
 /**
  * A run's report as a two-page A4 PDF: what ran on which phone, the headline
@@ -59,21 +61,46 @@ object ReportPdf {
 
     fun fileName(record: RunRecord): String = "stress-test-report-${record.id}.pdf"
 
-    /** Writes the report into [dir] and returns the file. */
+    /**
+     * Writes the report into [dir] and returns the file, in the app's language whatever the phone's: the words from
+     * [AppLanguages.localized], and the dates and numbers ([Format], [Dates] read the default locale) from the same
+     * locale for the time the pages are drawn.
+     */
     fun write(context: Context, record: RunRecord, insights: List<Insight>, dir: File): File {
         dir.mkdirs()
         val file = File(dir, fileName(record))
-        val fonts = Fonts(context)
+        val localized = AppLanguages.localized(context)
+        val fonts = Fonts(localized)
         val document = PdfDocument()
         try {
-            val pages = 2
-            page(document, 1) { canvas -> firstPage(canvas, context, fonts, record, insights, pages) }
-            page(document, 2) { canvas -> chartPage(canvas, context, fonts, record, pages) }
+            inLocale(localized.resources.configuration.locales[0]) {
+                val pages = 2
+                page(document, 1) { canvas -> firstPage(canvas, localized, fonts, record, insights, pages) }
+                page(document, 2) { canvas -> chartPage(canvas, localized, fonts, record, pages) }
+            }
             file.outputStream().use { document.writeTo(it) }
         } finally {
             document.close()
         }
         return file
+    }
+
+    /**
+     * Runs [block] with [locale] as the default. Normally it already is (the app sets its language for the whole
+     * process); this covers the case where the process default and the app's language part, so the report's
+     * numbers and dates never come out in another language than its words.
+     */
+    private fun inLocale(locale: Locale, block: () -> Unit) {
+        val saved = Locale.getDefault()
+        if (saved == locale) return block()
+        synchronized(this) {
+            Locale.setDefault(locale)
+            try {
+                block()
+            } finally {
+                Locale.setDefault(saved)
+            }
+        }
     }
 
     private fun page(document: PdfDocument, number: Int, draw: (Canvas) -> Unit) {
@@ -226,7 +253,7 @@ object ReportPdf {
 
     private fun metrics(canvas: Canvas, context: Context, fonts: Fonts, record: RunRecord, top: Float): Float {
         val s = record.summary
-        val chip = listOfNotNull(s.maxTemperatures["cpu"], s.maxTemperatures["gpu"], s.maxTemperatures["A715"], s.maxTemperatures["A510"], s.maxTemperatures["GPU"]).maxOrNull()
+        val chip = hottestChip(s)
         val valid = s.powerValid
         val tiles = listOf(
             Triple(context.getString(R.string.result_peak), if (valid) Format.watts(s.peakWatts) else Format.MISSING, ACCENT),

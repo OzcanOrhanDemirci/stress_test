@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The CSV export: a block of fields on top, then the table. Units sit in the names, values are bare numbers. -->
+    <string name="csv_field">Field</string>
+    <string name="csv_value">Value</string>
+    <string name="csv_app">App</string>
+    <string name="csv_device">Device</string>
+    <string name="csv_test">Test</string>
+    <string name="csv_drawn_scale">Drawn scale (%)</string>
+    <string name="csv_date">Date</string>
+    <string name="csv_duration">Test duration (s)</string>
+    <string name="csv_planned">Planned duration (s)</string>
+    <string name="csv_peak">Peak power (W)</string>
+    <string name="csv_sustained">Sustained power (W)</string>
+    <string name="csv_energy">Energy (Wh)</string>
+    <string name="csv_hottest">Hottest chip (°C)</string>
+    <string name="csv_battery_start">Battery at start (%)</string>
+    <string name="csv_battery_end">Battery at end (%)</string>
+    <string name="csv_errors">Computation errors</string>
+    <string name="csv_note">Note</string>
+    <string name="csv_charge_peak">Peak power into the battery (W)</string>
+    <string name="csv_charge_sustained">Sustained power (W)</string>
+    <string name="csv_charge_energy">Energy into the battery (Wh)</string>
+    <string name="csv_charge_rate">Gained in 10 min (%)</string>
+    <string name="csv_charge_max_temp">Highest battery temperature (°C)</string>
+    <string name="csv_col_time">Time (s)</string>
+    <string name="csv_col_power">Power (W)</string>
+    <string name="csv_col_temperature">%1$s temperature (°C)</string>
+    <string name="csv_col_clock">%1$s clock speed (MHz)</string>
+    <string name="csv_col_cpu">CPU performance (%)</string>
+    <string name="csv_col_gpu">GPU performance (%)</string>
+    <string name="csv_col_fps">Frame rate (FPS)</string>
+    <string name="csv_col_battery">Battery level (%)</string>
+    <string name="csv_col_charge_power">Power into the battery (W)</string>
+    <string name="csv_col_charge_current">Charge current (A)</string>
+    <string name="csv_col_charge_voltage">Battery voltage (V)</string>
+</resources>

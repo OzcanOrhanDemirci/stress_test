@@ -9,7 +9,6 @@
     <string name="result_insight_drain">Battery loss per hour</string>
     <string name="result_insight_fps">Average frame rate</string>
     <string name="result_csv">CSV</string>
-    <string name="result_share_pdf">Share PDF</string>
     <string name="result_verdict">Verdict</string>
     <string name="result_power_curve">Power curve</string>
     <string name="result_charge_sustained">Sustained</string>
@@ -82,5 +81,5 @@
     <string name="result_log_readings">Readings</string>
     <string name="result_log_cadence">Current reading changes every</string>
     <string name="result_log_cadence_normal">about 1 s</string>
-    <string name="result_pdf_save">PDF</string>
+    <string name="result_pdf">PDF</string>
 </resources>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="csv_field">Alan</string>
+    <string name="csv_value">Değer</string>
+    <string name="csv_app">Uygulama</string>
+    <string name="csv_device">Cihaz</string>
+    <string name="csv_test">Test</string>
+    <string name="csv_drawn_scale">Çizim ölçeği (%)</string>
+    <string name="csv_date">Tarih</string>
+    <string name="csv_duration">Test süresi (sn)</string>
+    <string name="csv_planned">Planlanan süre (sn)</string>
+    <string name="csv_peak">Tepe güç (W)</string>
+    <string name="csv_sustained">Sürekli güç (W)</string>
+    <string name="csv_energy">Enerji (Wh)</string>
+    <string name="csv_hottest">En sıcak çip (°C)</string>
+    <string name="csv_battery_start">Başlangıçta pil (%)</string>
+    <string name="csv_battery_end">Bitişte pil (%)</string>
+    <string name="csv_errors">Hesaplama hatası</string>
+    <string name="csv_note">Not</string>
+    <string name="csv_charge_peak">Pile giren tepe güç (W)</string>
+    <string name="csv_charge_sustained">Sürekli güç (W)</string>
+    <string name="csv_charge_energy">Pile giren enerji (Wh)</string>
+    <string name="csv_charge_rate">10 dakikada kazanılan (%)</string>
+    <string name="csv_charge_max_temp">En yüksek pil sıcaklığı (°C)</string>
+    <string name="csv_col_time">Zaman (sn)</string>
+    <string name="csv_col_power">Güç (W)</string>
+    <string name="csv_col_temperature">%1$s sıcaklığı (°C)</string>
+    <string name="csv_col_clock">%1$s saat hızı (MHz)</string>
+    <string name="csv_col_cpu">CPU performansı (%)</string>
+    <string name="csv_col_gpu">GPU performansı (%)</string>
+    <string name="csv_col_fps">Kare hızı (FPS)</string>
+    <string name="csv_col_battery">Pil seviyesi (%)</string>
+    <string name="csv_col_charge_power">Pile giren güç (W)</string>
+    <string name="csv_col_charge_current">Şarj akımı (A)</string>
+    <string name="csv_col_charge_voltage">Pil gerilimi (V)</string>
+</resources>
