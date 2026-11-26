@@ -17,6 +17,8 @@ import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToLong
 
 /**
  * A test's export for a spreadsheet, in the app's language: a block of "field, value" rows on top (what ran on which
@@ -137,7 +139,9 @@ object ReportCsv {
 
     private fun columns(record: RunRecord, words: Words, csv: Csv): List<Pair<String, (Int) -> String>> = buildList {
         val s = record.series
-        add(words.get(R.string.csv_col_time) to { i -> csv.seconds(s.seconds.getOrNull(i)) })
+        // Whole seconds when every sample sits within a twentieth of one (the usual case); one decimal otherwise.
+        val timeDecimals = if (s.seconds.all { abs(it - it.roundToLong()) < 0.05 }) 0 else 1
+        add(words.get(R.string.csv_col_time) to { i -> csv.number(s.seconds.getOrNull(i), timeDecimals) })
         val battery = words.get(R.string.csv_col_temperature, words.temperature(RunAnalysis.BATTERY))
         if (record.isCharge) {
             add(words.get(R.string.csv_col_charge_power) to { i -> csv.number(s.watts.getOrNull(i), 2) })
@@ -179,9 +183,6 @@ object ReportCsv {
             val text = value?.takeIf { it.isFinite() }?.let { String.format(Locale.ROOT, "%.${decimals}f", it) } ?: return ""
             return if (words.decimalComma) text.replace('.', ',') else text
         }
-
-        /** Whole seconds without a fraction; a sample off the second keeps one decimal. */
-        fun seconds(value: Double?): String = if (value != null && value % 1.0 == 0.0) number(value, 0) else number(value, 1)
     }
 }
 
