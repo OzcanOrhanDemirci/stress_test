@@ -222,10 +222,11 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
                                     color = StressColors.TextDim,
                                 )
                             }
+                            val power = if (other.summary.powerValid) Format.watts(other.summary.peakWatts ?: other.summary.meanWatts) else Format.MISSING
                             Text(
-                                if (other.summary.powerValid) Format.watts(other.summary.peakWatts ?: other.summary.meanWatts) else Format.MISSING,
+                                power,
                                 style = NumberStyles.Small,
-                                color = StressColors.Accent,
+                                color = if (power == Format.MISSING) StressColors.TextDim else StressColors.Accent,
                             )
                         }
                     }
