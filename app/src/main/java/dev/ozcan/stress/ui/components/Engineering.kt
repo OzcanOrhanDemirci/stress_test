@@ -256,7 +256,7 @@ fun LogLine(
             if (missing) {
                 withStyle(SpanStyle(color = StressColors.TextFaint)) { append(Format.MISSING) }
             } else {
-                append(value)
+                append(withInfinity(value.orEmpty()))
                 if (unit != null) {
                     withStyle(SpanStyle(color = StressColors.TextDim, fontSize = 12.sp)) { append(" $unit") }
                 }

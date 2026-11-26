@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
  * A label that stays on one line: at [style]'s size when it fits, otherwise shrunk in small steps down to
  * [minScale] of that size, and only then cut with an ellipsis. A word is never broken across lines ("CS" / "V").
  * Used for button, chip, segment, tab and status labels; screens can use it for any short label in a tight cell.
+ * An endless duration's sign is drawn at the digits' height ([withInfinity]).
  */
 @Composable
 fun FitText(
@@ -29,7 +30,7 @@ fun FitText(
     val max = style.fontSize
     val ink = color.takeOrElse { style.color.takeOrElse { LocalContentColor.current } }
     BasicText(
-        text,
+        withInfinity(text),
         modifier,
         style = style.merge(color = ink, textAlign = textAlign),
         maxLines = 1,

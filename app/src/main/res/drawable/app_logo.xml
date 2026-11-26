@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app logo shown in the app (beside the STRESS TEST title). To change the logo, replace this one file: any
+     vector drawable works, the title sizes it by its height and keeps its proportions. Today it is the launcher icon's
+     gauge (drawable/ic_launcher_foreground.xml) cropped to its drawing, without the icon's background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="28dp"
+    android:height="23dp"
+    android:viewportWidth="56"
+    android:viewportHeight="46">
+    <group
+        android:translateX="-26"
+        android:translateY="-26">
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M33.22,68 A24,24 0 1,1 74.78,68"
+            android:strokeAlpha="0.22"
+            android:strokeColor="@color/icon_foreground"
+            android:strokeLineCap="round"
+            android:strokeWidth="7" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M33.22,68 A24,24 0 1,1 77.95,54.49"
+            android:strokeLineCap="round"
+            android:strokeWidth="7">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="30"
+                    android:startY="68"
+                    android:endX="78"
+                    android:endY="40"
+                    android:startColor="#FFFF6A21"
+                    android:endColor="#FFFF3B5C" />
+            </aapt:attr>
+        </path>
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M54,56 L68.37,55.1"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeWidth="4.2" />
+        <path
+            android:fillColor="@color/icon_foreground"
+            android:pathData="M54,50.4a5.6,5.6 0 1,1 0,11.2a5.6,5.6 0 1,1 0,-11.2z" />
+    </group>
+</vector>

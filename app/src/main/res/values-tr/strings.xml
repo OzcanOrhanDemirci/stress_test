@@ -53,7 +53,6 @@
     <string name="quality_high_detail">En yeni amiral gemileri için: daha çok piksel ve iki kat ışın. Orta seviye bir telefon saniyede birkaç kareye düşer.</string>
 
     <!-- Ana ekran -->
-    <string name="home_tagline">CPU, GPU ve güç ölçümü</string>
     <string name="home_section_mode">Test modu</string>
     <string name="home_section_duration">Süre</string>
     <string name="home_section_last">Son koşu</string>
