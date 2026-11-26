@@ -53,7 +53,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -344,7 +343,7 @@ fun HomeScreen(
                 )
             }
 
-            EngineeringRow(pluralStringResource(R.plurals.parts_values, log.count, log.count).upper(), { engineering = true })
+            EngineeringRow({ engineering = true })
             if (wide) start()
         }
 

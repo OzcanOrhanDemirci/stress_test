@@ -22,7 +22,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -127,7 +126,7 @@ fun DeviceScreen() {
             }
         }
     } else {
-        SimplePage(device, live, model, blocks.sumOf { it.lines.size }) { engineering = true }
+        SimplePage(device, live, model) { engineering = true }
     }
 }
 
@@ -136,7 +135,6 @@ private fun SimplePage(
     device: DeviceInfo?,
     live: LiveView?,
     model: DeviceViewModel,
-    values: Int,
     onEngineering: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -146,7 +144,7 @@ private fun SimplePage(
             BatteryTiles(live)
             FitPanel(live, model.availability)
             Spacer(Modifier.height(4.dp))
-            EngineeringRow(pluralStringResource(R.plurals.parts_values, values, values).upper(), onEngineering)
+            EngineeringRow(onEngineering)
         }
     }
 }

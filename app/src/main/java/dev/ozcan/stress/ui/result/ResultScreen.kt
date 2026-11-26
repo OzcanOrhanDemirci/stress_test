@@ -44,7 +44,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
@@ -145,8 +144,6 @@ fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit)
         EngineeringPage(stringResource(R.string.result_title), onBack = { engineering = false }) { logBlocks(log) }
         return
     }
-    val count = log.valueCount()
-    val caption = pluralStringResource(R.plurals.parts_values, count, count).upper()
 
     Column(Modifier.fillMaxSize()) {
         ResultTopBar(record, onBack, model, onCompare)
@@ -154,11 +151,11 @@ fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit)
             loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
             record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
             record.isCharge -> {
-                ChargeResult(record, caption, { engineering = true }, Modifier.weight(1f))
+                ChargeResult(record, { engineering = true }, Modifier.weight(1f))
                 ReportActions(record, emptyList())
             }
             else -> {
-                ResultBody(record, insights, caption, { engineering = true }, Modifier.weight(1f))
+                ResultBody(record, insights, { engineering = true }, Modifier.weight(1f))
                 ReportActions(record, insights)
             }
         }
@@ -260,7 +257,6 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
 private fun ResultBody(
     record: RunRecord,
     insights: List<Insight>,
-    engineeringCaption: String,
     onEngineering: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -272,7 +268,7 @@ private fun ResultBody(
         BatteryAndChip(record)
         PowerCurve(record)
         insights.firstOrNull()?.let { VerdictPanel(InsightText.title(context(), it), insightColor(it)) }
-        EngineeringRow(engineeringCaption, onEngineering)
+        EngineeringRow(onEngineering)
     }
 }
 

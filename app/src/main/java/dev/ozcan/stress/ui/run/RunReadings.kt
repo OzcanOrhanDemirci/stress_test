@@ -97,7 +97,6 @@ internal fun RunReadings(
     history: LiveHistory,
     safety: SafetyCheck,
     safetyOn: Boolean,
-    engineeringCaption: String,
     onWindow: (Rect) -> Unit,
     onEngineering: () -> Unit,
     onStop: () -> Unit,
@@ -135,7 +134,7 @@ internal fun RunReadings(
                 if (total != null) MeterBar((elapsed / total).toFloat())
                 RunValues(mode, live)
                 RunNotice(mode, quality, live, safety, safetyOn)
-                EngineeringRow(engineeringCaption, onEngineering)
+                EngineeringRow(onEngineering)
                 StopButton(stringResource(R.string.run_stop), onClick = onStop)
             }
         }

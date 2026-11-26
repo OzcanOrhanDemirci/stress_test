@@ -60,7 +60,7 @@ import dev.ozcan.stress.ui.theme.StressType
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChargeResult(record: RunRecord, engineeringCaption: String, onEngineering: () -> Unit, modifier: Modifier = Modifier) {
+fun ChargeResult(record: RunRecord, onEngineering: () -> Unit, modifier: Modifier = Modifier) {
     val context = context()
     val summary = record.summary
     val reason = Labels.endReasonOf(record)
@@ -104,7 +104,7 @@ fun ChargeResult(record: RunRecord, engineeringCaption: String, onEngineering: (
         }
         PercentCurve(percentCurve)
         findings.firstOrNull()?.let { VerdictPanel(it, StressColors.Accent) }
-        EngineeringRow(engineeringCaption, onEngineering)
+        EngineeringRow(onEngineering)
     }
 }
 
