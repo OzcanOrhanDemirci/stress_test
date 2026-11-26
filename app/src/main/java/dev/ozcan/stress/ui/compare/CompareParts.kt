@@ -59,7 +59,7 @@ internal fun changeColor(change: Double?, higherIsBetter: Boolean): Color = when
     else -> StressColors.Warn
 }
 
-/** "+12%", "-%4" (the sign the way [Format.percent] places it), "—". */
+/** "+12%", "-%4" (the sign the way [Format.percent] places it), or [Format.MISSING]. */
 internal fun signedPercent(change: Double?): String =
     change?.let { (if (it > 0 && abs(it) >= 0.005) "+" else "") + Format.percent(it) } ?: Format.MISSING
 

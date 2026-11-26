@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="result_unavailable">The phone did not provide enough data for the readings marked —.</string>
+    <string name="result_unavailable">The phone did not provide enough data for the readings marked N/A.</string>
     <string name="result_insight_throttled">Throttling began</string>
     <string name="result_insight_drop">CPU performance drop</string>
     <string name="result_insight_stability">Stability: %1$s</string>
@@ -65,7 +65,7 @@
     <string name="result_log_chart">Chart · %1$s</string>
     <string name="result_log_no_curve">No power readings were recorded.</string>
     <string name="result_log_phone">Phone</string>
-    <string name="result_log_device_missing">The phone did not report the values marked —.</string>
+    <string name="result_log_device_missing">The phone did not report the values marked N/A.</string>
     <string name="result_log_record">Record</string>
     <string name="result_log_id">Test ID</string>
     <string name="result_log_mode_key">Mode key</string>

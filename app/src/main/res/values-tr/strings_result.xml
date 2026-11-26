@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="result_unavailable">Telefon, — işaretli ölçümler için yeterli veri vermedi.</string>
+    <string name="result_unavailable">Telefon, Yok yazan ölçümler için yeterli veri vermedi.</string>
     <string name="result_insight_throttled">Hız kısma başladı</string>
     <string name="result_insight_drop">CPU performans düşüşü</string>
     <string name="result_insight_stability">Kararlılık: %1$s</string>
@@ -65,7 +65,7 @@
     <string name="result_log_chart">Grafik · %1$s</string>
     <string name="result_log_no_curve">Güç okuması kaydedilmedi.</string>
     <string name="result_log_phone">Telefon</string>
-    <string name="result_log_device_missing">Telefon — işaretli değerleri bildirmedi.</string>
+    <string name="result_log_device_missing">Telefon, Yok yazan değerleri bildirmedi.</string>
     <string name="result_log_record">Kayıt</string>
     <string name="result_log_id">Test kimliği</string>
     <string name="result_log_mode_key">Mod anahtarı</string>

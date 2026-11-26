@@ -231,8 +231,8 @@ private fun LogTag.label(): Int? = when (this) {
 
 /**
  * One value of the log, 32 dp, no box: [key] in Code `TextDim` on the left, [value] right-aligned in Number S and
- * [color] with [unit] in `TextDim`, an optional [tag] in a 40 dp column at the far right (kept empty without one). A null [value] shows "—" and the `N/A`
- * tag; give the reason once with the section's note. [source] is a faint second line under the key (a sysfs path).
+ * [color] with [unit] in `TextDim`, an optional [tag] in a 40 dp column at the far right (kept empty without one). A null [value] shows [Format.MISSING]
+ * faint, with no tag of its own; give the reason once with the section's note. [source] is a faint second line under the key (a sysfs path).
  * A long value wraps rather than squeezing the key: the key never breaks inside a word.
  */
 @Composable
@@ -246,7 +246,8 @@ fun LogLine(
     modifier: Modifier = Modifier,
 ) {
     val missing = value == null || value == Format.MISSING
-    val shownTag = tag ?: LogTag.Na.takeIf { missing }
+    // The value already says it is missing; an N/A tag beside it would say it twice.
+    val shownTag = tag
     Row(
         modifier.fillMaxWidth().heightIn(min = 32.dp).padding(vertical = 4.dp),
         Arrangement.spacedBy(12.dp),
