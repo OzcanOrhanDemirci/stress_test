@@ -13,7 +13,9 @@
 //   node tools/lab.mjs report [session]     rank the loads of a pulled session (default: the newest)
 //   node tools/lab.mjs temps                CPU/GPU/DDR temperatures now
 //
-// The device is the only one adb sees, or ADB_SERIAL.
+// Scenes take --quality 0|1|2 (Low, Medium, High: the code, not the name) and --scale NN.
+// The device is the only one adb sees, or ADB_SERIAL; the app is the release
+// package, or STRESS_PACKAGE (dev.ozcan.stress.debug for a debug build).
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
@@ -22,7 +24,7 @@ import { fileURLToPath } from "node:url";
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "out");
 const ADB = process.env.ADB ?? join(process.env.LOCALAPPDATA ?? "", "Android/Sdk/platform-tools/adb.exe");
-const PACKAGE = "dev.ozcan.stress";
+const PACKAGE = process.env.STRESS_PACKAGE ?? "dev.ozcan.stress";
 const REMOTE = `/sdcard/Android/data/${PACKAGE}/files/lab`;
 
 function adb(args) {
@@ -65,6 +67,8 @@ function launch(opts, loads, onBattery) {
         nice: opts.nice,
         batch: opts.batch,
         brightness: opts.brightness,
+        quality: opts.quality,
+        scale: opts.scale,
         battery: onBattery ? "1" : "0",
     };
     const extraArgs = Object.entries(extras)
