@@ -85,7 +85,7 @@ phone unplugged, in sessions the phone runs by itself (see
 [How power is measured](#how-power-is-measured)). The full record, with every
 session's conditions, is in [docs/OLCUMLER.md](docs/OLCUMLER.md).
 
-**CPU kernels, all eight cores, mean of the first 30 s, two runs each in random order, room temperature:**
+**CPU kernels, all eight cores, mean of the first 30 s, two tests each in random order, room temperature:**
 
 | Kernel | What it exercises | Power |
 | --- | --- | --- |
@@ -130,9 +130,9 @@ frequency to the shared budget (A510 / A715 / prime settle near
 
 <sub>Stress-test power was measured on the Honor 400 on a metal plate in front of a fan unless marked uncooled.</sub>
 
-A stress run lasts 1, 5, 15 or 30 minutes, or until stopped. It starts with 10 seconds at
+A stress test lasts 1, 5, 15 or 30 minutes, or until stopped. It starts with 10 seconds at
 rest to measure what the phone draws doing nothing, then drives the display at
-full brightness and its highest refresh rate, the same way every time, so runs
+full brightness and its highest refresh rate, the same way every time, so tests
 compare.
 
 Why the scenes are a mode of their own rather than the background of Full load
@@ -219,11 +219,11 @@ grain, almost no bloom, and a light sharpening on top of the upscale.
 
 Where the other scenes march surfaces, this one integrates each ray's fall.
 A supermassive black hole burns an accretion disk in deep space, and every
-pixel steps its own light through the hole's field — bent round it, wound
+pixel steps its own light through the hole's field: bent round it, wound
 round it, lost in it. The bending is the picture: the disk's far side rises
 over and under the shadow, a thin ring of orbits hugs the edge, and the
 starfield doubles around it. Nothing is stored and nothing is sampled; the
-whole scene is the arithmetic of the integration (Runge–Kutta, an adaptive
+whole scene is the arithmetic of the integration (Runge-Kutta, an adaptive
 step, hashes for the stars and the disk's turbulence). Quality grows the
 fall's step budget, the samples a pixel takes, the disk's turbulence and
 the density of the sky. High more than doubles the step budget and takes two
@@ -234,28 +234,28 @@ shaders.
 
 Low renders at 30% of screen resolution and Medium at 45%. High adds detail and
 renders at 65%, or 100% for the forest. The Honor 400 drew all four scenes at
-their requested settings in 15-second lab runs with only the scene active and
+their requested settings in 15-second lab tests with only the scene active and
 zero errors. Times are in milliseconds per frame. [Measurement log](docs/OLCUMLER.md)
 
 | Quality | Pool | Forest | White | Black hole |
 | --- | ---: | ---: | ---: | ---: |
 | **Low** | 25.9 | 26.7 | 20.3 | 12.9 |
 | **Medium** | 48.5 | 41.4 | 38.7 | 25.3 |
-| **High** | 295–311 | 137.6 | 174.2 | 122.3 |
+| **High** | 295-311 | 137.6 | 174.2 | 122.3 |
 
 At startup the app checks whether the GPU can draw the requested settings
 without risking a driver reset from a very long frame. If it has to reduce the
 quality or resolution scale, the live test and result show what was drawn. The
-record keeps both settings, and the run is excluded from comparisons and the
+record keeps both settings, and the test is excluded from comparisons and the
 Honor 400 reference line.
 
 ## The app
 
-<img src="docs/images/app.jpg" alt="The home screen with the mode cards and the start button, a cinematic run with its readout, the result screen with its analysis, the settings screen with device safety" width="100%" />
+<img src="docs/images/app.jpg" alt="The home screen with the mode cards and the start button, a cinematic test with its readout, the result screen with its analysis, the settings screen with device safety" width="100%" />
 
 The interface puts live measurements up front in flat graphite panels. Use the
 four tabs to start a test, open History, inspect the Device readings or change
-Settings. During a stress run, the scene or gauge stays in view with the live
+Settings. During a stress test, the scene or gauge stays in view with the live
 readings. The result shows peak and sustained power, average,
 idle, energy used, the battery before and after, how long a full battery would
 last at this load, the hottest chip, the CPU and GPU work rates, the scene's frame
@@ -263,7 +263,7 @@ rate, stability and computation errors, then an **analysis** in plain words (whe
 the phone first throttled, how much speed it gave up between the first minute and
 the last, how hot the chip and the battery got, how fast the battery drained) and
 charts of power, temperature, clocks, work and frame rate that read out their
-values under a finger. Eligible stress runs can be **compared** side by side.
+values under a finger. Eligible stress tests can be **compared** side by side.
 Stress results can be exported as a two-page **PDF report** or as **CSV**.
 Where a bundled Honor 400 measurement is available, the result includes it for
 reference. The pool reference was measured at Medium with the extra burner off.
@@ -284,7 +284,7 @@ See [Compatibility](#compatibility) for phone requirements. The app asks for no
 permissions and cannot reach the network. A package built from this source
 without the release key is signed with a debug key, and the two cannot update
 each other: uninstall one before installing the other, which also removes its
-run history.
+test history.
 
 ## Compatibility
 
@@ -297,7 +297,7 @@ driver. Without one, the CPU and charge tests are still available.
 The app works out how the battery gauge reports current, checks vendor-specific
 thermal zones and performance counters, and adapts to differences in CPU
 instructions and Vulkan drivers. When a reading is missing or unusable, the app
-shows **—**. The **Device** tab explains what the phone lets the app read and why
+shows **N/A** (**Yok** in Turkish). The **Device** tab explains what the phone lets the app read and why
 a reading is missing, for example when the driver exposes no GPU counter.
 
 The **Honor 400 is the only phone tested in hand**. Compatibility elsewhere is
@@ -308,7 +308,7 @@ paid testing.
 
 On by default, and the first thing on the settings screen. While a test runs the
 app watches the phone and stops the test when a reading stays past its limit for
-three seconds; the run is kept, with the reason and the reading.
+three seconds; the test is kept, with the reason and the reading.
 
 | Stops at | Warns at | Does not start above |
 | --- | --- | --- |
@@ -321,14 +321,14 @@ three seconds; the run is kept, with the reason and the reading.
 The chip limit sits above the throttling point on purpose: the Honor's kernel
 starts throttling its CPU and GPU zones at 95 °C (its harder limits are 110 to
 115 °C, critical 125 °C), so stopping at 95 °C would end every full-load test
-within seconds. It does not always hold them there either: in one full-load run
+within seconds. It does not always hold them there either: in one full-load test
 it released the GPU's throttling after 37 seconds and let it reach 107 °C, and the
-first limit, 105 °C, ended that run at 43 seconds. The stop is now at 110 °C,
+first limit, 105 °C, ended that test at 43 seconds. The stop is now at 110 °C,
 where the phone's own harder stage begins, with a warning from 105 °C: it is for a
 phone whose own protection is no longer keeping up. Turning device safety off asks first; off,
 the app never steps in and only the phone's own protection remains. In the first
-real stop, a forest run on the charger ended at 2:36 when Android reported a
-*severe* thermal status; the owner's own 34-minute full-load run, made before the
+real stop, a forest test on the charger ended at 2:36 when Android reported a
+*severe* thermal status; the owner's own 34-minute full-load test, made before the
 feature existed, had taken the battery from 43 to 55 °C.
 
 Each time the app opens, a notice says so plainly: a test runs the phone at full
@@ -372,7 +372,7 @@ the same signature and the same discipline:
 
 - Each batch of iterations ends in a **digest** of its results, compared against
   a golden value. A kernel that heats the phone by computing the wrong thing is
-  caught: computation errors are counted and shown with every run.
+  caught: computation errors are counted and shown with every test.
 - Workers are **pinned** to their core. Qualcomm's `core_ctl` parks big cores
   at idle and sometimes under load, so pinning is retried every batch and
   misplaced batches are counted.
@@ -400,7 +400,7 @@ app/src/main
 │   ├── analysis/    power, windowed statistics, work rates, findings, comparisons
 │   ├── safety/      device safety: limits, findings, the monitor
 │   ├── settings/    the user's choices
-│   ├── run/         a stress run: modes, the controller, analysis, records and their store
+│   ├── run/         a stress test: modes, the controller, analysis, records and their store
 │   ├── charge/      charge sessions, battery power and analysis
 │   ├── report/      the PDF report and the CSV
 │   ├── lab/         self-running comparison sessions: specs, runner, analysis, CSV
@@ -443,7 +443,7 @@ with the measurement that settled it; the measurements themselves are in
 | **Scenes are their own mode** | A scene drew 88.5 % of full load against a 97 % rule written before the measurement. |
 | **Compute-heavy, memory-light effects** | Measured ~1 TFLOPS against ~16 GB/s: ray marching, procedural geometry and a shadow map drawn once, not big textures. |
 | **A gauge for the stress tests** | With four scenes, the app's identity covers more than the original reactor pool. |
-| **Off-chip loads left to the user** | The torch, the modem or the camera can be switched on by hand during a run; the recipes stay on the chip. |
+| **Off-chip loads left to the user** | The torch, the modem or the camera can be switched on by hand during a test; the recipes stay on the chip. |
 
 ## What is verified
 
@@ -454,9 +454,9 @@ with the measurement that settled it; the measurements themselves are in
 ```
 
 JVM tests cover battery power and current conventions, charge-test phases and
-analysis, vendor sensor names, safety limits, run failures, comparisons, CSV
+analysis, vendor sensor names, safety limits, test failures, comparisons, CSV
 and loading old records. The telemetry changes were also checked by replaying
-104 archived Honor 400 lab runs. That replay used existing measurements.
+104 archived Honor 400 lab tests. That replay used existing measurements.
 
 The instrumented suite checks CPU work, GPU burners, scene rendering, sensor
 discovery and load recipes on a connected phone. In the 0.3.0 lab checks on the

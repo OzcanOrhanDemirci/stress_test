@@ -132,7 +132,7 @@ en yüksek kalıyor.
 Bir stres testi 1, 5, 15 ya da 30 dakika sürer, ya da durdurulana kadar. Önce 10 saniye
 dinlenir ve telefonun hiçbir şey yapmazken çektiği gücü ölçer; ardından ekranı
 her seferinde aynı biçimde, tam parlaklık ve en yüksek yenileme hızında sürer ki
-koşular karşılaştırılabilsin.
+testler karşılaştırılabilsin.
 
 Sahnelerin Tam yükün arka planı değil ayrı bir mod olması ölçümle verilmiş bir
 karar: sahne ekrandayken yakıcıya kare süresi kalmıyor ve tam yük 8,97 W'a,
@@ -217,7 +217,7 @@ gren yok, bloom neredeyse yok; büyütmenin üstüne hafif bir keskinleştirme v
 
 Diğer sahneler yüzeyleri yürütür; bu, her ışının düşüşünü bütünleştirir. Süper
 kütleli bir kara delik derin uzayda yığılma diski yakar ve her piksel kendi
-ışığını kara deliğin alanında adım adım sayar — ona doğru bükülür, çevresinde
+ışığını kara deliğin alanında adım adım sayar: ona doğru bükülür, çevresinde
 dolanır, içine düşer. Bükülme resmin kendisidir: diskin uzak tarafı gölgenin
 üstünde ve altında yükselir, ince bir yörünge halkası kenara yapışır, yıldızlar
 kenarda ikilenir. Hiçbir şey depolanmaz, hiçbir şey örneklenmez; sahne,
@@ -232,7 +232,7 @@ masaüstü önizlemesinden.
 
 Düşük kalite ekran çözünürlüğünün %30'unda, Orta %45'inde çizilir. Yüksek kalite
 ayrıntıyı artırır ve sahneyi %65'te, ormanı ise %100'de çizer. Honor 400, 15
-saniyelik ve yalnız sahnenin çalıştığı lab koşularında dört sahneyi de seçilen
+saniyelik ve yalnız sahnenin çalıştığı lab testlerinde dört sahneyi de seçilen
 ayarlarda hatasız çizdi. Tablodaki süreler kare başına milisaniye cinsinden.
 [Ölçüm kaydı](docs/OLCUMLER.md)
 
@@ -240,16 +240,16 @@ ayarlarda hatasız çizdi. Tablodaki süreler kare başına milisaniye cinsinden
 | --- | ---: | ---: | ---: | ---: |
 | **Düşük** | 25,9 | 26,7 | 20,3 | 12,9 |
 | **Orta** | 48,5 | 41,4 | 38,7 | 25,3 |
-| **Yüksek** | 295–311 | 137,6 | 174,2 | 122,3 |
+| **Yüksek** | 295-311 | 137,6 | 174,2 | 122,3 |
 
 Test başlarken uygulama, seçilen ayarların sürücüyü sıfırlatacak kadar uzun bir
-kareye yol açıp açmayacağını yoklar. Kalite veya çözünürlük ölçeği düşerse koşu
+kareye yol açıp açmayacağını yoklar. Kalite veya çözünürlük ölçeği düşerse canlı test
 ve sonuç ekranında hangi ayarda çizildiği yazılır. Kayıt iki ayarı da saklar.
-Bu koşu karşılaştırmaya girmez ve sonuçta Honor 400 referans satırı gösterilmez.
+Bu test karşılaştırmaya girmez ve sonuçta Honor 400 referans satırı gösterilmez.
 
 ## Uygulama
 
-<img src="docs/images/app.jpg" alt="Mod kartları ve başlat düğmesiyle ana ekran, göstergeleriyle sinematik bir koşu, analiziyle sonuç ekranı, cihaz güvenliğiyle ayarlar" width="100%" />
+<img src="docs/images/app.jpg" alt="Mod kartları ve başlat düğmesiyle ana ekran, göstergeleriyle sinematik bir test, analiziyle sonuç ekranı, cihaz güvenliğiyle ayarlar" width="100%" />
 
 Yeni arayüz canlı ölçümleri düz, koyu panellerde öne çıkarır. Dört sekmeden test
 başlatabilir, Geçmiş'i açabilir, Cihaz'daki okumaları inceleyebilir veya Ayarlar'ı
@@ -261,7 +261,7 @@ sahnenin kare hızını, kararlılığı ve hesap hatalarını gösterir; ardın
 sözcüklerle bir **analiz** (telefon ilk ne zaman kısıldı, ilk dakikayla son dakika
 arasında ne kadar hız verdi, çip ve pil ne kadar ısındı, pil ne hızla tükendi) ve
 parmağın altında değerlerini okuyan güç, sıcaklık, frekans, iş ve kare hızı
-grafikleri gelir. Karşılaştırmaya uygun stres koşuları yan yana açılabilir.
+grafikleri gelir. Karşılaştırmaya uygun stres testleri yan yana açılabilir.
 Stres testi sonuçları iki sayfalık **PDF rapor** ya da **CSV** olarak dışa
 aktarılabilir. Uygulamada o teste ait bir Honor 400 ölçümü varsa sonuçta referans
 olarak gösterilir. Havuzun referans ölçümü Orta kalitede, ek yakıcı kapalıyken
@@ -280,7 +280,7 @@ ayarından da seçebilirsin.
 Telefon gereksinimleri [Uyumluluk](#uyumluluk) bölümünde. Uygulama hiçbir izin istemez
 ve ağa çıkamaz. Bu kaynaktan yayın anahtarı olmadan derlenen paket debug
 anahtarıyla imzalanır ve ikisi birbirini güncelleyemez: birini kurmadan önce
-öbürünü kaldırmak gerekir, bu da onun koşu geçmişini siler.
+öbürünü kaldırmak gerekir, bu da onun test geçmişini siler.
 
 ## Uyumluluk
 
@@ -294,7 +294,7 @@ testleri yine kullanılabilir.
 Uygulama pil akımının birimini ve yönünü okumalardan çıkarır, üreticiye göre
 değişen sıcaklık bölgelerine ve performans sayaçlarına bakar, CPU komutları ile
 Vulkan sürücülerindeki farklara uyum sağlar. Okunamayan ya da kullanılamayan
-değerler **—** ile gösterilir. **Cihaz** sekmesi bu telefonun hangi değerleri
+değerler **Yok** olarak gösterilir. **Cihaz** sekmesi bu telefonun hangi değerleri
 verdiğini ve eksik okumanın nedenini söyler. Örneğin sürücü, GPU sayacını
 uygulamaya açmayabilir.
 
@@ -306,7 +306,7 @@ kod ve üreticiler arasındaki bilinen farklar üzerinden değerlendirildi. Ciha
 
 Varsayılan olarak açık ve ayarlar ekranındaki ilk şey. Test sürerken uygulama
 telefonu izler; bir değer üç saniye boyunca sınırının ötesinde kalırsa testi
-durdurur. Koşu, nedeni ve ölçülen değerle birlikte saklanır.
+durdurur. Test, nedeni ve ölçülen değerle birlikte saklanır.
 
 | Durdurur | Uyarır | Şunun üstündeyken başlamaz |
 | --- | --- | --- |
@@ -319,14 +319,14 @@ durdurur. Koşu, nedeni ve ölçülen değerle birlikte saklanır.
 Çip sınırı bilerek kısma noktasının üstünde: Honor'un çekirdeği CPU ve GPU
 bölgelerini 95 °C'de kısmaya başlıyor (daha sert sınırları 110-115 °C, kritik
 125 °C); 95 °C'de durdurmak her tam yük testini saniyeler içinde keserdi. Orada
-her zaman tutmuyor da: bir tam yük koşusunda 37. saniyede GPU'nun kısmasını
-kaldırıp 107 °C'ye çıkmasına izin verdi ve ilk sınır olan 105 °C o koşuyu 43.
+her zaman tutmuyor da: bir tam yük testinde 37. saniyede GPU'nun kısmasını
+kaldırıp 107 °C'ye çıkmasına izin verdi ve ilk sınır olan 105 °C o testi 43.
 saniyede kesti. Durdurma artık telefonun kendi sert kademesinin başladığı 110 °C'de,
 uyarı 105 °C'den itibaren: sınır, kendi koruması artık yetişemeyen bir telefon
 için. Cihaz güvenliğini kapatmak önce sorar; kapalıyken uygulama hiç araya girmez
 ve yalnız telefonun kendi koruması kalır. İlk gerçek durdurmada, şarjdaki bir
-orman koşusu Android *ciddi* termal durum bildirince 2:36'da bitti; sahibinin bu
-özellik yokken yaptığı 34 dakikalık tam yük koşusu pili 43 °C'den 55 °C'ye
+orman testi Android *ciddi* termal durum bildirince 2:36'da bitti; sahibinin bu
+özellik yokken yaptığı 34 dakikalık tam yük testi pili 43 °C'den 55 °C'ye
 çıkarmıştı.
 
 Uygulama her açıldığında bir uyarı bunu açıkça söyler: test telefonu tam
@@ -370,10 +370,10 @@ her birinin imzası ve disiplini aynı:
 
 - Her iterasyon grubu sonuçlarının bir **özetiyle** biter ve bu özet altın bir
   değerle karşılaştırılır. Yanlış hesap yaparak telefonu ısıtan bir yük
-  yakalanır: hesap hataları sayılır ve her koşuda gösterilir.
+  yakalanır: hesap hataları sayılır ve her testte gösterilir.
 - İşçiler kendi çekirdeklerine **sabitlenir**. Qualcomm'un `core_ctl`'ü büyük
   çekirdekleri boştayken, bazen yük altında da park ediyor; bu yüzden sabitleme
-  her grupta yeniden denenir ve yanlış çekirdekte koşan gruplar sayılır.
+  her grupta yeniden denenir ve yanlış çekirdekte çalışan gruplar sayılır.
 - Bir yük metin olarak yazılır, `0-3:i8_mmla,4-7:fp32_l2+gpu_fp32`; aynı metin
   uygulamanın modlarını, lab oturumlarını ve testleri sürer.
 
@@ -399,11 +399,11 @@ app/src/main
 │   ├── analysis/    güç, pencereli istatistik, iş hızları, bulgular, karşılaştırmalar
 │   ├── safety/      cihaz güvenliği: sınırlar, bulgular, izleyici
 │   ├── settings/    kullanıcının seçimleri
-│   ├── run/         bir stres koşusu: modlar, denetleyici, analiz, kayıtlar ve depoları
+│   ├── run/         bir stres testi: modlar, denetleyici, analiz, kayıtlar ve depoları
 │   ├── charge/      şarj koşuları, pil gücü ve analiz
 │   ├── report/      PDF rapor ve CSV
-│   ├── lab/         kendi kendine koşan karşılaştırma oturumları: tarif, koşucu, analiz, CSV
-│   └── ui/          Compose: gezinme, bileşenler, ana, koşu, sonuç, şarj, karşılaştırma, geçmiş, ayarlar, cihaz
+│   ├── lab/         kendi kendine çalışan karşılaştırma oturumları: tarif, çalıştırıcı, analiz, CSV
+│   └── ui/          Compose: gezinme, bileşenler, ana, test, sonuç, şarj, karşılaştırma, geçmiş, ayarlar, cihaz
 └── cpp
     ├── cpu/         yükler (üretilmiş AArch64 assembly), tabloları, işçi iş parçacıkları
     ├── gpu/         Vulkan yardımcıları, yakıcı motoru, sinematik sahne çizicisi
@@ -442,7 +442,7 @@ bölümünde tam olarak yazılı; ölçümlerin kendisi [docs/OLCUMLER.md](docs/
 | **Sahneler ayrı mod** | Sahne, ölçümden önce yazılan %97 kuralına karşı tam yükün %88,5'ini çekti. |
 | **Hesap ağır, bellek hafif etkiler** | Ölçülen ~1 TFLOPS'a karşı ~16 GB/s: büyük dokular değil; ışın yürütme, prosedürel geometri, bir kez çizilen gölge haritası. |
 | **Stres testlerinde kadran** | Dört sahnesi olan uygulamanın görünümü ilk sahne olan reaktör havuzuyla sınırlı kalmaz. |
-| **Çip dışı yükler kullanıcıya bırakıldı** | Fener, modem ya da kamera koşu sırasında elle açılabilir; tarifler çipin üstünde kalır. |
+| **Çip dışı yükler kullanıcıya bırakıldı** | Fener, modem ya da kamera test sırasında elle açılabilir; tarifler çipin üstünde kalır. |
 
 ## Neler doğrulandı
 
@@ -453,13 +453,13 @@ bölümünde tam olarak yazılı; ölçümlerin kendisi [docs/OLCUMLER.md](docs/
 ```
 
 JVM testleri pil gücünü, akımın birimini ve yönünü, şarj testinin adımlarını ve
-analizini, üreticilerin sensör adlarını, güvenlik sınırlarını, koşu hatalarını,
+analizini, üreticilerin sensör adlarını, güvenlik sınırlarını, test hatalarını,
 karşılaştırmayı, CSV'yi ve eski kayıtların açılmasını kapsıyor. Okuma düzeltmeleri
-arşivdeki 104 Honor 400 lab koşusunun verileri yeniden işlenerek de sınandı.
+arşivdeki 104 Honor 400 lab testinin verileri yeniden işlenerek de sınandı.
 
 Bağlı telefonda çalışan testler CPU hesaplarını, GPU yakıcılarını, sahne
 çizimini, sensörlerin bulunmasını ve yük tariflerini sınar. 0.3.0 lab
-koşularında Honor 400 dört sahneyi de Düşük, Orta ve Yüksek'te seçilen ayarlarda
+testlerinde Honor 400 dört sahneyi de Düşük, Orta ve Yüksek'te seçilen ayarlarda
 hatasız çizdi. Diğer modellerin uyumluluğu kâğıt üzerinde değerlendirildi.
 Şarj testi otomatik testlerle sınandı. Gerçek şarj cihazı ve kablolarla ölçüm
 henüz yapılmadı. [Ölçüm kaydı](docs/OLCUMLER.md)
@@ -468,7 +468,7 @@ Uyarılar her yerde hata sayılıyor: Kotlin, C++ (`-Wall -Wextra -Wshadow
 -Wconversion -Werror`) ve gölgelendirici derleyicisi (`glslc -Werror`).
 
 Derleme, JVM testleri ve Lint, CI'da sabit NDK sürümüyle çalışır. Telefon
-testleri için bağlı bir cihazda ayrı bir koşu gerekir. [CI iş akışı](.github/workflows/ci.yml)
+testleri için bağlı bir cihazda ayrı bir çalıştırma gerekir. [CI iş akışı](.github/workflows/ci.yml)
 
 ## Derleme
 

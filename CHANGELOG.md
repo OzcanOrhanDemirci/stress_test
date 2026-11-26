@@ -8,7 +8,7 @@ Each version corresponds to a `v`-prefixed tag. From 0.2.0 each tag produces a
 signed package through the release pipeline described in
 [docs/RELEASE.md](docs/RELEASE.md).
 
-## [0.3.0] — 2026-11-26
+## [0.3.0] - 2026-11-26
 
 Stress Test gets an instrument-style interface and measures how much power
 goes into the battery while it charges. It also adds a fourth
@@ -31,7 +31,7 @@ used for real-device checks.
   accretion disk rises over and under the shadow, and stars double around its
   edge. Higher quality uses more steps, samples and detail. The desktop preview
   supports `--scene hole` and a `--quality` override.
-- **Honor 400 reference in results.** Eligible runs show the bundled power
+- **Honor 400 reference in results.** Eligible tests show the bundled power
   measurement where the reference phone has a reading for that test.
 - **Optional extra GPU load in cinematic tests.** The FP32 burner can use spare
   frame time while a scene runs. This setting starts off.
@@ -43,9 +43,12 @@ used for real-device checks.
   exposes and explains missing values alongside the hardware and live readings.
 - **Scene quality is checked when a test starts.** If the GPU needs a lower
   quality or resolution scale, the live test and result say so. The record
-  keeps the requested and drawn settings. Reduced runs stay out of comparisons
+  keeps the requested and drawn settings. Reduced tests stay out of comparisons
   and omit the Honor 400 reference line.
-- **History opens faster and keeps the newest 200 runs.**
+- **History opens faster and keeps the newest 200 tests.**
+- **Missing values are named.** A reading the phone does not give shows N/A
+  (Yok in Turkish) instead of a dash, and the live power reading says
+  Charging while a cable is connected.
 
 ### Fixed
 
@@ -54,16 +57,16 @@ used for real-device checks.
   unavailable, and qualifying battery counters can supply an average.
 - **Temperatures and performance readings.** More vendor thermal zones,
   CPU clusters and GPU counters can be identified. Missing or invalid chip
-  temperatures stay blank. Device safety still uses the readings it has, and
+  temperatures are marked as missing. Device safety still uses the readings it has, and
   GPU usage can be estimated from frame times when a counter is unavailable.
 - **Vulkan and CPU differences.** GPU tests handle more driver and display
   surface configurations and check for optional features before using them.
   CPU loads work with baseline instructions and can pin themselves again when a
   core comes back online.
 - GPU setup and frame waits time out if the driver stops responding. A GPU
-  failure before the first sample ends the run as a GPU failure. A run also ends
+  failure before the first sample ends the test as a GPU failure. A test also ends
   if samples stop arriving, and analysis or save errors leave the app open.
-- The run overlay has a named screen-reader action, and the app supports
+- The live test overlay has a named screen-reader action, and the app supports
   Android's predictive back callback.
 
 ## [0.2.0] — 2026-10-02
