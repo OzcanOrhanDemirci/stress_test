@@ -1,6 +1,5 @@
 package dev.ozcan.stress.ui.run
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -10,6 +9,7 @@ import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.theme.StressColors
+import dev.ozcan.stress.ui.theme.StressType
 
 @Composable
 fun DrawnQualityNotice(

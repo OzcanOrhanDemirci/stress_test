@@ -29,8 +29,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
-import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.analysis.Comparison
+import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.run.RunRecord

@@ -52,6 +52,10 @@ data class RunRecord(
     val safetyValue: Double? = null,
     /** The app's version that measured it. */
     val appVersion: String? = null,
+    /** Lowest settled quality. Null in a new cinematic run if it ended during the probe. */
+    val drawnQuality: String? = quality,
+    /** Smallest scale drawn at [drawnQuality], as a percent of the screen in each direction. */
+    val drawnScalePercent: Double? = null,
     val charge: ChargeDetails? = null,
 )
 

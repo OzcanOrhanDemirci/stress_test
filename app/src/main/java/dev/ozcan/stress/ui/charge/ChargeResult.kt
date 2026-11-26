@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -70,7 +69,7 @@ fun ChargeResult(record: RunRecord, onEngineering: () -> Unit, modifier: Modifie
     val percentCurve = remember(record) { ChargeAnalysis.percentCurve(record.series) }
     val findings = remember(record, context) { chargeFindings(context, record) }
     Column(
-        Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
         Arrangement.spacedBy(12.dp),
     ) {
         if (reason == EndReason.Safety) {

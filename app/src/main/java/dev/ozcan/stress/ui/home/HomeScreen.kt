@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -264,20 +265,39 @@ fun HomeScreen(
     // it starts, so there it follows the content.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
 
+    // Only notices that hold or redirect a start; their full text is on the engineering page. They sit with the start
+    // button, below everything a mode changes, so a notice that comes or goes with the mode (charger connected,
+    // battery full) never moves the hero, the modes or the durations.
+    val notices = listOfNotNull(
+        if (live?.plugged == true && !charge) {
+            HomeNoticeLine(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_notice_plugged), StressColors.Warn) {
+                model.choose(mode = StressMode.Charge)
+            }
+        } else {
+            null
+        },
+        if (chargeFull) HomeNoticeLine(Icons.Rounded.BatteryFull, stringResource(R.string.home_notice_charge_full), StressColors.Cool) else null,
+        if (capabilities?.gpuTests == false) {
+            HomeNoticeLine(Icons.Rounded.Info, stringResource(R.string.home_notice_no_vulkan), StressColors.Cool)
+        } else {
+            null
+        },
+        gate?.let { check ->
+            HomeNoticeLine(Icons.Rounded.Shield, stringResource(R.string.home_notice_hot, Labels.safetyFinding(context, check)), StressColors.Warn)
+        },
+    )
+
     TwoPages(engineering, engineeringPage = { HomeEngineeringPage(log, onOpenRun) { engineering = false } }) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            // The phone and its chip are the Device tab's; the version is in Settings, About.
             TopBar(
-                caption = device?.let(::deviceCaption) ?: stringResource(R.string.home_tagline),
-                brand = { Wordmark(version = "v${graph.appVersion}") },
+                brand = { Wordmark() },
                 actions = {
                     StatusChip(
-                        text = if (safety) {
-                            val limit = if (charge) ChargeSession.STOP_CELSIUS else Limits.chipStop
-                            stringResource(R.string.home_protection_limit, limit.toInt())
-                        } else {
-                            stringResource(R.string.safety_off_short)
-                        },
+                        text = stringResource(if (safety) R.string.protection_chip else R.string.safety_off_short),
                         color = if (safety) StressColors.Good else StressColors.Bad,
+                        // The charge test's chip does not open Settings, but keeps the bar's height.
+                        modifier = Modifier.heightIn(min = 48.dp),
                         icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
                         onClick = onOpenSettings.takeUnless { charge },
                     )
@@ -290,24 +310,8 @@ fun HomeScreen(
             ) {
                 SelectedTest(mode, duration, quality)
 
-                // Only notices that hold or redirect a start; their full text is on the engineering page.
-                if (live?.plugged == true && !charge) {
-                    Notice(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_notice_plugged), StressColors.Warn) {
-                        model.choose(mode = StressMode.Charge)
-                    }
-                }
-                if (chargeFull) {
-                    Notice(Icons.Rounded.BatteryFull, stringResource(R.string.home_notice_charge_full), StressColors.Cool)
-                }
-                if (capabilities?.gpuTests == false) {
-                    Notice(Icons.Rounded.Info, stringResource(R.string.home_notice_no_vulkan), StressColors.Cool)
-                }
-                gate?.let { check ->
-                    Notice(Icons.Rounded.Shield, stringResource(R.string.home_notice_hot, Labels.safetyFinding(context, check)), StressColors.Warn)
-                }
-
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionLabel(stringResource(R.string.home_section_mode))
+                    ModeLabel { guide = true }
                     ModeGrid(mode.homeGroup, gpuOk, runs.bestWatts) {
                         model.choose(mode = if (it == StressMode.Cinematic) cinematic else it)
                     }
@@ -352,12 +356,19 @@ fun HomeScreen(
                 }
 
                 EngineeringRow({ engineering = true })
-                if (wide) start()
+                if (wide) {
+                    notices.forEach { Notice(it) }
+                    start()
+                }
             }
 
             if (!wide) {
                 Hairline()
-                Box(Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    notices.forEach { Notice(it) }
                     start()
                 }
             }

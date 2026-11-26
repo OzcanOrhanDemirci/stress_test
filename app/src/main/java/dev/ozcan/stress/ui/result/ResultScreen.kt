@@ -114,13 +114,13 @@ class ResultViewModel(private val graph: AppGraph, private val runId: String) : 
     init {
         viewModelScope.launch {
             val record = withContext(Dispatchers.IO) { graph.runs.load(runId) }
-            _loaded.value = Loaded(record, record?.takeUnless { it.isCharge }?.let(Insights::of).orEmpty())
+            _loaded.value = Loaded(record, record?.let(Insights::of).orEmpty())
         }
     }
 
     suspend fun delete() = withContext(Dispatchers.IO) { graph.runs.delete(runId) }
 
-    /** Eligible stored runs, newest first. */
+    /** Every other stored run, newest first: what this one can be compared with. */
     suspend fun others(): List<RunRecord> = withContext(Dispatchers.IO) {
         graph.runs.list().filter { it.id != runId && Comparison.isEligible(it) }
     }
@@ -184,7 +184,8 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
         modifier = Modifier.windowBand(StressColors.SurfaceLow, ruleAtTop = false).statusBarsPadding(),
         actions = {
             if (record != null) {
-                TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
+                // A reduced or GPU-failed run has nothing it can be ranked against.
+                if (Comparison.isEligible(record)) TopBarAction(Icons.AutoMirrored.Rounded.CompareArrows, stringResource(R.string.compare_button), {
                     scope.launch { others = model.others() }
                 })
                 TopBarAction(Icons.Rounded.Delete, stringResource(R.string.delete), { confirmDelete = true })

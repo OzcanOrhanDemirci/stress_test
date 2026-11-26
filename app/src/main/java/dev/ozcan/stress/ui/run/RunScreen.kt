@@ -299,9 +299,9 @@ private fun FailedCard(state: RunState.Failed, onLeave: () -> Unit) {
     Panel(Modifier.padding(16.dp).widthIn(max = 380.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(
-                if (state is RunState.Failed.LoadFailed) Icons.Rounded.ErrorOutline else Icons.Rounded.Shield,
+                if (state is RunState.Failed.LoadFailed || state == RunState.Failed.GpuFailed) Icons.Rounded.ErrorOutline else Icons.Rounded.Shield,
                 null,
-                tint = if (state is RunState.Failed.LoadFailed) StressColors.Bad else StressColors.Warn,
+                tint = if (state is RunState.Failed.LoadFailed || state == RunState.Failed.GpuFailed) StressColors.Bad else StressColors.Warn,
                 modifier = Modifier.size(52.dp),
             )
             Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)

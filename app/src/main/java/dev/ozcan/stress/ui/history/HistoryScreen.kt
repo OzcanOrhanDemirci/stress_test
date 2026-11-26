@@ -50,6 +50,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.ozcan.stress.AppGraph
 import dev.ozcan.stress.R
+import dev.ozcan.stress.charge.isCharge
 import dev.ozcan.stress.engine.SceneQuality
 import dev.ozcan.stress.graph
 import dev.ozcan.stress.run.EndReason
@@ -59,7 +60,6 @@ import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.ui.Dates
 import dev.ozcan.stress.ui.Format
 import dev.ozcan.stress.ui.Labels
-import dev.ozcan.stress.ui.charge.ChargeHistoryRow
 import dev.ozcan.stress.ui.components.CenteredBox
 import dev.ozcan.stress.ui.components.Hairline
 import dev.ozcan.stress.ui.components.IconBadge
