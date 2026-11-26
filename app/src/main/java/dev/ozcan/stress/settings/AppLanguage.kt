@@ -1,6 +1,5 @@
 package dev.ozcan.stress.settings
 
-import android.app.Activity
 import android.app.LocaleManager
 import android.content.Context
 import android.content.res.Configuration
@@ -9,6 +8,9 @@ import android.os.Build
 import android.os.LocaleList
 import androidx.core.content.edit
 import java.util.Locale
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /** The app's language: the phone's own, or Turkish or English whatever the phone uses. */
 enum class AppLanguage(val tag: String?) {
@@ -28,12 +30,18 @@ enum class AppLanguage(val tag: String?) {
  * language per app (also offered in the phone's app settings) and applies it
  * to the whole process; before that the choice is kept in the app's
  * preferences and laid over each activity's configuration as it is created.
+ * Either way the activity stays: [AppLanguageContent] redraws it in the new language.
  */
 object AppLanguages {
     private const val FILE = "language"
     private const val KEY = "tag"
 
     private val perAppLocales: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+    private val legacy = MutableStateFlow<AppLanguage?>(null)
+
+    /** Before Android 13, the language chosen while the app runs, for [AppLanguageContent]; null from Android 13. */
+    val legacyChoice: StateFlow<AppLanguage?> = legacy.asStateFlow()
 
     fun current(context: Context): AppLanguage =
         if (perAppLocales) {
@@ -43,16 +51,19 @@ object AppLanguages {
             AppLanguage.of(prefs(context).getString(KEY, null))
         }
 
-    /** Switches the app to [language]; the activity is recreated in it. */
-    fun set(activity: Activity, language: AppLanguage) {
-        if (language == current(activity)) return
+    /** Switches the app to [language], in place: the activity is not recreated. */
+    fun set(context: Context, language: AppLanguage) {
+        if (language == current(context)) return
         if (perAppLocales) {
-            activity.getSystemService(LocaleManager::class.java).applicationLocales =
+            // Reaches the activity as a configuration change it handles itself (the manifest's `locale`).
+            context.getSystemService(LocaleManager::class.java).applicationLocales =
                 language.tag?.let { LocaleList.forLanguageTags(it) } ?: LocaleList.getEmptyLocaleList()
         } else {
-            // Written before the activity is recreated, which reads it back.
-            prefs(activity).edit(commit = true) { putString(KEY, language.tag) }
-            activity.recreate()
+            // Written for the next start and for text written outside the activity (a notification).
+            prefs(context).edit(commit = true) { putString(KEY, language.tag) }
+            // Number and date formats follow the default locale; it is set before the screen redraws.
+            Locale.setDefault(language.tag?.let(Locale::forLanguageTag) ?: systemLocale())
+            legacy.value = language
         }
     }
 
@@ -69,13 +80,14 @@ object AppLanguages {
         if (perAppLocales) return null
         val locale = legacyLocale(context)
         Locale.setDefault(locale ?: systemLocale())
+        legacy.value = AppLanguage.of(prefs(context).getString(KEY, null))
         return locale?.let { Configuration().apply { setLocale(it) } }
     }
 
     /** Before Android 13: a configuration change resets the default locale to the phone's; puts the chosen one back. */
     fun reapply(context: Context) {
         if (perAppLocales) return
-        legacyLocale(context)?.let(Locale::setDefault)
+        Locale.setDefault(legacyLocale(context) ?: systemLocale())
     }
 
     /**

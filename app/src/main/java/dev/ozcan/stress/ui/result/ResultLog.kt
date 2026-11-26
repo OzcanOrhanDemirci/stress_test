@@ -66,9 +66,6 @@ internal class LogBlock(
     val note: String? = null,
 )
 
-/** How many values the engineering row announces: the log's lines. */
-internal fun List<LogBlock>.valueCount(): Int = sumOf { block -> block.entries.count { it is LogEntry.Line } }
-
 internal fun LazyListScope.logBlocks(blocks: List<LogBlock>) {
     blocks.forEachIndexed { index, block ->
         logSection(block.title, block.summary, block.note, key = index) {

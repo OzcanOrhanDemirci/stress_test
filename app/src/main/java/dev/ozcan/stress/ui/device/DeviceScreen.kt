@@ -22,7 +22,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,6 +48,7 @@ import dev.ozcan.stress.ui.components.Stack
 import dev.ozcan.stress.ui.components.Temperatures
 import dev.ozcan.stress.ui.components.TileRow
 import dev.ozcan.stress.ui.components.TopBar
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
@@ -115,7 +115,7 @@ fun DeviceScreen() {
     var engineering by rememberSaveable { mutableStateOf(false) }
 
     val blocks = deviceLog(device, live, model)
-    if (engineering) {
+    TwoPages(engineering, engineeringPage = {
         EngineeringPage(stringResource(R.string.device_title), onBack = { engineering = false }) {
             // Indexed keys: two clusters can share a role and so a title.
             blocks.forEachIndexed { index, block ->
@@ -126,8 +126,8 @@ fun DeviceScreen() {
                 }
             }
         }
-    } else {
-        SimplePage(device, live, model, blocks.sumOf { it.lines.size }) { engineering = true }
+    }) {
+        SimplePage(device, live, model) { engineering = true }
     }
 }
 
@@ -136,7 +136,6 @@ private fun SimplePage(
     device: DeviceInfo?,
     live: LiveView?,
     model: DeviceViewModel,
-    values: Int,
     onEngineering: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -146,7 +145,7 @@ private fun SimplePage(
             BatteryTiles(live)
             FitPanel(live, model.availability)
             Spacer(Modifier.height(4.dp))
-            EngineeringRow(pluralStringResource(R.plurals.parts_values, values, values).upper(), onEngineering)
+            EngineeringRow(onEngineering)
         }
     }
 }

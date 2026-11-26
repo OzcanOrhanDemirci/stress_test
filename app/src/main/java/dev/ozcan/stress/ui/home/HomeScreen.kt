@@ -99,6 +99,7 @@ import dev.ozcan.stress.ui.components.SceneCard
 import dev.ozcan.stress.ui.components.SecondaryButton
 import dev.ozcan.stress.ui.components.SectionLabel
 import dev.ozcan.stress.ui.components.StatusChip
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.Wordmark
@@ -242,11 +243,6 @@ fun HomeScreen(
         ),
     )
 
-    if (engineering) {
-        HomeEngineeringPage(log, onOpenRun) { engineering = false }
-        return
-    }
-
     val start: @Composable () -> Unit = {
         PrimaryButton(
             text = stringResource(R.string.home_start),
@@ -291,88 +287,90 @@ fun HomeScreen(
         },
     )
 
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        // The phone and its chip are the Device tab's; the version is in Settings, About.
-        TopBar(
-            brand = { Wordmark() },
-            actions = {
-                StatusChip(
-                    text = stringResource(if (safety) R.string.protection_chip else R.string.safety_off_short),
-                    color = if (safety) StressColors.Good else StressColors.Bad,
-                    // The charge test's chip does not open Settings, but keeps the bar's height.
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
-                    onClick = onOpenSettings.takeUnless { charge },
-                )
-            },
-        )
-        Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            SelectedTest(mode, duration, quality)
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ModeLabel { guide = true }
-                ModeGrid(mode.homeGroup, gpuOk, runs.bestWatts) {
-                    model.choose(mode = if (it == StressMode.Cinematic) cinematic else it)
-                }
-            }
-
-            AnimatedVisibility(
-                visible = mode.scene != null,
-                enter = expandVertically(StressMotion.enter()) + fadeIn(StressMotion.enter()),
-                exit = shrinkVertically(StressMotion.exit()) + fadeOut(StressMotion.exit()),
+    TwoPages(engineering, engineeringPage = { HomeEngineeringPage(log, onOpenRun) { engineering = false } }) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            // The phone and its chip are the Device tab's; the version is in Settings, About.
+            TopBar(
+                brand = { Wordmark() },
+                actions = {
+                    StatusChip(
+                        text = stringResource(if (safety) R.string.protection_chip else R.string.safety_off_short),
+                        color = if (safety) StressColors.Good else StressColors.Bad,
+                        // The charge test's chip does not open Settings, but keeps the bar's height.
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
+                        onClick = onOpenSettings.takeUnless { charge },
+                    )
+                },
+            )
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                val scene = mode.scene ?: cinematic.scene ?: SceneKind.Pool
+                SelectedTest(mode, duration, quality)
+
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionLabel(stringResource(R.string.home_scenes))
-                    Row(Modifier.fillMaxWidth().selectableGroup(), Arrangement.spacedBy(8.dp)) {
-                        StressMode.cinematic.forEach { choice ->
-                            val kind = requireNotNull(choice.scene)
-                            SceneCard(
-                                image = kind.still(),
-                                name = stringResource(Labels.scene(kind)),
-                                selected = scene == kind,
-                                modifier = Modifier.weight(1f).heightIn(min = 72.dp),
-                                onClick = {
-                                    cinematic = choice
-                                    model.choose(mode = choice)
-                                },
-                            )
+                    ModeLabel { guide = true }
+                    ModeGrid(mode.homeGroup, gpuOk, runs.bestWatts) {
+                        model.choose(mode = if (it == StressMode.Cinematic) cinematic else it)
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = mode.scene != null,
+                    enter = expandVertically(StressMotion.enter()) + fadeIn(StressMotion.enter()),
+                    exit = shrinkVertically(StressMotion.exit()) + fadeOut(StressMotion.exit()),
+                ) {
+                    val scene = mode.scene ?: cinematic.scene ?: SceneKind.Pool
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel(stringResource(R.string.home_scenes))
+                        Row(Modifier.fillMaxWidth().selectableGroup(), Arrangement.spacedBy(8.dp)) {
+                            StressMode.cinematic.forEach { choice ->
+                                val kind = requireNotNull(choice.scene)
+                                SceneCard(
+                                    image = kind.still(),
+                                    name = stringResource(Labels.scene(kind)),
+                                    selected = scene == kind,
+                                    modifier = Modifier.weight(1f).heightIn(min = 72.dp),
+                                    onClick = {
+                                        cinematic = choice
+                                        model.choose(mode = choice)
+                                    },
+                                )
+                            }
                         }
                     }
                 }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(stringResource(R.string.home_section_duration))
+                    ChoiceChips(
+                        options = durations,
+                        selected = duration,
+                        onSelect = { model.choose(duration = it) },
+                        label = { it.seconds?.let { seconds -> stringResource(R.string.home_duration_short, seconds / 60) }
+                            ?: stringResource(Labels.duration(it, mode)) },
+                        accessibleLabel = { stringResource(Labels.duration(it, mode)) },
+                    )
+                }
+
+                EngineeringRow({ engineering = true })
+                if (wide) {
+                    notices.forEach { Notice(it) }
+                    start()
+                }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionLabel(stringResource(R.string.home_section_duration))
-                ChoiceChips(
-                    options = durations,
-                    selected = duration,
-                    onSelect = { model.choose(duration = it) },
-                    label = { it.seconds?.let { seconds -> stringResource(R.string.home_duration_short, seconds / 60) }
-                        ?: stringResource(Labels.duration(it, mode)) },
-                    accessibleLabel = { stringResource(Labels.duration(it, mode)) },
-                )
-            }
-
-            EngineeringRow(pluralStringResource(R.plurals.parts_values, log.count, log.count).upper(), { engineering = true })
-            if (wide) {
-                notices.forEach { Notice(it) }
-                start()
-            }
-        }
-
-        if (!wide) {
-            Hairline()
-            Column(
-                Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                notices.forEach { Notice(it) }
-                start()
+            if (!wide) {
+                Hairline()
+                Column(
+                    Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    notices.forEach { Notice(it) }
+                    start()
+                }
             }
         }
     }

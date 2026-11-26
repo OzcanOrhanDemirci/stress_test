@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dev.ozcan.stress.charge.ChargeNotifier
 import dev.ozcan.stress.lab.LabSpec
+import dev.ozcan.stress.settings.AppLanguageContent
 import dev.ozcan.stress.settings.AppLanguages
 import dev.ozcan.stress.ui.AppRoot
 import dev.ozcan.stress.ui.LabScreen
@@ -55,7 +56,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             StressTheme {
                 if (lab == null) {
-                    AppRoot(openRun) { openRun.value = null }
+                    AppLanguageContent { AppRoot(openRun) { openRun.value = null } }
                 } else {
                     LabScreen(lab)
                 }

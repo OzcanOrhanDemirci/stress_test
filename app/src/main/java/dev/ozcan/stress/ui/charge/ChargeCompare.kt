@@ -13,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.ozcan.stress.R
@@ -83,7 +82,6 @@ fun ChargeCompare(first: RunRecord, second: RunRecord, onEngineering: () -> Unit
         )
     }
     val verdict = remember(first, second) { chargeVerdict(ctx, first, second) }
-    val values = remember(first, second) { chargeCompareValueCount(ctx, first, second) }
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
         Arrangement.spacedBy(12.dp),
@@ -94,7 +92,7 @@ fun ChargeCompare(first: RunRecord, second: RunRecord, onEngineering: () -> Unit
         Panel(Modifier.fillMaxWidth(), title = stringResource(R.string.charge_chart_percent), padding = 12.dp) {
             PercentChart(first, second)
         }
-        EngineeringRow(pluralStringResource(R.plurals.parts_values, values, values).upper(), onEngineering)
+        EngineeringRow(onEngineering)
     }
 }
 
@@ -209,10 +207,6 @@ private fun setupLines(context: Context, record: RunRecord): List<RunLine> {
         ),
     ) + commonRunLines(context, record)
 }
-
-/** The number of values the engineering page holds: metrics, three charts, both setups' lines. */
-internal fun chargeCompareValueCount(context: Context, a: RunRecord, b: RunRecord): Int =
-    ChargeMetric.entries.size + 3 + setupLines(context, a).size + setupLines(context, b).size
 
 /**
  * The charge comparison's engineering page: verdict, every finding side by side, the three curves (power against

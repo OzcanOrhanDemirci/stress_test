@@ -26,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -62,11 +61,9 @@ import dev.ozcan.stress.ui.minutesText
 import dev.ozcan.stress.ui.run.LogBlock
 import dev.ozcan.stress.ui.run.LogItem
 import dev.ozcan.stress.ui.run.logBlocks
-import dev.ozcan.stress.ui.run.valueCount
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressType
-import dev.ozcan.stress.ui.upper
 
 /**
  * The charge test while it runs. Simple page (DESIGN "What each simple page keeps", Charge run): watts into the
@@ -150,8 +147,7 @@ fun ChargeRunScreen(duration: StressDuration, onFinished: (String) -> Unit, onLe
                 Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 8.dp),
                 Arrangement.spacedBy(12.dp),
             ) {
-                val values = log.valueCount()
-                EngineeringRow(pluralStringResource(R.plurals.parts_values, values, values).upper(), { engineering = true })
+                EngineeringRow({ engineering = true })
                 if (over) {
                     SecondaryButton(stringResource(R.string.back), onLeave, Modifier.fillMaxWidth())
                 } else {

@@ -44,8 +44,6 @@ internal data class LogBlock(
     val note: String? = null,
 )
 
-internal fun List<LogBlock>.valueCount(): Int = sumOf { it.lines.size }
-
 internal fun LazyListScope.logBlocks(blocks: List<LogBlock>) {
     blocks.forEach { block ->
         logSection(block.title, block.summary, block.note) {

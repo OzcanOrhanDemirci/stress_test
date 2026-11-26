@@ -42,7 +42,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
@@ -91,6 +90,7 @@ import dev.ozcan.stress.ui.components.windowBand
 import dev.ozcan.stress.ui.components.simpleChartHeight
 import dev.ozcan.stress.ui.components.TopBar
 import dev.ozcan.stress.ui.components.TopBarAction
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
@@ -139,25 +139,22 @@ fun ResultScreen(runId: String, onBack: () -> Unit, onCompare: (String) -> Unit)
     val log = remember(loaded, context) {
         record?.let { if (it.isCharge) chargeLog(context, it) else resultLog(context, it, insights) }.orEmpty()
     }
-    if (engineering && record != null) {
+    TwoPages(engineering && record != null, engineeringPage = {
         EngineeringPage(stringResource(R.string.result_title), onBack = { engineering = false }) { logBlocks(log) }
-        return
-    }
-    val count = log.valueCount()
-    val caption = pluralStringResource(R.plurals.parts_values, count, count).upper()
-
-    Column(Modifier.fillMaxSize()) {
-        ResultTopBar(record, onBack, model, onCompare)
-        when {
-            loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
-            record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
-            record.isCharge -> {
-                ChargeResult(record, caption, { engineering = true }, Modifier.weight(1f))
-                ReportActions(record, emptyList())
-            }
-            else -> {
-                ResultBody(record, insights, caption, { engineering = true }, Modifier.weight(1f))
-                ReportActions(record, insights)
+    }) {
+        Column(Modifier.fillMaxSize()) {
+            ResultTopBar(record, onBack, model, onCompare)
+            when {
+                loaded == null -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
+                record == null -> CenteredBox { Text(stringResource(R.string.result_missing), color = StressColors.TextDim) }
+                record.isCharge -> {
+                    ChargeResult(record, { engineering = true }, Modifier.weight(1f))
+                    ReportActions(record, emptyList())
+                }
+                else -> {
+                    ResultBody(record, insights, { engineering = true }, Modifier.weight(1f))
+                    ReportActions(record, insights)
+                }
             }
         }
     }
@@ -259,7 +256,6 @@ private fun ResultTopBar(record: RunRecord?, onBack: () -> Unit, model: ResultVi
 private fun ResultBody(
     record: RunRecord,
     insights: List<Insight>,
-    engineeringCaption: String,
     onEngineering: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -271,7 +267,7 @@ private fun ResultBody(
         BatteryAndChip(record)
         PowerCurve(record)
         insights.firstOrNull()?.let { VerdictPanel(InsightText.title(context(), it), insightColor(it)) }
-        EngineeringRow(engineeringCaption, onEngineering)
+        EngineeringRow(onEngineering)
     }
 }
 

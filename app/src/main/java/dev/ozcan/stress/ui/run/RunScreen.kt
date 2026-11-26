@@ -74,7 +74,6 @@ import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StressDialog
 import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.context
-import dev.ozcan.stress.ui.upper
 import dev.ozcan.stress.ui.theme.NumberStyles
 import dev.ozcan.stress.ui.theme.StressColors
 import dev.ozcan.stress.ui.theme.StressMotion
@@ -172,11 +171,9 @@ fun RunScreen(mode: StressMode, duration: StressDuration, onFinished: (String) -
             exit = fadeOut(StressMotion.exit()),
         ) {
             if (running != null) {
-                val values = log.valueCount()
                 RunReadings(
                     mode, model.settings.quality, running, now, live, history,
                     safety, model.settings.deviceSafety,
-                    engineeringCaption = pluralStringResource(R.plurals.parts_values, values, values).upper(),
                     onWindow = { window = it },
                     onEngineering = { engineering = true },
                     onStop = { confirmStop = true },

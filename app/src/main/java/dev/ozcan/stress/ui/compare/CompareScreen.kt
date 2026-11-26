@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -50,6 +49,7 @@ import dev.ozcan.stress.ui.components.LogTag
 import dev.ozcan.stress.ui.components.Panel
 import dev.ozcan.stress.ui.components.TimeChart
 import dev.ozcan.stress.ui.components.TopBar
+import dev.ozcan.stress.ui.components.TwoPages
 import dev.ozcan.stress.ui.components.logSection
 import dev.ozcan.stress.ui.context
 import dev.ozcan.stress.ui.theme.StressColors
@@ -106,22 +106,21 @@ fun CompareScreen(first: String, second: String, onBack: () -> Unit) {
     val title = stringResource(R.string.compare_title)
     val ctx = context()
 
-    if (engineering && (outcome is Outcome.Load || outcome is Outcome.Charge)) {
+    TwoPages(engineering && (outcome is Outcome.Load || outcome is Outcome.Charge), engineeringPage = {
         EngineeringPage(title, onBack = { engineering = false }) {
             if (outcome is Outcome.Load) compareLog(ctx, outcome.a, outcome.b)
             if (outcome is Outcome.Charge) chargeCompareLog(ctx, outcome.a, outcome.b)
         }
-        return
-    }
-
-    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TopBar(title = title, modifier = Modifier.statusBarsPadding(), onBack = onBack)
-        when (outcome) {
-            is Outcome.Refused -> Refusal(outcome.reason)
-            Outcome.Loading -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
-            Outcome.Mixed -> ChargeLoadComparisonMessage()
-            is Outcome.Charge -> ChargeCompare(outcome.a, outcome.b, onEngineering = { engineering = true })
-            is Outcome.Load -> SimplePage(outcome.a, outcome.b, onEngineering = { engineering = true })
+    }) {
+        Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+            TopBar(title = title, modifier = Modifier.statusBarsPadding(), onBack = onBack)
+            when (outcome) {
+                is Outcome.Refused -> Refusal(outcome.reason)
+                Outcome.Loading -> CenteredBox { CircularProgressIndicator(color = StressColors.Accent) }
+                Outcome.Mixed -> ChargeLoadComparisonMessage()
+                is Outcome.Charge -> ChargeCompare(outcome.a, outcome.b, onEngineering = { engineering = true })
+                is Outcome.Load -> SimplePage(outcome.a, outcome.b, onEngineering = { engineering = true })
+            }
         }
     }
 }
@@ -145,7 +144,6 @@ private fun SimplePage(a: RunRecord, b: RunRecord, onEngineering: () -> Unit) {
     val rows = remember(a, b) { sideRows(ctx, a, b) }
     val verdict = remember(a, b) { verdict(ctx, a, b) }
     val chart = remember(a, b) { chartReadings(a, b).let { it[Reading.Power]?.let { line -> Reading.Power to line } ?: it.entries.firstOrNull()?.toPair() } }
-    val values = remember(a, b) { compareValueCount(ctx, a, b) }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         Arrangement.spacedBy(12.dp),
@@ -159,7 +157,7 @@ private fun SimplePage(a: RunRecord, b: RunRecord, onEngineering: () -> Unit) {
                 ComparisonChart(reading, line)
             }
         }
-        EngineeringRow(pluralStringResource(R.plurals.parts_values, values, values).upper(), onEngineering)
+        EngineeringRow(onEngineering)
     }
 }
 
@@ -383,9 +381,6 @@ private fun runLines(context: Context, record: RunRecord): List<RunLine> {
         ),
     ) + commonRunLines(context, record)
 }
-
-private fun compareValueCount(context: Context, a: RunRecord, b: RunRecord): Int =
-    compareValues(context, a, b).size + chartReadings(a, b).size + runLines(context, a).size + runLines(context, b).size
 
 /**
  * The engineering page (DESIGN "Compare"): the verdict, every compared number with its change, every overlaid
