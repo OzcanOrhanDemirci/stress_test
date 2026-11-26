@@ -2,7 +2,7 @@
 <resources>
     <string name="run_recording">Recording</string>
     <string name="run_remaining">%1$s left</string>
-    <string name="run_unavailable">The phone did not provide the readings marked —.</string>
+    <string name="run_unavailable">The phone did not provide the readings marked N/A.</string>
     <string name="run_unavailable_charging">Battery power is unavailable while charging, and the phone may leave some sensor readings blank.</string>
     <plurals name="run_threads">
         <item quantity="one">%1$d thread</item>
@@ -14,7 +14,8 @@
     <string name="run_gpu_idle">Idle</string>
     <string name="run_gpu_running">Running</string>
     <string name="run_gpu_failed">Failed</string>
-    <string name="run_gpu_unknown">—</string>
+    <string name="run_gpu_unknown">Unknown</string>
+    <string name="run_power_charging">Charging</string>
     <string name="run_chart_chip">Chip temperature</string>
     <string name="run_live_chart">Live readings</string>
     <string name="run_peak">Peak %1$s</string>
@@ -24,7 +25,7 @@
         <item quantity="one">The load has computed %1$d wrong result so far.</item>
         <item quantity="other">The load has computed %1$d wrong results so far.</item>
     </plurals>
-    <string name="run_log_run">Run</string>
+    <string name="run_log_run">Test</string>
     <string name="run_log_power">Power and battery</string>
     <string name="run_log_thermal">Temperatures</string>
     <string name="run_log_clusters">Clusters and clocks</string>

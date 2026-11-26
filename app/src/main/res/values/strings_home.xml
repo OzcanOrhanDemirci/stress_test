@@ -16,7 +16,7 @@
     <string name="home_eng_workload">Workload</string>
     <string name="home_eng_scene">Scene</string>
     <string name="home_eng_best">Best power on this phone</string>
-    <string name="home_eng_last">Last run</string>
+    <string name="home_eng_last">Last test</string>
     <string name="home_eng_device">Device</string>
     <string name="home_eng_zones">%1$d zones</string>
 
@@ -77,7 +77,7 @@
     <string name="home_key_ram">Memory</string>
     <string name="home_key_display">Display</string>
     <string name="home_key_app">App version</string>
-    <string name="home_open_last">Open the last run</string>
+    <string name="home_open_last">Open the last test</string>
     <string name="home_tag_selected">SELECTED</string>
     <string name="home_tag_plug">PLUG</string>
     <string name="home_notice_charge_full">Battery full: nothing to measure</string>
@@ -96,9 +96,9 @@
     <string name="home_note_gpu_missing">GPU load is shown only while a GPU test or the frame-time estimate has data; the driver’s counter is closed to apps.</string>
     <string name="home_note_no_vulkan">Without a Vulkan 1.1 driver the GPU and cinematic tests cannot run.</string>
     <string name="home_note_charge_workload">The charge test puts no load on the phone; it measures the power going into the battery.</string>
-    <string name="home_note_best_missing">Modes marked N/A have no valid run on this phone yet.</string>
-    <string name="home_note_last_power">The phone did not report a usable battery current during this run, so its power could not be measured.</string>
-    <string name="home_note_no_runs">No runs yet.</string>
+    <string name="home_note_best_missing">Modes marked N/A have no valid test on this phone yet.</string>
+    <string name="home_note_last_power">The phone did not report a usable battery current during this test, so its power could not be measured.</string>
+    <string name="home_note_no_runs">No tests yet.</string>
     <string name="home_note_device_missing">Android did not report the values marked N/A.</string>
     <string name="home_notices_none">Nothing holds or redirects a test now.</string>
     <!-- Home (Test tab) revision 2026-11-26: protection chip, short charge line, the test modes guide. -->

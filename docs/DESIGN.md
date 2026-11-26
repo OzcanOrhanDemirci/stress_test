@@ -42,7 +42,8 @@ The log's grammar:
   `TextFaint`).
 - **Event line** (results and live runs): timestamp first (`01:18`), an event tag (`THROTTLE`, `SAFETY`, `GPU`,
   `ERROR`, `PLUG`) in its colour, then the sentence in Body small: `01:18  THROTTLE  big cluster 2400 → 2016 MHz`.
-- **Unavailable**: the line stays, value `—`, tag `N/A`, and the reason once under the section.
+- **Unavailable**: the line stays, the value reads `N/A` (`Yok` in Turkish) in `TextFaint` with no tag of its own, and the
+  reason once under the section.
 - Charts sit in the log as their own section, full width, every series the screen has; the simple page keeps at most
   the one that matters.
 - The page is read top to bottom like a report: summary lines first, then sections, then raw values. Long pages may
@@ -198,4 +199,6 @@ Numbers change in place (monospaced digits); a count-up is allowed once, when a 
 
 Texts stay as the app has them, in English and Turkish, plain and exact. Labels are short nouns ("POWER", "CHIP",
 "BATTERY"); sentences say what was measured and what could not be. When a value cannot be read on a phone the place shows
-"—" and, once per screen, a sentence saying why; never a made-up number.
+a short word ("N/A", "Yok"; "Charging" on the power reading while a cable is in) and, once per screen, a sentence
+saying why; never a made-up number. A test is called a test ("test" in Turkish too, never "run" or "koşu"), and text
+uses no em or en dashes: punctuation or a conjunction instead.

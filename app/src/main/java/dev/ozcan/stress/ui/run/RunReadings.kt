@@ -192,10 +192,13 @@ private fun RunProtection(check: SafetyCheck, enabled: Boolean) {
 @Composable
 private fun RunValues(mode: StressMode, live: LiveView?) {
     val context = context()
-    val watts = live?.watts.takeUnless { live?.plugged == true }
+    val plugged = live?.plugged == true
+    val watts = live?.watts.takeUnless { plugged }
     val chip = live?.chipCelsius
     Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp)) {
-        LargeValue(stringResource(R.string.home_live_power), Format.number(watts, 2), "W", StressColors.Accent)
+        // On the charger the battery's power is not the load's, and the tile says why it has no number.
+        if (plugged) LargeValue(stringResource(R.string.home_live_power), stringResource(R.string.run_power_charging), null, StressColors.TextDim)
+        else LargeValue(stringResource(R.string.home_live_power), Format.number(watts, 2), "W", StressColors.Accent)
         LargeValue(stringResource(R.string.home_live_chip), Format.number(chip, 0), "°C", Temperatures.chip(chip))
         when {
             mode.scene != null ->

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="result_unavailable">Telefon, — işaretli ölçümler için yeterli veri vermedi.</string>
+    <string name="result_unavailable">Telefon, Yok yazan ölçümler için yeterli veri vermedi.</string>
     <string name="result_insight_throttled">Hız kısma başladı</string>
     <string name="result_insight_drop">CPU performans düşüşü</string>
     <string name="result_insight_stability">Kararlılık: %1$s</string>
@@ -25,7 +25,7 @@
     <string name="result_log_end">Bitiş</string>
     <string name="result_log_safety_reason">Güvenlik durdurması</string>
     <string name="result_log_safety">Cihaz koruması</string>
-    <string name="result_log_older_run">Eski sürümlerin kaydettiği koşularda her değer yok.</string>
+    <string name="result_log_older_run">Eski sürümlerin kaydettiği testlerde her değer yok.</string>
     <string name="result_log_battery_start">Başta pil</string>
     <string name="result_log_battery_end">Sonda pil</string>
     <string name="result_log_power_source">Güç kaynağı ölçümü</string>
@@ -35,7 +35,7 @@
     <string name="result_log_from">başta %1$s</string>
     <string name="result_log_thermal">Sıcaklık</string>
     <string name="result_log_thermal_status">Android ısı durumu (en yüksek)</string>
-    <string name="result_log_no_temperatures">Telefon bu koşuda sıcaklık okuması vermedi.</string>
+    <string name="result_log_no_temperatures">Telefon bu testte sıcaklık okuması vermedi.</string>
     <string name="result_log_no_status">Telefon Android ısı durumunu bildirmedi.</string>
     <string name="result_log_throttle">Hız kısma</string>
     <string name="result_log_never">hiç</string>
@@ -52,7 +52,7 @@
     <string name="result_log_scale_requested">Seçilen ölçek</string>
     <string name="result_log_quality_drawn">Çizilen kalite</string>
     <string name="result_log_scale_drawn">Çizilen ölçek</string>
-    <string name="result_log_scene_missing">Eski sürümlerin kaydettiği koşularda çizilen ölçek yok.</string>
+    <string name="result_log_scene_missing">Eski sürümlerin kaydettiği testlerde çizilen ölçek yok.</string>
     <string name="result_log_events">Olaylar</string>
     <string name="result_event_start">BAŞLA</string>
     <string name="result_event_throttle">KISMA</string>
@@ -64,9 +64,9 @@
     <string name="result_log_chart">Grafik · %1$s</string>
     <string name="result_log_no_curve">Güç okuması kaydedilmedi.</string>
     <string name="result_log_phone">Telefon</string>
-    <string name="result_log_device_missing">Telefon — işaretli değerleri bildirmedi.</string>
+    <string name="result_log_device_missing">Telefon, Yok yazan değerleri bildirmedi.</string>
     <string name="result_log_record">Kayıt</string>
-    <string name="result_log_id">Koşu kimliği</string>
+    <string name="result_log_id">Test kimliği</string>
     <string name="result_log_mode_key">Mod anahtarı</string>
     <string name="result_log_workload">İş yükü tarifi</string>
     <string name="result_log_started">Başlangıç</string>

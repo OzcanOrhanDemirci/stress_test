@@ -16,7 +16,7 @@
     <string name="home_eng_workload">İş yükü</string>
     <string name="home_eng_scene">Sahne</string>
     <string name="home_eng_best">Bu telefondaki en yüksek güç</string>
-    <string name="home_eng_last">Son koşu</string>
+    <string name="home_eng_last">Son test</string>
     <string name="home_eng_device">Cihaz</string>
     <string name="home_eng_zones">%1$d bölge</string>
 
@@ -77,7 +77,7 @@
     <string name="home_key_ram">Bellek</string>
     <string name="home_key_display">Ekran</string>
     <string name="home_key_app">Uygulama sürümü</string>
-    <string name="home_open_last">Son koşuyu aç</string>
+    <string name="home_open_last">Son testi aç</string>
     <string name="home_tag_selected">SEÇİLİ</string>
     <string name="home_tag_plug">KABLO</string>
     <string name="home_notice_charge_full">Pil dolu: ölçülecek şarj yok</string>
@@ -89,17 +89,17 @@
     <!-- Home engineering page: once-per-section reasons. -->
     <string name="home_note_waiting">İlk ölçümler bekleniyor.</string>
     <string name="home_note_power_plugged">Şarj kablosu takılıyken pilden çekilen güç ve akım ölçülemez.</string>
-    <string name="home_note_power_missing">YOK yazan değerleri bu telefonun pil sayacı bildirmiyor.</string>
-    <string name="home_note_thermal_missing">YOK yazanlar için uygulama bu telefonda okuyabileceği bir sıcaklık bölgesi bulamadı.</string>
-    <string name="home_note_clocks_missing">YOK yazan frekanslar şu anda bu telefonda okunamıyor.</string>
+    <string name="home_note_power_missing">Yok yazan değerleri bu telefonun pil sayacı bildirmiyor.</string>
+    <string name="home_note_thermal_missing">Yok yazanlar için uygulama bu telefonda okuyabileceği bir sıcaklık bölgesi bulamadı.</string>
+    <string name="home_note_clocks_missing">Yok yazan frekanslar şu anda bu telefonda okunamıyor.</string>
     <string name="home_note_gpu_estimated">Sürücünün GPU yük sayacı kapalı; yük, uygulamanın kare sürelerinden hesaplanıyor.</string>
     <string name="home_note_gpu_missing">GPU yükü yalnızca bir GPU testi ya da kare süresi tahmini veri verirken görünür; sürücünün sayacı uygulamalara kapalı.</string>
     <string name="home_note_no_vulkan">Vulkan 1.1 sürücüsü olmadan GPU ve sinematik testler çalışamaz.</string>
     <string name="home_note_charge_workload">Şarj testi telefona yük bindirmez; pile giren gücü ölçer.</string>
-    <string name="home_note_best_missing">YOK yazan modların bu telefonda henüz geçerli bir koşusu yok.</string>
-    <string name="home_note_last_power">Telefon bu koşu sırasında kullanılabilir bir pil akımı bildirmedi; gücü ölçülemedi.</string>
-    <string name="home_note_no_runs">Henüz koşu yok.</string>
-    <string name="home_note_device_missing">YOK yazan değerleri Android bildirmedi.</string>
+    <string name="home_note_best_missing">Yok yazan modların bu telefonda henüz geçerli bir testi yok.</string>
+    <string name="home_note_last_power">Telefon bu test sırasında kullanılabilir bir pil akımı bildirmedi; gücü ölçülemedi.</string>
+    <string name="home_note_no_runs">Henüz test yok.</string>
+    <string name="home_note_device_missing">Yok yazan değerleri Android bildirmedi.</string>
     <string name="home_notices_none">Şu anda testi bekleten ya da yönlendiren bir durum yok.</string>
     <!-- Home (Test tab) revision 2026-11-26: protection chip, short charge line, the test modes guide. -->
     <string name="protection_chip">Koruma</string>
