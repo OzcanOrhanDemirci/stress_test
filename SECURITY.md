@@ -5,15 +5,17 @@
 Knowing the shape of the application is most of the answer to what can go wrong
 with it, so it is worth stating plainly.
 
-- **It asks for no permissions.** The manifest declares none. One appears in the
-  built package, `dev.ozcan.stress.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`: it
-  is added during the build by `androidx.core`, it is declared at the
+- **It asks for one permission, to post notifications.** It is asked for when a
+  charge test starts, on Android 13 and later, and used only to say that the
+  test filled the battery; declining it changes nothing else. One more appears
+  in the built package, `dev.ozcan.stress.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`:
+  it is added during the build by `androidx.core`, it is declared at the
   `signature` protection level and it is named after this application, so
-  nothing outside this package can hold it. That one is all of them, and reading
-  them out of the package is the way to confirm it:
+  nothing outside this package can hold it. Those two are all of them, and
+  reading them out of the package is the way to confirm it:
 
   ```bash
-  aapt2 dump permissions stress-test-0.2.0.apk
+  aapt2 dump permissions stress-test-1.0.0.apk
   ```
 
 - **It cannot reach the network.** Without the `INTERNET` permission there is no
@@ -61,8 +63,8 @@ The most recent release is the supported one. Older versions receive nothing.
 
 | Version | Supported |
 | --- | --- |
-| 0.2.x | Yes |
-| < 0.2 | No |
+| 1.0.x | Yes |
+| < 1.0 | No |
 
 ## Reporting a vulnerability
 
@@ -88,7 +90,7 @@ Every release is signed with the same key. Before installing a package that
 claims to be this application, check what signed it:
 
 ```bash
-apksigner verify --print-certs stress-test-0.2.0.apk
+apksigner verify --print-certs stress-test-1.0.0.apk
 ```
 
 The certificate should read:

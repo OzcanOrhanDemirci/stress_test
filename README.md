@@ -2,11 +2,11 @@
 
 # Stress Test
 
-**A stress test and benchmark for Android phones, built to find the most power a phone can really draw, and to look good while it does.**
+**An engineering test tool for Android phones: it loads a phone up to the most power it can really draw, and measures its power, heat and performance.**
 
 [![Build and verify](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml)
 [![Release](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](app/src/main/cpp)
 [![AArch64 assembly](https://img.shields.io/badge/AArch64-assembly-555555)](app/src/main/cpp/cpu)
@@ -18,7 +18,7 @@
 
 **10.1 W** at full load on the reference phone · **2.6×** the power of an "idle 100 %" on the same cores · five cinematic scenes at three quality levels · charge test · device safety · a PDF report
 
-**[Download the latest package](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 and above · no permissions, nothing collected
+**[Download the latest package](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 and above · no network access, nothing collected
 
 [Install](#install) · [Compatibility](#compatibility) · [The question](#the-question) · [Results](#results) · [Modes](#modes) · [Charge test](#charge-test) · [Scenes](#the-cinematic-scenes) · [The app](#the-app) · [Device safety](#device-safety) · [How it measures](#how-power-is-measured) · [How it loads](#how-the-load-is-made) · [Architecture](#architecture) · [Building](#building)
 
@@ -26,14 +26,21 @@
 
 <br />
 
-<img src="docs/images/cover.jpg" alt="Three cinematic scenes on the phone: the reactor pool, the rain forest and the white world" width="760" />
+<img src="docs/images/cover.jpg" alt="The five cinematic scenes: the reactor pool, the rain forest, the white world, the black hole and the northern lights" width="100%" />
 
 </div>
 
 ---
 
-Stress Test measures how much power an Android phone draws under load and how
-much reaches its battery while charging. The **Honor 400** is the reference
+**Stress Test is an engineering tool for examining an Android phone's power,
+heat and performance.** It is not a game, and it is not an app for entertainment
+or everyday use. It deliberately runs the phone at full load, makes it very hot
+and drains its battery quickly, so that what the phone does under that load can
+be measured and compared. Even the cinematic scenes are a graphics load with
+their frame rate measured, not a show.
+
+It measures how much power the phone draws under load and how much reaches its
+battery while charging. The **Honor 400** is the reference
 device. The power figures below come from that phone, and its measurements
 guided the choice of stress loads.
 
@@ -298,8 +305,10 @@ per-app language settings.
 3. Open it on the phone, and allow installing from that source when Android
    asks.
 
-See [Compatibility](#compatibility) for phone requirements. The app asks for no
-permissions and cannot reach the network. A package built from this source
+See [Compatibility](#compatibility) for phone requirements. The app cannot
+reach the network. Its one permission is for notifications, asked for when a
+charge test starts on Android 13 and later, and used only to say that the test
+filled the battery; declining it changes nothing else. A package built from this source
 without the release key is signed with a debug key, and the two cannot update
 each other: uninstall one before installing the other, which also removes its
 test history.
@@ -468,7 +477,7 @@ with the measurement that settled it; the measurements themselves are in
 ```bash
 ./gradlew testDebugUnitTest            # JVM tests
 ./gradlew lintDebug                    # Android Lint, errors fail the build
-./gradlew connectedDebugAndroidTest    # tests on a connected phone
+./gradlew connectedDebugAndroidTest    # tests on a connected phone (uninstalls the debug app afterwards, with its history)
 ```
 
 JVM tests cover battery power and current conventions, charge-test phases and
@@ -477,9 +486,9 @@ and loading old records. The telemetry changes were also checked by replaying
 104 archived Honor 400 lab tests. That replay used existing measurements.
 
 The instrumented suite checks CPU work, GPU burners, scene rendering, sensor
-discovery and load recipes on a connected phone. In the 0.3.0 lab checks on the
-Honor 400, all four scenes reached the requested settings at Low, Medium and
-High with zero errors, and so did the northern lights, added after 0.3.0.
+discovery and load recipes on a connected phone. In lab checks on the Honor 400,
+all five scenes reached the requested settings at Low, Medium and High with
+zero errors.
 Compatibility on other models was assessed on paper.
 The charging test has automated coverage. Measurements with real chargers and
 cables are pending. [Measurement log](docs/OLCUMLER.md)
@@ -530,10 +539,10 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 | Concern | Choice |
 | --- | --- |
-| App | Kotlin 2.4.20, Jetpack Compose with Material 3, coroutines, kotlinx.serialization, Space Grotesk, Instrument Sans and Space Mono |
+| App | Kotlin 2.4.21, Jetpack Compose with Material 3, coroutines, kotlinx.serialization, Space Grotesk, Instrument Sans and Space Mono |
 | Native | C++20 and AArch64 assembly through the NDK and CMake, JNI |
 | Graphics | Vulkan 1.1 (1.2 features where present), GLSL compiled to SPIR-V 1.3 at build time and embedded |
-| Build | Gradle 9.8.0, Android Gradle Plugin 9.4.1 |
+| Build | Gradle 9.9.2, Android Gradle Plugin 9.5.2 |
 | SDK | compile 37.1, target 36 (Android 16), minimum 29 (Android 10) |
 | Tools | Node.js (lab sessions), Python with moderngl (scene preview, kernel generator) |
 
@@ -542,7 +551,7 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 Pushing a tag builds, tests, signs and publishes:
 
 ```bash
-git tag -a v0.3.0 -m "Stress Test 0.3.0" && git push origin v0.3.0
+git tag -a v1.0.0 -m "Stress Test 1.0.0" && git push origin v1.0.0
 ```
 
 The pipeline refuses to publish a tag that disagrees with the version declared
@@ -572,9 +581,11 @@ there is an issue form for them.
 
 ## Status
 
-**Source version 0.3.0.** This version brings the redesigned interface, the
-charge test, the black hole scene and better handling of differences between
-phones. [Changelog](CHANGELOG.md#030--2026-11-26)
+**Version 1.0.0**, the first stable release: six modes including the charge
+test, five cinematic scenes at three quality levels, device safety, the analysis
+with its PDF and CSV report, and the instrument-style interface. The Honor 400
+is the only phone it was tested on in hand.
+[Changelog](CHANGELOG.md#100---2026-11-26)
 
 ## Licence
 

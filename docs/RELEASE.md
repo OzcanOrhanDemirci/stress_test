@@ -21,9 +21,9 @@ Pushing a tag that starts with `v` runs `.github/workflows/release.yml`, which:
 10. Deletes the key.
 
 ```bash
-# gradle.properties says stress.versionName=0.3.0 and CHANGELOG.md has a [0.3.0] section
-git tag -a v0.3.0 -m "Stress Test 0.3.0"
-git push origin v0.3.0
+# gradle.properties says stress.versionName=1.0.0 and CHANGELOG.md has a [1.0.0] section
+git tag -a v1.0.0 -m "Stress Test 1.0.0"
+git push origin v1.0.0
 ```
 
 The same workflow can be started by hand from the Actions tab. That is a dry

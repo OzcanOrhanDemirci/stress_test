@@ -21,7 +21,7 @@ takes from this repository:
    summary and descriptions (README.md has them, in English), and the
    versions to build.
 2. The build server honours the versions the project pins itself:
-   the Gradle wrapper (9.8.0), the Android Gradle Plugin (9.4.1) and
+   the Gradle wrapper (9.9.2), the Android Gradle Plugin (9.5.2) and
    `ndkVersion` (29.0.14206865) are all declared in the repository, and
    AGP installs exactly that NDK. The kernels' assembly is built by the
    assembler the measurements were made with, so a build that swapped

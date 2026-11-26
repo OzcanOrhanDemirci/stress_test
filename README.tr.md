@@ -2,11 +2,11 @@
 
 # Stress Test
 
-**Android telefonlar için stres testi ve benchmark: bir telefonun gerçekten çekebildiği en yüksek gücü bulmak, bunu yaparken de göze iyi görünmek için.**
+**Android telefonlar için mühendislik test aracı: telefonu gerçekten çekebildiği en yüksek güce kadar yükler; gücünü, ısınmasını ve performansını ölçer.**
 
 [![Derleme ve doğrulama](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/ci.yml)
 [![Yayın](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml/badge.svg)](https://github.com/OzcanOrhanDemirci/stress_test/actions/workflows/release.yml)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](app/src/main/cpp)
 [![AArch64 assembly](https://img.shields.io/badge/AArch64-assembly-555555)](app/src/main/cpp/cpu)
@@ -18,7 +18,7 @@
 
 Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün **2,6 katı** güç · üç kalitede beş sinematik sahne · şarj testi · cihaz güvenliği · PDF rapor
 
-**[Son paketi indir](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 ve üstü · izin yok, hiçbir şey toplanmaz
+**[Son paketi indir](https://github.com/OzcanOrhanDemirci/stress_test/releases/latest)** · 64-bit Android 10 ve üstü · ağa çıkmaz, hiçbir şey toplanmaz
 
 [Kurulum](#kurulum) · [Uyumluluk](#uyumluluk) · [Soru](#soru) · [Sonuçlar](#sonuçlar) · [Modlar](#modlar) · [Şarj testi](#şarj-testi) · [Sahneler](#sinematik-sahneler) · [Uygulama](#uygulama) · [Cihaz güvenliği](#cihaz-güvenliği) · [Güç nasıl ölçülüyor](#güç-nasıl-ölçülüyor) · [Yük nasıl üretiliyor](#yük-nasıl-üretiliyor) · [Mimari](#mimari) · [Derleme](#derleme)
 
@@ -26,14 +26,20 @@ Referans telefonda tam yükte **10,1 W** · aynı çekirdeklerde "kuru %100"ün 
 
 <br />
 
-<img src="docs/images/cover.jpg" alt="Telefonda üç sinematik sahne: reaktör havuzu, yağmur ormanı ve beyaz dünya" width="760" />
+<img src="docs/images/cover.jpg" alt="Beş sinematik sahne: reaktör havuzu, yağmur ormanı, beyaz dünya, kara delik ve kuzey ışıkları" width="100%" />
 
 </div>
 
 ---
 
-Stress Test, Android telefonun yük altında pilden çektiği gücü ve şarj olurken
-pile giren gücü ölçer. Referans cihaz **Honor 400**. Aşağıdaki güç değerleri bu
+**Stress Test, bir Android telefonun gücünü, ısınmasını ve performansını
+mühendislik açısından incelemek için yapılmış bir test aracıdır.** Bir oyun
+değildir; son kullanıcının eğlence ya da hobi için kullanacağı bir uygulama da
+değildir. Telefonu bilerek tam yükte çalıştırır, çok ısıtır ve pilini hızla
+tüketir; amaç, telefonun bu yük altında ne yaptığını ölçmek ve karşılaştırmaktır.
+Sinematik sahneler de gösteri için değil, kare hızı ölçülen bir grafik yüküdür.
+
+Telefonun yük altında pilden çektiği gücü ve şarj olurken pile giren gücü ölçer. Referans cihaz **Honor 400**. Aşağıdaki güç değerleri bu
 telefonda ölçüldü ve stres testi yükleri bu ölçümlere göre seçildi.
 
 > [!WARNING]
@@ -295,8 +301,10 @@ ayarından da seçebilirsin.
    (sertifika [SECURITY.md](SECURITY.md#verifying-a-package)'de).
 3. Telefonda aç; Android sorduğunda bu kaynaktan yüklemeye izin ver.
 
-Telefon gereksinimleri [Uyumluluk](#uyumluluk) bölümünde. Uygulama hiçbir izin istemez
-ve ağa çıkamaz. Bu kaynaktan yayın anahtarı olmadan derlenen paket debug
+Telefon gereksinimleri [Uyumluluk](#uyumluluk) bölümünde. Uygulama ağa çıkamaz.
+Tek izni bildirim içindir: Android 13 ve üstünde şarj testi başlarken sorulur,
+yalnız testin pili doldurduğunu söylemek için kullanılır; reddetmek başka hiçbir
+şeyi değiştirmez. Bu kaynaktan yayın anahtarı olmadan derlenen paket debug
 anahtarıyla imzalanır ve ikisi birbirini güncelleyemez: birini kurmadan önce
 öbürünü kaldırmak gerekir, bu da onun test geçmişini siler.
 
@@ -467,7 +475,7 @@ bölümünde tam olarak yazılı; ölçümlerin kendisi [docs/OLCUMLER.md](docs/
 ```bash
 ./gradlew testDebugUnitTest            # JVM testleri
 ./gradlew lintDebug                    # Android Lint, hata derlemeyi düşürür
-./gradlew connectedDebugAndroidTest    # bağlı telefonda testler
+./gradlew connectedDebugAndroidTest    # bağlı telefonda testler (sonunda debug uygulamayı geçmişiyle birlikte kaldırır)
 ```
 
 JVM testleri pil gücünü, akımın birimini ve yönünü, şarj testinin adımlarını ve
@@ -476,9 +484,9 @@ karşılaştırmayı, CSV'yi ve eski kayıtların açılmasını kapsıyor. Okum
 arşivdeki 104 Honor 400 lab testinin verileri yeniden işlenerek de sınandı.
 
 Bağlı telefonda çalışan testler CPU hesaplarını, GPU yakıcılarını, sahne
-çizimini, sensörlerin bulunmasını ve yük tariflerini sınar. 0.3.0 lab
-testlerinde Honor 400 dört sahneyi de Düşük, Orta ve Yüksek'te seçilen ayarlarda
-hatasız çizdi; 0.3.0'dan sonra eklenen kuzey ışıkları da öyle. Diğer modellerin
+çizimini, sensörlerin bulunmasını ve yük tariflerini sınar. Lab
+testlerinde Honor 400 beş sahnenin hepsini Düşük, Orta ve Yüksek'te seçilen
+ayarlarda hatasız çizdi. Diğer modellerin
 uyumluluğu kâğıt üzerinde değerlendirildi.
 Şarj testi otomatik testlerle sınandı. Gerçek şarj cihazı ve kablolarla ölçüm
 henüz yapılmadı. [Ölçüm kaydı](docs/OLCUMLER.md)
@@ -530,10 +538,10 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 
 | Konu | Seçim |
 | --- | --- |
-| Uygulama | Kotlin 2.4.20, Material 3 ile Jetpack Compose, coroutines, kotlinx.serialization, Space Grotesk, Instrument Sans ve Space Mono |
+| Uygulama | Kotlin 2.4.21, Material 3 ile Jetpack Compose, coroutines, kotlinx.serialization, Space Grotesk, Instrument Sans ve Space Mono |
 | Yerel kod | NDK ve CMake üzerinden C++20 ve AArch64 assembly, JNI |
 | Grafik | Vulkan 1.1 (varsa 1.2 özellikleri), derleme sırasında SPIR-V 1.3'e derlenip gömülen GLSL |
-| Derleme | Gradle 9.8.0, Android Gradle Plugin 9.4.1 |
+| Derleme | Gradle 9.9.2, Android Gradle Plugin 9.5.2 |
 | SDK | derleme 37.1, hedef 36 (Android 16), en düşük 29 (Android 10) |
 | Araçlar | Node.js (lab oturumları), moderngl ile Python (sahne önizlemesi, yük üretici) |
 
@@ -542,7 +550,7 @@ python tools/scene_preview.py --scene white --times 3,18,30,44                  
 Bir etiket göndermek derler, test eder, imzalar ve yayınlar:
 
 ```bash
-git tag -a v0.3.0 -m "Stress Test 0.3.0" && git push origin v0.3.0
+git tag -a v1.0.0 -m "Stress Test 1.0.0" && git push origin v1.0.0
 ```
 
 İş akışı, `gradle.properties`'te yazılı sürümle uyuşmayan bir etiketi ya da
@@ -571,9 +579,10 @@ için bir issue formu var. Katkı belgeleri İngilizcedir.
 
 ## Durum
 
-**Kaynak kodun sürümü 0.3.0.** Bu sürümle yeni arayüz, şarj testi, kara delik
-sahnesi ve telefonlar arasındaki farklara yönelik düzeltmeler geliyor.
-[Değişiklik günlüğü](CHANGELOG.md#030--2026-11-26)
+**Sürüm 1.0.0**, ilk kararlı sürüm: şarj testiyle birlikte altı mod, üç kalitede
+beş sinematik sahne, cihaz güvenliği, PDF ve CSV raporuyla analiz ve ölçü
+aleti görünümlü arayüz. Elde denenen tek telefon Honor 400.
+[Değişiklik günlüğü](CHANGELOG.md#100---2026-11-26)
 
 ## Lisans
 
