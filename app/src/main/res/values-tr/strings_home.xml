@@ -101,4 +101,15 @@
     <string name="home_note_no_runs">Henüz koşu yok.</string>
     <string name="home_note_device_missing">YOK yazan değerleri Android bildirmedi.</string>
     <string name="home_notices_none">Şu anda testi bekleten ya da yönlendiren bir durum yok.</string>
+    <!-- Home (Test tab) revision 2026-11-26: protection chip, short charge line, the test modes guide. -->
+    <string name="protection_chip">Koruma</string>
+    <string name="home_mode_charge_detail">Şarj hızı</string>
+    <string name="home_guide_open">Test modları ne işe yarar</string>
+    <string name="home_guide_title">Test modları</string>
+    <string name="home_guide_full">CPU, GPU ve bellek aynı anda çalışır: telefonun çekebildiği en yüksek güç. En ağır yükte telefonun ne kadar ısındığını ve gücünü ne kadar koruduğunu görmek için.</string>
+    <string name="home_guide_cinematic">Bütün CPU çekirdekleri tam yükteyken ekranda gerçek zamanlı bir 3D sahne çizilir; sahneyi modların altından seçersin. Telefonu oyuna benzer bir yükte, kare hızıyla birlikte görmek için.</string>
+    <string name="home_guide_cpu">Yalnız işlemci: bütün çekirdekler en çok güç çeken yükle çalışır, GPU boşta kalır. İşlemcinin ısınmasını ve hızını tek başına görmek için.</string>
+    <string name="home_guide_gpu">Yalnız grafik işlemcisi, en çok güç çeken yükle çalışır; CPU boşta kalır. GPU\'nun gücünü ve ısınmasını tek başına görmek için.</string>
+    <string name="home_guide_dry" formatted="false">Her çekirdek %100 meşgul görünür, ama hesap birimlerinin çoğu çalışmaz ve telefon az güç çeker. Bir referans: CPU testinin yanında %100\'ün her zaman gerçek yük olmadığını gösterir.</string>
+    <string name="home_guide_charge">Telefona yük vermez, şarj olurken pile giren gücü ölçer. Şarj aletinin ya da kablonun yavaş olup olmadığını görmek için; iki şarj testi Karşılaştır\'da yan yana konabilir.</string>
 </resources>

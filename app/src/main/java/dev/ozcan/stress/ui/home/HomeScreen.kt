@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
@@ -45,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -55,7 +59,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -72,7 +80,6 @@ import dev.ozcan.stress.run.RunRecord
 import dev.ozcan.stress.run.StressDuration
 import dev.ozcan.stress.run.StressMode
 import dev.ozcan.stress.safety.SafetyCheck
-import dev.ozcan.stress.safety.SafetyLimits
 import dev.ozcan.stress.safety.SafetyPolicy
 import dev.ozcan.stress.settings.Settings
 import dev.ozcan.stress.ui.Format
@@ -80,11 +87,16 @@ import dev.ozcan.stress.ui.Labels
 import dev.ozcan.stress.ui.LiveView
 import dev.ozcan.stress.ui.charge.rememberNotificationAsk
 import dev.ozcan.stress.ui.components.ChoiceChips
+import dev.ozcan.stress.ui.components.ChipShape
 import dev.ozcan.stress.ui.components.EngineeringRow
+import dev.ozcan.stress.ui.components.FitText
 import dev.ozcan.stress.ui.components.Hairline
+import dev.ozcan.stress.ui.components.LogSectionHeader
 import dev.ozcan.stress.ui.components.Panel
+import dev.ozcan.stress.ui.components.PanelDialog
 import dev.ozcan.stress.ui.components.PrimaryButton
 import dev.ozcan.stress.ui.components.SceneCard
+import dev.ozcan.stress.ui.components.SecondaryButton
 import dev.ozcan.stress.ui.components.SectionLabel
 import dev.ozcan.stress.ui.components.StatusChip
 import dev.ozcan.stress.ui.components.StressDialog
@@ -107,7 +119,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 internal data class HomeHistory(
     val last: RunRecord? = null,
@@ -185,7 +196,6 @@ internal class HomeViewModel(private val graph: AppGraph) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(1_000), null)
 }
 
-private val Limits = SafetyLimits()
 internal val HomeModes = StressMode.entries.map { it.homeGroup }.distinct()
 
 /**
@@ -210,6 +220,7 @@ fun HomeScreen(
     val haptics = LocalHapticFeedback.current
     var blocked by remember { mutableStateOf<SafetyCheck?>(null) }
     var engineering by rememberSaveable { mutableStateOf(false) }
+    var guide by rememberSaveable { mutableStateOf(false) }
     var cinematic by rememberSaveable { mutableStateOf(settings.lastMode.takeIf { it.scene != null } ?: StressMode.Cinematic) }
     LaunchedEffect(Unit) { model.refreshHistory() }
 
@@ -258,19 +269,38 @@ fun HomeScreen(
     // it starts, so there it follows the content.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
 
+    // Only notices that hold or redirect a start; their full text is on the engineering page. They sit with the start
+    // button, below everything a mode changes, so a notice that comes or goes with the mode (charger connected,
+    // battery full) never moves the hero, the modes or the durations.
+    val notices = listOfNotNull(
+        if (live?.plugged == true && !charge) {
+            HomeNoticeLine(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_notice_plugged), StressColors.Warn) {
+                model.choose(mode = StressMode.Charge)
+            }
+        } else {
+            null
+        },
+        if (chargeFull) HomeNoticeLine(Icons.Rounded.BatteryFull, stringResource(R.string.home_notice_charge_full), StressColors.Cool) else null,
+        if (capabilities?.gpuTests == false) {
+            HomeNoticeLine(Icons.Rounded.Info, stringResource(R.string.home_notice_no_vulkan), StressColors.Cool)
+        } else {
+            null
+        },
+        gate?.let { check ->
+            HomeNoticeLine(Icons.Rounded.Shield, stringResource(R.string.home_notice_hot, Labels.safetyFinding(context, check)), StressColors.Warn)
+        },
+    )
+
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        // The phone and its chip are the Device tab's; the version is in Settings, About.
         TopBar(
-            caption = device?.let(::deviceCaption) ?: stringResource(R.string.home_tagline),
-            brand = { Wordmark(version = "v${graph.appVersion}") },
+            brand = { Wordmark() },
             actions = {
                 StatusChip(
-                    text = if (safety) {
-                        val limit = if (charge) ChargeSession.STOP_CELSIUS else Limits.chipStop
-                        stringResource(R.string.home_protection_limit, limit.toInt())
-                    } else {
-                        stringResource(R.string.safety_off_short)
-                    },
+                    text = stringResource(if (safety) R.string.protection_chip else R.string.safety_off_short),
                     color = if (safety) StressColors.Good else StressColors.Bad,
+                    // The charge test's chip does not open Settings, but keeps the bar's height.
+                    modifier = Modifier.heightIn(min = 48.dp),
                     icon = if (safety) Icons.Rounded.Shield else Icons.Rounded.GppBad,
                     onClick = onOpenSettings.takeUnless { charge },
                 )
@@ -283,24 +313,8 @@ fun HomeScreen(
         ) {
             SelectedTest(mode, duration, quality)
 
-            // Only notices that hold or redirect a start; their full text is on the engineering page.
-            if (live?.plugged == true && !charge) {
-                Notice(Icons.Rounded.BatteryChargingFull, stringResource(R.string.home_notice_plugged), StressColors.Warn) {
-                    model.choose(mode = StressMode.Charge)
-                }
-            }
-            if (chargeFull) {
-                Notice(Icons.Rounded.BatteryFull, stringResource(R.string.home_notice_charge_full), StressColors.Cool)
-            }
-            if (capabilities?.gpuTests == false) {
-                Notice(Icons.Rounded.Info, stringResource(R.string.home_notice_no_vulkan), StressColors.Cool)
-            }
-            gate?.let { check ->
-                Notice(Icons.Rounded.Shield, stringResource(R.string.home_notice_hot, Labels.safetyFinding(context, check)), StressColors.Warn)
-            }
-
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionLabel(stringResource(R.string.home_section_mode))
+                ModeLabel { guide = true }
                 ModeGrid(mode.homeGroup, gpuOk, runs.bestWatts) {
                     model.choose(mode = if (it == StressMode.Cinematic) cinematic else it)
                 }
@@ -345,12 +359,19 @@ fun HomeScreen(
             }
 
             EngineeringRow(pluralStringResource(R.plurals.parts_values, log.count, log.count).upper(), { engineering = true })
-            if (wide) start()
+            if (wide) {
+                notices.forEach { Notice(it) }
+                start()
+            }
         }
 
         if (!wide) {
             Hairline()
-            Box(Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Column(
+                Modifier.fillMaxWidth().background(StressColors.Background).padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                notices.forEach { Notice(it) }
                 start()
             }
         }
@@ -365,32 +386,20 @@ fun HomeScreen(
             confirmButton = { TextButton(onClick = { blocked = null }) { Text(stringResource(R.string.ok)) } },
         )
     }
+    if (guide) ModeGuide { guide = false }
 }
 
-private fun deviceCaption(device: DeviceInfo): String {
-    val soc = device.soc?.let { it.substringAfterLast('(', it).removeSuffix(")") }
-    val gpu = device.gpu?.let { name ->
-        if (name.contains("SwiftShader", ignoreCase = true)) {
-            "SwiftShader"
-        } else {
-            name.replace(" (TM)", "", ignoreCase = true).replace(" (R)", "", ignoreCase = true)
-                .removePrefix("ANGLE ").substringBefore(" /").substringBefore(" (")
-        }
-    }
-    val parts = listOfNotNull(device.title, soc, gpu).map(String::trim).filter(String::isNotEmpty)
-    val budget = 44 - 4 * (parts.size - 1)
-    val share = budget / parts.size.coerceAtLeast(1)
-    var spare = parts.sumOf { (share - it.length).coerceAtLeast(0) }
-    return parts.joinToString(" // ") { part ->
-        val extra = (part.length - share).coerceIn(0, spare)
-        spare -= extra
-        val limit = share + extra
-        val short = if (part.length <= limit) part else part.take(limit - 1).trimEnd() + "…"
-        short.upper(Locale.ROOT)
-    }
-}
+/**
+ * One height for every mode's hero, so choosing a mode never moves what lies below it; lower on a short screen, where
+ * the modes and durations would otherwise fall below the start button.
+ */
+@Composable
+private fun heroHeight() = if (LocalConfiguration.current.screenHeightDp < 700) 120.dp else 144.dp
 
-/** The hero: the selected mode, or the scene's still with its name, with quality and duration in one Code line. */
+/**
+ * The hero: the selected mode, or the scene's still with its name, with quality and duration in one Code line. It
+ * keeps [heroHeight] in every mode and each of its lines stays on one line, so no mode makes it taller.
+ */
 @Composable
 private fun SelectedTest(mode: StressMode, duration: StressDuration, quality: SceneQuality) {
     val scene = mode.scene
@@ -401,8 +410,10 @@ private fun SelectedTest(mode: StressMode, duration: StressDuration, quality: Sc
         scene?.let { "${stringResource(Labels.quality(quality))} ${Format.percentValue(quality.scalePercent(it))}" },
         time,
     ).joinToString(" // ")
+    val title = stringResource(scene?.let(Labels::scene) ?: Labels.modeTitle(mode)).upper()
+    val captionColor = if (scene != null) StressColors.Text else StressColors.TextDim
     Panel(Modifier.fillMaxWidth(), padding = 0.dp) {
-        Box(Modifier.fillMaxWidth().heightIn(min = if (scene == null) 0.dp else 176.dp)) {
+        Box(Modifier.fillMaxWidth().height(heroHeight())) {
             if (scene != null) {
                 Image(painterResource(scene.still()), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
                 Box(
@@ -410,38 +421,115 @@ private fun SelectedTest(mode: StressMode, duration: StressDuration, quality: Sc
                         Brush.verticalGradient(0.35f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.92f)),
                     ),
                 )
-            }
-            Column(
-                Modifier.align(Alignment.BottomStart).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    stringResource(scene?.let(Labels::scene) ?: Labels.modeTitle(mode)).upper(),
-                    style = StressType.Display,
-                    color = if (scene != null) StressColors.Text else StressColors.Accent,
-                )
-                if (scene == null) {
-                    Text(stringResource(shortDetail(mode)), style = StressType.Body, color = StressColors.TextDim)
+                Column(
+                    Modifier.align(Alignment.BottomStart).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    FitText(title, StressType.Display, color = StressColors.Text)
+                    FitText(caption.upper(), StressType.Code, color = captionColor)
                 }
-                Text(caption.upper(), style = StressType.Code, color = if (scene != null) StressColors.Text else StressColors.TextDim)
+            } else {
+                // The mode and what it does at the top, the test's settings at the foot, as on a scene's card.
+                Column(Modifier.matchParentSize().padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FitText(title, StressType.Display, color = StressColors.Accent)
+                        FitText(stringResource(shortDetail(mode)), StressType.Body, color = StressColors.TextDim)
+                    }
+                    FitText(caption.upper(), StressType.Code, color = captionColor)
+                }
             }
         }
     }
 }
 
-/** A one-line notice: a readout, or with [onClick] a control that leads somewhere (chevron). */
+/** A notice of the simple page: [onClick] makes it a control that leads somewhere. */
+private class HomeNoticeLine(val icon: ImageVector, val text: String, val color: Color, val onClick: (() -> Unit)? = null)
+
+/** A one-line notice: a readout, or with an action a control that leads somewhere (chevron). */
 @Composable
-private fun Notice(icon: ImageVector, text: String, color: Color, onClick: (() -> Unit)? = null) {
+private fun Notice(notice: HomeNoticeLine) {
+    val onClick = notice.onClick
     Panel(Modifier.fillMaxWidth(), padding = 12.dp, onClick = onClick) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
+            Icon(notice.icon, null, tint = notice.color, modifier = Modifier.size(18.dp))
             Text(
-                text, Modifier.weight(1f), style = StressType.BodySmall,
+                notice.text, Modifier.weight(1f), style = StressType.BodySmall,
                 color = if (onClick != null) StressColors.Text else StressColors.TextDim,
             )
             if (onClick != null) Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = StressColors.TextDim)
         }
     }
+}
+
+/** The "Test mode" label with the question mark beside it that opens [ModeGuide]. */
+@Composable
+private fun ModeLabel(onHelp: () -> Unit) {
+    val description = stringResource(R.string.home_guide_open)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.home_section_mode).upper(), color = StressColors.TextDim, style = StressType.Label)
+        // A 40 dp target around a 24 dp outlined square: a control, set apart from the label it explains.
+        Box(
+            Modifier.size(40.dp).clip(ChipShape).clickable(role = Role.Button, onClick = onHelp)
+                .semantics { contentDescription = description },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier.size(24.dp).background(StressColors.SurfaceHigh, ChipShape).border(1.dp, StressColors.OutlineStrong, ChipShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("?", style = StressType.Label.copy(letterSpacing = 0.sp), color = StressColors.Text)
+            }
+        }
+    }
+}
+
+/** What each test mode is for, as a log: the mode's name as the key, one or two sentences as its line. */
+@Composable
+private fun ModeGuide(onClose: () -> Unit) {
+    PanelDialog(onClose) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LogSectionHeader(stringResource(R.string.home_guide_title), HomeModes.size.toString())
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                HomeModes.forEachIndexed { index, mode ->
+                    if (index > 0) Hairline()
+                    GuideLine(stringResource(Labels.modeTitle(mode)), stringResource(guideText(mode)))
+                }
+            }
+            SecondaryButton(stringResource(R.string.parts_close), onClose)
+        }
+    }
+}
+
+/** A guide line: the key in Code `Accent` beside its sentences, or above them where the dialog is narrow. */
+@Composable
+private fun GuideLine(key: String, text: String) = BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val side = maxWidth >= 360.dp
+    val keyText: @Composable (Modifier) -> Unit = { modifier ->
+        Text(key.upper(), modifier, style = StressType.Code, color = StressColors.Accent)
+    }
+    val body: @Composable (Modifier) -> Unit = { modifier ->
+        Text(text, modifier, style = StressType.BodySmall, color = StressColors.Text)
+    }
+    if (side) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), Arrangement.spacedBy(12.dp)) {
+            keyText(Modifier.width(96.dp).padding(top = 1.dp))
+            body(Modifier.weight(1f))
+        }
+    } else {
+        Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            keyText(Modifier)
+            body(Modifier)
+        }
+    }
+}
+
+private fun guideText(mode: StressMode): Int = when (mode) {
+    StressMode.Full -> R.string.home_guide_full
+    StressMode.Cpu -> R.string.home_guide_cpu
+    StressMode.Gpu -> R.string.home_guide_gpu
+    StressMode.Dry -> R.string.home_guide_dry
+    StressMode.Charge -> R.string.home_guide_charge
+    else -> R.string.home_guide_cinematic
 }
 
 private val ChargeDurations = listOf(StressDuration.Five, StressDuration.Fifteen, StressDuration.Thirty, StressDuration.Endless)
@@ -498,6 +586,7 @@ private fun shortDetail(mode: StressMode): Int = when (mode) {
     StressMode.Cpu -> R.string.home_mode_cpu_detail
     StressMode.Gpu -> R.string.home_mode_gpu_detail
     StressMode.Dry -> R.string.home_mode_dry_detail
+    StressMode.Charge -> R.string.home_mode_charge_detail
     else -> Labels.modeDetail(mode)
 }
 

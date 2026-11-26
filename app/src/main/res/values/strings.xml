@@ -53,7 +53,6 @@
     <string name="quality_high_detail">For the newest flagships: more pixels and twice the rays. A mid-range phone drops to a few frames a second.</string>
 
     <!-- Home -->
-    <string name="home_tagline">CPU, GPU and power benchmark</string>
     <string name="home_section_mode">Test mode</string>
     <string name="home_section_duration">Duration</string>
     <string name="home_section_last">Last run</string>

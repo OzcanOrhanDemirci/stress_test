@@ -153,8 +153,9 @@ gets "İ".
 - **Top bar.** Title (Title style) with a Code-style caption under it (`FULL LOAD // 05:00 // HONOR 400`); back arrow and
   actions are 40 dp square outlined icon buttons (`OutlineStrong`, radius 6). The home top bar carries the wordmark
   instead of a title.
-- **Wordmark.** "STRESS" in `Text` and "TEST" in `Accent`, Space Grotesk Bold, tight tracking, preceded by a small
-  `Accent` bar (4 × 16 dp). The version follows in Code style `TextDim` where there is room.
+- **Wordmark.** "STRESS" in `Text` and "TEST" in `Accent`, Space Grotesk Bold, tight tracking, preceded by the app
+  logo as tall as the name (one drawable, `res/drawable/app_logo.xml`, so the logo is changed in one place). The home
+  top bar shows neither the version (it is in Settings, About) nor the phone (the Device tab's).
 - **Section label.** Label style in `TextDim`, optional trailing Code caption on the right (`MAX: 10.1 W`).
 - **Panel.** As above. A panel's title row is Heading style; its body follows the parts below.
 - **Metric tile.** Label (top left) and a 6 dp status dot (top right, the value's colour when live), the value in Number M
@@ -167,8 +168,8 @@ gets "İ".
   `Cool` rule and `Cool` label; others `TextDim`. Used for graphics quality and chart series.
 - **Choice chips** (duration): a row of equal outlined cells, Code-style labels (`1m 5m 15m 30m ∞`); the selected one
   `AccentTint` fill, `Accent` rule and label.
-- **Status chip.** 4 dp radius, 1 dp rule and label in the state's colour, 10 % tint, optional 14 dp icon: `110°C
-  PROTECTION` in `Good`, `STOPPED` in `TextDim`, `SAFETY STOP` in `Bad`.
+- **Status chip.** 4 dp radius, 1 dp rule and label in the state's colour, 10 % tint, optional 14 dp icon:
+  `PROTECTION` in `Good` (no temperature: the limits are on the engineering page), `STOPPED` in `TextDim`, `SAFETY STOP` in `Bad`.
 - **Scene card.** The scene's still image (bundled `drawable-nodpi/scene_*.webp`, captured on the reference phone) with a
   bottom scrim and the name; selected: 1 dp `Cool` rule and the name in `Cool`.
 - **Chart.** Plot area `SurfaceLow`; horizontal grid dashed 1 dp `Outline`; axis labels Code style `TextFaint`; the power

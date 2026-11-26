@@ -101,4 +101,15 @@
     <string name="home_note_no_runs">No runs yet.</string>
     <string name="home_note_device_missing">Android did not report the values marked N/A.</string>
     <string name="home_notices_none">Nothing holds or redirects a test now.</string>
+    <!-- Home (Test tab) revision 2026-11-26: protection chip, short charge line, the test modes guide. -->
+    <string name="protection_chip">Protection</string>
+    <string name="home_mode_charge_detail">Charging speed</string>
+    <string name="home_guide_open">What each test mode is for</string>
+    <string name="home_guide_title">Test modes</string>
+    <string name="home_guide_full">CPU, GPU and memory work at once: the most power the phone can draw. Use it to see how hot the phone gets under the heaviest load and how long it keeps its power.</string>
+    <string name="home_guide_cinematic">A real-time 3D scene on screen while every CPU core runs flat out; you pick the scene below the modes. Use it to see the phone under a game-like load, with its frame rate.</string>
+    <string name="home_guide_cpu">Only the processor: every core runs the load that draws the most power, and the GPU stays idle. Use it to see the processor\'s heat and clocks on their own.</string>
+    <string name="home_guide_gpu">Only the graphics chip, with the load that draws the most power; the CPU stays idle. Use it to see the GPU\'s power and heat on their own.</string>
+    <string name="home_guide_dry" formatted="false">Every core reads 100% busy, yet most of its arithmetic units do no work and the phone draws little power. A reference: next to the CPU test it shows that 100% is not always a real load.</string>
+    <string name="home_guide_charge">Puts no load on the phone and measures the power going into the battery while it charges. Use it to see whether a charger or cable is slow; two charge tests can be put side by side in Compare.</string>
 </resources>
