@@ -26,7 +26,6 @@
 
     <string name="settings_v2_about_detail">Sürüm, uygulamanın yaptıkları, güvenlik sınırları, lisanslar.</string>
     <string name="settings_v2_advanced_detail">Sahne yakıcısı ve elle yük denemeleri.</string>
-    <string name="settings_v2_device_detail">İşlemci, GPU, canlı ölçümler ve uygulamanın okuyabildiği sensörler.</string>
     <string name="settings_v2_clear_action">Sil</string>
     <string name="settings_v2_safety_limits">Güvenlik sınırları</string>
 </resources>

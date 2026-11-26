@@ -302,9 +302,7 @@
     <string name="language_system">Sistem</string>
     <string name="language_turkish">Türkçe</string>
     <string name="language_english">English</string>
-    <string name="settings_section_device">Cihaz ve depolama</string>
-    <string name="settings_device">Cihaz bilgisi ve sensörler</string>
-    <string name="settings_device_detail">İşlemci, GPU, canlı değerler, uygulamanın okuyabildiği sensörler, elle yük denemeleri.</string>
+    <string name="settings_section_device">Depolama</string>
     <string name="settings_clear">Geçmişi temizle</string>
     <string name="settings_clear_detail">Kayıtlı bütün koşuları siler.</string>
     <string name="settings_clear_title">Geçmiş temizlensin mi?</string>
